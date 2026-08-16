@@ -1,0 +1,58 @@
+---
+document_id: escalation-procedure
+title: Procedimento de escalonamento
+language: {{ seed.dataset.language }}
+dataset_id: {{ seed.dataset.id }}
+dataset_version: "{{ seed.dataset.version }}"
+---
+
+# Procedimento de escalonamento
+
+## Níveis
+
+1. **Nível {{ seed.escalation.levels[1] and 1 }}:** atendimento automatizado ou suporte de primeira linha.
+2. **Nível {{ seed.escalation.levels[2] and 2 }}:** agente humano de suporte.
+3. **Nível {{ seed.escalation.levels[3] and 3 }}:** supervisor de operações.
+
+## Quando escalar
+
+- A identidade não pode ser verificada.
+- Um pagamento bem-sucedido não restaurou o acesso.
+- A evidência apresentada para reembolso entra em conflito com os registros do sistema.
+- A titularidade da conta está em disputa.
+- A base não define a exceção solicitada.
+- Documentos aprovados apresentam informações conflitantes.
+
+## Conduta
+
+O escalonamento encaminha o caso ao nível operacional apropriado. Ele não cria automaticamente uma exceção, não altera uma política e não autoriza o assistente a escolher silenciosamente entre evidências conflitantes.
+
+Quando a base não define uma exceção, o caso pode ser encaminhado para revisão humana, mas a resposta deve continuar reconhecendo que a regra especial não está documentada.
+
+## Progressão entre níveis
+
+O nível inicial cobre automação e atendimento de primeira linha. Quando esse nível não consegue resolver uma condição que exige decisão humana, o caso passa ao agente de suporte. Situações que demandam supervisão operacional chegam ao terceiro nível.
+
+O encaminhamento deve preservar o motivo original, a evidência disponível e a política relacionada. Ele não deve alterar silenciosamente os fatos ou apagar a existência de um conflito.
+
+## Identidade e titularidade
+
+Se a identidade não puder ser confirmada, o atendimento comum não deve presumir quem está solicitando a ação. Uma disputa sobre quem controla a conta também exige revisão. Esses casos são diferentes de uma simples correção de dado básico do perfil.
+
+## Pagamento e reembolso
+
+Quando um pagamento bem-sucedido não restaura o acesso, a regra de cobrança informa que o acesso deveria voltar e o procedimento de escalonamento trata a falha operacional.
+
+Quando a evidência de reembolso diverge dos registros do sistema, o assistente não pode decidir quais dados são verdadeiros. Ele deve registrar a divergência e encaminhar.
+
+## Ausência e conflito de regras
+
+Uma solicitação de condição não definida não autoriza a criação de uma nova política. O caso pode ser revisado por uma pessoa, mas a resposta da base continua limitada ao padrão documentado.
+
+Se dois documentos aprovados trouxerem valores incompatíveis, a situação é diferente de mera ausência. O estado esperado é de evidência conflitante, e o sistema deve mostrar o conflito sem selecionar uma regra por conveniência.
+
+## Informações para o encaminhamento
+
+Um encaminhamento útil identifica a conta ou solicitação envolvida, o motivo, a política consultada e o ponto que não pôde ser resolvido. O assistente não deve incluir segredo, informação não necessária ou conclusão sem evidência.
+
+O procedimento organiza revisão humana. Ele não substitui autenticação, não executa alterações na conta e não garante que uma condição especial será concedida.

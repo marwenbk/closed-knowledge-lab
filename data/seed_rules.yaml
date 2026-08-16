@@ -1,0 +1,238 @@
+schema_version: "1.0.0"
+
+dataset:
+  id: topcare-demo
+  version: "2.0.0"
+  generator_version: "1.0.0"
+  language: pt-BR
+  timezone: America/Sao_Paulo
+  currency: BRL
+
+service:
+  name: TopCare Saúde
+  fictional: true
+  assistant_scope:
+    - operations
+    - benefits
+    - service_rules
+  emergency_service: false
+  clinical_diagnosis: false
+  clinical_triage: false
+
+plans:
+  consumer:
+    essencial:
+      name: Essencial
+      account_holders: 1
+      max_dependents: 0
+      monthly_price: "29.90"
+      specialties:
+        - general_practice
+      support_level: standard
+      monthly_included_consultations: {}
+
+    familia:
+      name: Família
+      account_holders: 1
+      max_dependents: 3
+      monthly_price: "49.90"
+      specialties:
+        - general_practice
+        - pediatrics
+        - dermatology
+      support_level: standard
+      monthly_included_consultations: {}
+
+    premium:
+      name: Premium
+      account_holders: 1
+      max_dependents: 5
+      monthly_price: "79.90"
+      specialties:
+        - general_practice
+        - psychology
+        - nutrition
+        - dermatology
+        - pediatrics
+        - cardiology
+        - endocrinology
+      support_level: priority
+      monthly_included_consultations:
+        psychology: 1
+        nutrition: 1
+
+  employer_tiers:
+    silver:
+      name: Silver
+      consumer_plan: essencial
+    gold:
+      name: Gold
+      consumer_plan: familia
+      policy_id: TC-EMP-GOLD
+    platinum:
+      name: Platinum
+      consumer_plan: premium
+
+  employer_rules:
+    sponsored_access_paid_by_employer: true
+    active_enrollment_required: true
+    upgrades_controlled_by_employer: true
+
+specialties:
+  general_practice:
+    name: Clínica geral
+  psychology:
+    name: Psicologia
+  nutrition:
+    name: Nutrição
+  dermatology:
+    name: Dermatologia
+  pediatrics:
+    name: Pediatria
+  cardiology:
+    name: Cardiologia
+  endocrinology:
+    name: Endocrinologia
+
+service_hours:
+  timezone: America/Sao_Paulo
+  general_practice:
+    days: every_day
+    all_day: true
+  psychology:
+    days: monday_to_saturday
+    opens_at: "08:00"
+    closes_at: "20:00"
+  nutrition:
+    days: monday_to_friday
+    opens_at: "09:00"
+    closes_at: "18:00"
+  dermatology:
+    days: monday_to_friday
+    opens_at: "08:00"
+    closes_at: "17:00"
+  general_support:
+    days: every_day
+    opens_at: "07:00"
+    closes_at: "23:00"
+  billing_support:
+    days: monday_to_friday
+    opens_at: "09:00"
+    closes_at: "17:00"
+
+eligibility:
+  minimum_account_holder_age: 18
+  minor_dependents_allowed: true
+  separate_dependent_profile_required: true
+  dependent_registration_required_before_first_consultation: true
+  employer_access_requires_active_enrollment: true
+  registered_users_only: true
+
+dependents:
+  policy_id: TC-DEP-005
+  one_active_consumer_account_per_dependent: true
+  adding_dependent_resets_billing_cycle: false
+
+consultation_flow:
+  steps:
+    - sign_in
+    - choose_service
+    - confirm_profile
+    - enter_queue_or_choose_appointment
+    - complete_consultation
+    - store_consultation_summary
+    - arrange_follow_up_when_available
+  general_practice_mode: immediate_queue
+  specialty_mode: scheduled_appointment
+  cancellation_allowed_before_appointment_start: true
+  rescheduling_allowed_after_missed_appointment: true
+  missed_appointment_fee: null
+
+policies:
+  cancellation:
+    id: TC-CAN-003
+    request_allowed_at_any_time: true
+    access_ends_at_paid_period_end: true
+    disables_future_renewal: true
+    automatic_refund: false
+    request_channels:
+      - account_portal
+      - customer_support
+
+  refund:
+    id: TC-REF-014
+    eligibility:
+      maximum_days_after_initial_payment: 14
+      completed_consultations_allowed: 0
+    destination: original_payment_method
+    maximum_processing_business_days_after_approval: 10
+    defined_exceptions: []
+
+  billing:
+    id: TC-BILL-003
+    renewal_frequency: monthly
+    automatic_renewal: true
+    payment_method: registered_payment_method
+    failed_renewal_grace_period_days: 3
+    suspend_after_grace_period: true
+    successful_payment_restores_access: true
+
+  prescriptions:
+    guaranteed: false
+    authorized_clinicians_only: true
+    support_agents_can_create_or_modify: false
+    chatbot_can_create_or_modify: false
+    controlled_medications_in_scope: false
+
+privacy:
+  authorized_personnel_may_access_consultation_records_when_needed: true
+  employers_receive_individual_consultation_content: false
+  employers_may_receive_aggregated_utilization_reports: true
+  aggregated_reports_include_individual_medical_conversations: false
+  profile_correction_available_through_support: true
+
+support:
+  email: suporte@topcare.example
+  phone: "+55 00 0000-0000"
+  in_app: true
+  categories:
+    - general
+    - billing
+    - technical
+
+escalation:
+  levels:
+    1: automated_or_first_line_support
+    2: human_support_agent
+    3: operations_supervisor
+  triggers:
+    - identity_cannot_be_verified
+    - successful_payment_did_not_restore_access
+    - refund_evidence_conflicts_with_system_records
+    - account_ownership_is_disputed
+    - requested_exception_is_not_defined
+    - approved_documents_conflict
+
+limitations:
+  emergency_service: false
+  unsupported_capabilities:
+    - ambulance_dispatch
+    - physical_clinic_booking
+    - laboratory_booking
+    - offline_consultations
+    - international_travel_insurance
+    - reimbursement_for_unrelated_external_medical_services
+
+intentional_gaps:
+  - annual_subscription_plans_or_discounts
+  - student_discounts
+  - plan_upgrade_prorating
+  - supported_interface_languages
+  - accessibility_accommodations
+  - primary_account_holder_transfer
+  - employer_coverage_after_resignation
+  - consultation_recording_retention_period
+  - refund_bank_fees
+  - exact_family_account_refund_calculation
+  - eligibility_while_temporarily_outside_brazil
+  - loyalty_or_points_programs

@@ -1,0 +1,64 @@
+---
+document_id: billing-and-payments
+title: Cobrança e pagamentos
+language: pt-BR
+dataset_id: topcare-demo
+dataset_version: "2.0.0"
+---
+
+# Cobrança e pagamentos
+
+Política canônica: **TC-BILL-003**.
+
+## Preços mensais
+
+- **Essencial:** R$ 29,90 por mês.
+- **Família:** R$ 49,90 por mês.
+- **Premium:** R$ 79,90 por mês.
+
+## Renovação
+
+- A assinatura é renovada automaticamente todos os meses.
+- A cobrança utiliza o método de pagamento cadastrado.
+- Adicionar um dependente não reinicia o ciclo de cobrança.
+
+## Falha de pagamento
+
+- Depois de uma falha na renovação, existe um período de carência de **3 dias**.
+- O acesso é suspenso após o fim do período de carência se o pagamento não for regularizado.
+- Um pagamento bem-sucedido restaura o acesso.
+- Se o pagamento for confirmado mas o acesso não voltar, o caso deve ser escalado.
+
+Este documento define cobrança mensal. A política de cancelamento determina quando a renovação futura é interrompida, e a política de reembolso define separadamente quando uma devolução é elegível.
+
+## Ciclo de cobrança
+
+Cada plano possui o preço mensal indicado acima e utiliza renovação automática. A cobrança é enviada ao método cadastrado. O assistente pode explicar esses valores, mas não vê por meio desta base qual método está registrado em uma conta específica.
+
+Adicionar um dependente preserva o ciclo existente. Essa regra não cria uma nova data e não autoriza o cálculo de um valor adicional não documentado.
+
+## Período de carência
+
+Uma falha na renovação inicia a carência de 3 dias. Durante esse intervalo, a política ainda não determina suspensão imediata. Se o problema continuar depois da carência, o acesso é suspenso.
+
+Quando um pagamento é concluído com sucesso, o acesso deve ser restaurado. Caso isso não aconteça, a falha precisa ser escalada em vez de tratada como uma nova regra de cobrança.
+
+## Exemplos
+
+Se a renovação falhar hoje, a resposta deve mencionar o período de carência antes da suspensão. Ela não deve afirmar que o acesso termina no mesmo instante.
+
+Se o usuário regularizar o pagamento, a regra sustenta a restauração do acesso. A base não comprova, sozinha, que uma transação específica foi aprovada; esse estado vem do sistema de pagamento.
+
+Se o usuário pergunta quanto custa o Família, o valor canônico é R$ 49,90 por mês. Uma pergunta que combine esse preço com uma modalidade não definida deve receber apenas a parte sustentada.
+
+## Relação com cancelamento
+
+Cancelar desativa a renovação futura e mantém o acesso até o fim do período pago. Isso é diferente de uma falha de renovação, na qual a carência e a eventual suspensão controlam o acesso.
+
+## Relação com reembolso
+
+O preço pago não determina, sozinho, elegibilidade para devolução. A política de reembolso exige prazo e ausência de consulta concluída. O assistente não deve deduzir uma devolução apenas porque a cobrança é mensal.
+
+## Limites
+
+Esta base não contém transações reais, números de cartão, comprovantes ou saldos. Ela define regras fictícias e valores canônicos para a demonstração. Informações sobre uma conta específica exigem integração com o sistema operacional e não podem ser inventadas.

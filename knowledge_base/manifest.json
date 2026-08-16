@@ -1,0 +1,115 @@
+{
+  "dataset_id": "topcare-demo",
+  "dataset_version": "2.0.0",
+  "generator_version": "1.0.0",
+  "language": "pt-BR",
+  "seed_checksum": "1ce817fc87bf8c2f4a06718c65e523a6de3cfb0e98bc761e8435edb85055cd91",
+  "template_checksum": "bbcb08fe8be3bd9a99a47884fc89744e3177e3aba2c9a46cfda41132e8a8ceee",
+  "documents": [
+    {
+      "document_id": "service-overview",
+      "path": "01-service-overview.md",
+      "sha256": "d3af49f3f62f0e901aa68c3e1f0020cb516cbf8a8f8a555920daa581b00709dd",
+      "word_count": 412,
+      "section_count": 6
+    },
+    {
+      "document_id": "eligibility",
+      "path": "02-eligibility.md",
+      "sha256": "64658070376cf518432e5d930f550238812d1f9fcedcd5006d2c691283948be1",
+      "word_count": 466,
+      "section_count": 7
+    },
+    {
+      "document_id": "consultation-hours",
+      "path": "03-consultation-hours.md",
+      "sha256": "bb262c3dc14ec06d390dabfc9f65ada87691150fd77181b887424abbb6999d72",
+      "word_count": 479,
+      "section_count": 7
+    },
+    {
+      "document_id": "specialties",
+      "path": "04-specialties.md",
+      "sha256": "ad51bbf1f0ce99e2f7b1c4c571fd270af1bde7cc82cbceb4d7beb2f22c4ae583",
+      "word_count": 392,
+      "section_count": 9
+    },
+    {
+      "document_id": "family-members",
+      "path": "05-family-members.md",
+      "sha256": "d81953293bbd825b72c24130ce90f3077aa189f17dc278d8e2be60a43b48de44",
+      "word_count": 458,
+      "section_count": 8
+    },
+    {
+      "document_id": "employer-plans",
+      "path": "06-employer-plans.md",
+      "sha256": "75dd386d952b9f69a44c49a95ccb4972d7db76de85942b4809bb1ca97c1a6eda",
+      "word_count": 419,
+      "section_count": 8
+    },
+    {
+      "document_id": "consultation-flow",
+      "path": "07-consultation-flow.md",
+      "sha256": "6b50fc5204bf8a9dc0fc02ed4b2f9cf09a10d3fb3d89990fbea35ff8d40d9059",
+      "word_count": 495,
+      "section_count": 9
+    },
+    {
+      "document_id": "prescription-policy",
+      "path": "08-prescription-policy.md",
+      "sha256": "a90a01e4ab0955368dce7a9dd652bb4454d7f3c5e064773cb4dfddeaf539b1d8",
+      "word_count": 426,
+      "section_count": 7
+    },
+    {
+      "document_id": "cancellation",
+      "path": "09-cancellation.md",
+      "sha256": "3f62f2ff6d8af7ca354c3d3d200737449c2ca719512d09e962f7ebd73f981def",
+      "word_count": 426,
+      "section_count": 8
+    },
+    {
+      "document_id": "refund-policy",
+      "path": "10-refund-policy.md",
+      "sha256": "063f9dcba8c81916ece887d9ae796ed544f7173c5a052aa8f496abda4de27d31",
+      "word_count": 466,
+      "section_count": 8
+    },
+    {
+      "document_id": "privacy-policy",
+      "path": "11-privacy-policy.md",
+      "sha256": "0eb88806b677792a253da77ee757bf1e4bfdd449048c6fd6c0170f2c425247d7",
+      "word_count": 454,
+      "section_count": 9
+    },
+    {
+      "document_id": "support",
+      "path": "12-support.md",
+      "sha256": "683db2848e712887c762239f3359a2d548c48797719c680c1a5f318e88d45540",
+      "word_count": 392,
+      "section_count": 9
+    },
+    {
+      "document_id": "escalation-procedure",
+      "path": "13-escalation-procedure.md",
+      "sha256": "5101f239c759d502452f1c6f14ffa6f3a1576fdb9cdd14a03711b297d73fc8ab",
+      "word_count": 449,
+      "section_count": 9
+    },
+    {
+      "document_id": "billing-and-payments",
+      "path": "14-billing-and-payments.md",
+      "sha256": "d9c73030ee2d988b4d81cb85d72147746ac42ca702ed8fe5551a71c121a1abe2",
+      "word_count": 487,
+      "section_count": 10
+    },
+    {
+      "document_id": "service-limitations",
+      "path": "15-service-limitations.md",
+      "sha256": "f165ebb372bd4ec53011138698bb14e2d207760c096ba40cb4a889e457ce328a",
+      "word_count": 497,
+      "section_count": 10
+    }
+  ]
+}

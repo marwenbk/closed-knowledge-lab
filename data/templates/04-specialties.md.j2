@@ -1,0 +1,59 @@
+---
+document_id: specialties
+title: Especialidades por plano
+language: {{ seed.dataset.language }}
+dataset_id: {{ seed.dataset.id }}
+dataset_version: "{{ seed.dataset.version }}"
+---
+
+# Especialidades por plano
+
+## Especialidades cadastradas
+
+- {{ seed.specialties.general_practice.name }}
+- {{ seed.specialties.psychology.name }}
+- {{ seed.specialties.nutrition.name }}
+- {{ seed.specialties.dermatology.name }}
+- {{ seed.specialties.pediatrics.name }}
+- {{ seed.specialties.cardiology.name }}
+- {{ seed.specialties.endocrinology.name }}
+
+## Cobertura do plano {{ seed.plans.consumer.essencial.name }}
+
+- Inclui {{ seed.specialties.general_practice.name | lower }}.
+- Não inclui as demais especialidades cadastradas.
+
+## Cobertura do plano {{ seed.plans.consumer.familia.name }}
+
+- Inclui {{ seed.specialties.general_practice.name | lower }}, {{ seed.specialties.pediatrics.name | lower }} e {{ seed.specialties.dermatology.name | lower }}.
+- A disponibilidade de cada atendimento continua sujeita aos horários do documento canônico de horários.
+
+## Cobertura do plano {{ seed.plans.consumer.premium.name }}
+
+- Inclui todas as especialidades cadastradas: {{ seed.specialties.general_practice.name | lower }}, {{ seed.specialties.psychology.name | lower }}, {{ seed.specialties.nutrition.name | lower }}, {{ seed.specialties.dermatology.name | lower }}, {{ seed.specialties.pediatrics.name | lower }}, {{ seed.specialties.cardiology.name | lower }} e {{ seed.specialties.endocrinology.name | lower }}.
+- Inclui **{{ seed.plans.consumer.premium.monthly_included_consultations.psychology }} consulta de psicologia por mês**.
+- Inclui **{{ seed.plans.consumer.premium.monthly_included_consultations.nutrition }} consulta de nutrição por mês**.
+
+Este documento define cobertura. Os horários são mantidos separadamente para que a presença de uma especialidade no plano não seja confundida com disponibilidade contínua.
+
+## Leitura por plano
+
+O plano {{ seed.plans.consumer.essencial.name }} concentra sua cobertura clínica na {{ seed.specialties.general_practice.name | lower }}. Isso significa que uma pergunta sobre outra especialidade não pode ser respondida afirmativamente apenas porque o usuário possui uma conta ativa.
+
+O plano {{ seed.plans.consumer.familia.name }} acrescenta {{ seed.specialties.pediatrics.name | lower }} e {{ seed.specialties.dermatology.name | lower }} à {{ seed.specialties.general_practice.name | lower }}. Os limites de dependentes e as regras de cadastro familiar são mantidos em outro documento, mesmo que o nome do plano sugira uso por uma família.
+
+O plano {{ seed.plans.consumer.premium.name }} reúne as sete especialidades cadastradas. Para {{ seed.specialties.psychology.name | lower }} e {{ seed.specialties.nutrition.name | lower }}, a base também define uma quantidade mensal incluída. Essa quantidade é um benefício do plano e não significa que qualquer horário esteja disponível.
+
+## Relação com planos empresariais
+
+Níveis empresariais não aparecem na lista de cobertura porque precisam ser traduzidos para o plano de consumidor correspondente. Depois dessa tradução, aplicam-se exatamente as especialidades do plano resultante. O assistente não deve associar um nível empresarial a uma especialidade sem recuperar também a correspondência aprovada.
+
+## Exemplos de decisão
+
+Para saber se um usuário do {{ seed.plans.consumer.familia.name }} pode usar dermatologia, esta página é suficiente para confirmar a cobertura. Para saber se pode usar dermatologia em um domingo, também é necessário consultar o documento de horários.
+
+Para saber se um usuário do {{ seed.plans.consumer.premium.name }} tem psicologia, esta página confirma tanto a presença da especialidade quanto a quantidade mensal incluída. Para informar quando a consulta pode ocorrer, a evidência de horário continua obrigatória.
+
+## Limite das afirmações
+
+Cobertura não garante prescrição, atendimento imediato ou decisão clínica. Também não autoriza o assistente a inventar especialidades além das sete cadastradas. Se uma pergunta mencionar um serviço que não consta desta página, a base não oferece evidência de que ele esteja incluído.

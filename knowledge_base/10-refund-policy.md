@@ -1,0 +1,56 @@
+---
+document_id: refund-policy
+title: Política de reembolso
+language: pt-BR
+dataset_id: topcare-demo
+dataset_version: "2.0.0"
+---
+
+# Política de reembolso
+
+Política canônica: **TC-REF-014**.
+
+## Condições de elegibilidade
+
+Um pedido de reembolso é elegível somente quando as duas condições abaixo são atendidas:
+
+1. o pedido é enviado em até **14 dias corridos** após o pagamento inicial da assinatura; e
+2. nenhuma consulta foi concluída na conta.
+
+As duas condições são cumulativas. Estar dentro do prazo sem cumprir a condição de consultas, ou não ter consultas mas ultrapassar o prazo, não atende à regra documentada.
+
+## Destino e prazo de processamento
+
+- O valor aprovado retorna ao método de pagamento original.
+- O processamento pode levar até **10 dias úteis** depois da aprovação.
+- Esse prazo máximo não é uma promessa de recebimento no dia seguinte.
+
+## Limite da informação disponível
+
+A base define somente a regra padrão acima e não contém exceções adicionais. Cancelamento e reembolso são políticas distintas; o cancelamento não garante devolução automática.
+
+## Avaliação das duas condições
+
+O prazo é contado a partir do pagamento inicial da assinatura. O pedido precisa chegar até o limite de 14 dias corridos. Além disso, a conta não pode possuir consulta concluída.
+
+Esses critérios devem ser avaliados juntos. Um pedido dentro do prazo com consulta concluída não cumpre a política. Um pedido sem consulta, mas fora do prazo, também não cumpre. O assistente não deve escolher apenas a condição favorável ao usuário.
+
+## Depois da aprovação
+
+Quando o pedido é aprovado, o destino é o mesmo método usado no pagamento. O período de até 10 dias úteis começa após a aprovação.
+
+Esse período é um limite de processamento, não uma garantia de recebimento imediato. Se a pergunta combinar uma condição sustentada com a exigência de depósito em um momento exato, a resposta deve explicar a condição conhecida e recusar a garantia não documentada.
+
+## Exemplos de aplicação
+
+Um pedido feito dez dias após o pagamento inicial, sem consulta concluída, satisfaz as duas condições descritas. Ainda assim, a base não permite prometer que o valor chegará no mesmo dia.
+
+Um pedido feito dentro do prazo depois de uma consulta concluída não atende à segunda condição. O fato de a pessoa também cancelar a assinatura não transforma o pedido em elegível.
+
+Uma pergunta sobre hospitalização, viagem ou outra circunstância não modifica automaticamente a regra. A base deve informar o padrão documentado e reconhecer que não possui uma regra especial para a situação apresentada.
+
+## Evidência e estado da conta
+
+A base explica como decidir, mas não contém o histórico de pagamento ou consulta de uma conta específica. O sistema precisa fornecer esses dados operacionais. O assistente não pode presumir datas, aprovações ou ausência de consultas a partir da declaração do usuário.
+
+Quando os registros do sistema e a evidência de reembolso entrarem em conflito, o procedimento apropriado é o escalonamento para revisão humana.

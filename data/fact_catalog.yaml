@@ -1,0 +1,612 @@
+schema_version: "1.0.0"
+dataset_id: topcare-demo
+dataset_version: "2.0.0"
+
+facts:
+  SERVICE_IS_FICTIONAL:
+    canonical_document: service-overview
+    canonical_section: TopCare Saúde
+    acceptable_documents: []
+    expected_fragment: "serviço fictício de teleatendimento"
+    policy_id: null
+    tags: [service, scope]
+
+  SERVICE_NOT_EMERGENCY:
+    canonical_document: service-limitations
+    canonical_section: Serviço não emergencial
+    acceptable_documents: [service-overview]
+    expected_fragment: "não é um serviço de emergência"
+    policy_id: null
+    tags: [service, limitation, safety]
+
+  ASSISTANT_NO_DIAGNOSIS_OR_TRIAGE:
+    canonical_document: service-limitations
+    canonical_section: Serviço não emergencial
+    acceptable_documents: [service-overview]
+    expected_fragment: "não realiza diagnóstico nem triagem clínica"
+    policy_id: null
+    tags: [assistant, limitation, safety]
+
+  ACCOUNT_HOLDER_MINIMUM_AGE:
+    canonical_document: eligibility
+    canonical_section: Titular da conta
+    acceptable_documents: []
+    expected_fragment: "mínimo **18 anos**"
+    policy_id: null
+    tags: [eligibility, direct]
+
+  REGISTERED_USERS_ONLY:
+    canonical_document: eligibility
+    canonical_section: Titular da conta
+    acceptable_documents: []
+    expected_fragment: "Somente usuários cadastrados podem utilizar o serviço"
+    policy_id: null
+    tags: [eligibility, direct]
+
+  MINOR_DEPENDENTS_ALLOWED:
+    canonical_document: eligibility
+    canonical_section: Dependentes
+    acceptable_documents: [family-members]
+    expected_fragment: "Dependentes podem ser menores de idade"
+    policy_id: null
+    tags: [eligibility, dependents]
+
+  DEPENDENT_SEPARATE_PROFILE_REQUIRED:
+    canonical_document: eligibility
+    canonical_section: Dependentes
+    acceptable_documents: [family-members]
+    expected_fragment: "Cada dependente precisa ter um perfil separado"
+    policy_id: null
+    tags: [eligibility, dependents]
+
+  DEPENDENT_REGISTER_BEFORE_FIRST_CONSULTATION:
+    canonical_document: family-members
+    canonical_section: Cadastro individual
+    acceptable_documents: [eligibility]
+    expected_fragment: "antes da primeira consulta"
+    policy_id: TC-DEP-005
+    tags: [eligibility, dependents]
+
+  EMPLOYER_ACTIVE_ENROLLMENT_REQUIRED:
+    canonical_document: employer-plans
+    canonical_section: Regras do benefício empresarial
+    acceptable_documents: [eligibility]
+    expected_fragment: "inscrição do usuário precisa estar ativa"
+    policy_id: null
+    tags: [eligibility, employer]
+
+  GENERAL_PRACTICE_24_7:
+    canonical_document: consultation-hours
+    canonical_section: Consultas
+    acceptable_documents: []
+    expected_fragment: "atendimento 24 horas, todos os dias"
+    policy_id: null
+    tags: [hours, specialty, direct]
+
+  PSYCHOLOGY_HOURS:
+    canonical_document: consultation-hours
+    canonical_section: Consultas
+    acceptable_documents: []
+    expected_fragment: "de segunda-feira a sábado, das 08:00 às 20:00"
+    policy_id: null
+    tags: [hours, specialty]
+
+  NUTRITION_HOURS:
+    canonical_document: consultation-hours
+    canonical_section: Consultas
+    acceptable_documents: []
+    expected_fragment: "de segunda a sexta-feira, das 09:00 às 18:00"
+    policy_id: null
+    tags: [hours, specialty]
+
+  DERMATOLOGY_HOURS:
+    canonical_document: consultation-hours
+    canonical_section: Consultas
+    acceptable_documents: []
+    expected_fragment: "de segunda a sexta-feira, das 08:00 às 17:00"
+    policy_id: null
+    tags: [hours, specialty]
+
+  GENERAL_SUPPORT_HOURS:
+    canonical_document: consultation-hours
+    canonical_section: Suporte
+    acceptable_documents: [support]
+    expected_fragment: "todos os dias, das 07:00 às 23:00"
+    policy_id: null
+    tags: [hours, support]
+
+  BILLING_SUPPORT_HOURS:
+    canonical_document: consultation-hours
+    canonical_section: Suporte
+    acceptable_documents: [support]
+    expected_fragment: "de segunda a sexta-feira, das 09:00 às 17:00"
+    policy_id: null
+    tags: [hours, support, billing]
+
+  PLAN_ESSENTIAL_GENERAL_PRACTICE:
+    canonical_document: specialties
+    canonical_section: Cobertura do plano Essencial
+    acceptable_documents: []
+    expected_fragment: "Inclui clínica geral"
+    policy_id: null
+    tags: [plan, specialty, direct]
+
+  PLAN_FAMILY_SPECIALTIES:
+    canonical_document: specialties
+    canonical_section: Cobertura do plano Família
+    acceptable_documents: []
+    expected_fragment: "Inclui clínica geral, pediatria e dermatologia"
+    policy_id: null
+    tags: [plan, specialty]
+
+  PLAN_PREMIUM_ALL_SPECIALTIES:
+    canonical_document: specialties
+    canonical_section: Cobertura do plano Premium
+    acceptable_documents: []
+    expected_fragment: "Inclui todas as especialidades cadastradas"
+    policy_id: null
+    tags: [plan, specialty]
+
+  PLAN_PREMIUM_MONTHLY_PSYCHOLOGY:
+    canonical_document: specialties
+    canonical_section: Cobertura do plano Premium
+    acceptable_documents: []
+    expected_fragment: "1 consulta de psicologia por mês"
+    policy_id: null
+    tags: [plan, specialty, allowance]
+
+  PLAN_PREMIUM_MONTHLY_NUTRITION:
+    canonical_document: specialties
+    canonical_section: Cobertura do plano Premium
+    acceptable_documents: []
+    expected_fragment: "1 consulta de nutrição por mês"
+    policy_id: null
+    tags: [plan, specialty, allowance]
+
+  PLAN_ESSENTIAL_MAX_DEPENDENTS:
+    canonical_document: family-members
+    canonical_section: Limites de dependentes
+    acceptable_documents: []
+    expected_fragment: "Essencial permite **0 dependentes**"
+    policy_id: TC-DEP-005
+    tags: [plan, dependents]
+
+  PLAN_FAMILY_MAX_DEPENDENTS:
+    canonical_document: family-members
+    canonical_section: Limites de dependentes
+    acceptable_documents: []
+    expected_fragment: "até 3 dependentes"
+    policy_id: TC-DEP-005
+    tags: [plan, dependents, direct, multi_document]
+
+  PLAN_PREMIUM_MAX_DEPENDENTS:
+    canonical_document: family-members
+    canonical_section: Limites de dependentes
+    acceptable_documents: []
+    expected_fragment: "até 5 dependentes"
+    policy_id: TC-DEP-005
+    tags: [plan, dependents, direct]
+
+  DEPENDENT_ONE_ACTIVE_ACCOUNT:
+    canonical_document: family-members
+    canonical_section: Cadastro individual
+    acceptable_documents: []
+    expected_fragment: "somente uma conta de consumidor ativa"
+    policy_id: TC-DEP-005
+    tags: [dependents, account]
+
+  ADDING_DEPENDENT_DOES_NOT_RESET_BILLING:
+    canonical_document: family-members
+    canonical_section: Relação com a cobrança
+    acceptable_documents: [billing-and-payments]
+    expected_fragment: "Adicionar um dependente não reinicia o ciclo de cobrança"
+    policy_id: TC-DEP-005
+    tags: [dependents, billing]
+
+  EMPLOYER_SILVER_MAPS_ESSENTIAL:
+    canonical_document: employer-plans
+    canonical_section: Correspondência dos níveis
+    acceptable_documents: []
+    expected_fragment: "Silver → Essencial"
+    policy_id: null
+    tags: [employer, mapping]
+
+  EMPLOYER_GOLD_MAPS_FAMILY:
+    canonical_document: employer-plans
+    canonical_section: Correspondência dos níveis
+    acceptable_documents: []
+    expected_fragment: "Gold → Família"
+    policy_id: TC-EMP-GOLD
+    tags: [employer, mapping, multi_document]
+
+  EMPLOYER_PLATINUM_MAPS_PREMIUM:
+    canonical_document: employer-plans
+    canonical_section: Correspondência dos níveis
+    acceptable_documents: []
+    expected_fragment: "Platinum → Premium"
+    policy_id: null
+    tags: [employer, mapping, multi_document]
+
+  EMPLOYER_PAYS_SPONSORED_ACCESS:
+    canonical_document: employer-plans
+    canonical_section: Regras do benefício empresarial
+    acceptable_documents: []
+    expected_fragment: "O empregador paga pelo acesso patrocinado"
+    policy_id: null
+    tags: [employer, billing]
+
+  EMPLOYER_CONTROLS_PLAN_CHANGES:
+    canonical_document: employer-plans
+    canonical_section: Regras do benefício empresarial
+    acceptable_documents: []
+    expected_fragment: "O empregador controla alterações de nível"
+    policy_id: null
+    tags: [employer, plan]
+
+  GENERAL_PRACTICE_IMMEDIATE_QUEUE:
+    canonical_document: consultation-flow
+    canonical_section: Modalidades
+    acceptable_documents: []
+    expected_fragment: "clínica geral utiliza uma fila de atendimento imediato"
+    policy_id: null
+    tags: [consultation, flow]
+
+  SPECIALTIES_SCHEDULED:
+    canonical_document: consultation-flow
+    canonical_section: Modalidades
+    acceptable_documents: []
+    expected_fragment: "especialidades utilizam consultas agendadas"
+    policy_id: null
+    tags: [consultation, flow]
+
+  APPOINTMENT_CANCEL_BEFORE_START:
+    canonical_document: consultation-flow
+    canonical_section: Cancelamento, falta e acompanhamento
+    acceptable_documents: []
+    expected_fragment: "cancelada antes do horário de início"
+    policy_id: null
+    tags: [consultation, cancellation]
+
+  MISSED_APPOINTMENT_CAN_RESCHEDULE:
+    canonical_document: consultation-flow
+    canonical_section: Cancelamento, falta e acompanhamento
+    acceptable_documents: []
+    expected_fragment: "Depois de uma consulta perdida, o usuário pode realizar um novo agendamento"
+    policy_id: null
+    tags: [consultation, scheduling]
+
+  MISSED_APPOINTMENT_FEE_UNDEFINED:
+    canonical_document: consultation-flow
+    canonical_section: Cancelamento, falta e acompanhamento
+    acceptable_documents: []
+    expected_fragment: "A base não define uma cobrança por falta"
+    policy_id: null
+    tags: [consultation, intentional_gap]
+
+  PRESCRIPTION_NOT_GUARANTEED:
+    canonical_document: prescription-policy
+    canonical_section: Regras
+    acceptable_documents: []
+    expected_fragment: "Uma prescrição nunca é garantida"
+    policy_id: null
+    tags: [prescription, limitation]
+
+  PRESCRIPTION_AUTHORIZED_CLINICIANS_ONLY:
+    canonical_document: prescription-policy
+    canonical_section: Regras
+    acceptable_documents: []
+    expected_fragment: "Somente profissionais clínicos autorizados"
+    policy_id: null
+    tags: [prescription, authorization]
+
+  SUPPORT_CANNOT_MODIFY_PRESCRIPTIONS:
+    canonical_document: prescription-policy
+    canonical_section: Regras
+    acceptable_documents: [support]
+    expected_fragment: "Agentes de suporte não podem criar nem modificar prescrições"
+    policy_id: null
+    tags: [prescription, support, limitation]
+
+  CHATBOT_CANNOT_MODIFY_PRESCRIPTIONS:
+    canonical_document: prescription-policy
+    canonical_section: Regras
+    acceptable_documents: []
+    expected_fragment: "O chatbot não pode criar nem modificar prescrições"
+    policy_id: null
+    tags: [prescription, assistant, limitation]
+
+  CONTROLLED_MEDICATIONS_OUT_OF_SCOPE:
+    canonical_document: prescription-policy
+    canonical_section: Regras
+    acceptable_documents: []
+    expected_fragment: "Medicamentos controlados estão fora do escopo"
+    policy_id: null
+    tags: [prescription, limitation]
+
+  CANCELLATION_ALLOWED_ANY_TIME:
+    canonical_document: cancellation
+    canonical_section: Solicitação
+    acceptable_documents: []
+    expected_fragment: "cancelamento pode ser solicitado a qualquer momento"
+    policy_id: TC-CAN-003
+    tags: [cancellation, direct]
+
+  CANCELLATION_CHANNELS:
+    canonical_document: cancellation
+    canonical_section: Solicitação
+    acceptable_documents: []
+    expected_fragment: "portal da conta e o suporte ao cliente"
+    policy_id: TC-CAN-003
+    tags: [cancellation, support]
+
+  CANCELLATION_ACCESS_UNTIL_PERIOD_END:
+    canonical_document: cancellation
+    canonical_section: Período de acesso
+    acceptable_documents: []
+    expected_fragment: "acesso permanece ativo até o final do período de cobrança já pago"
+    policy_id: TC-CAN-003
+    tags: [cancellation, access]
+
+  CANCELLATION_DISABLES_RENEWAL:
+    canonical_document: cancellation
+    canonical_section: Solicitação
+    acceptable_documents: []
+    expected_fragment: "renovação futura é desativada"
+    policy_id: TC-CAN-003
+    tags: [cancellation, billing]
+
+  CANCELLATION_NO_AUTOMATIC_REFUND:
+    canonical_document: cancellation
+    canonical_section: Cancelamento não é reembolso
+    acceptable_documents: [refund-policy]
+    expected_fragment: "Cancelar não produz reembolso automático"
+    policy_id: TC-CAN-003
+    tags: [cancellation, refund, multi_document]
+
+  REFUND_REQUEST_WINDOW:
+    canonical_document: refund-policy
+    canonical_section: Condições de elegibilidade
+    acceptable_documents: []
+    expected_fragment: "14 dias corridos"
+    policy_id: TC-REF-014
+    tags: [refund, direct]
+
+  REFUND_REQUIRES_NO_COMPLETED_CONSULTATION:
+    canonical_document: refund-policy
+    canonical_section: Condições de elegibilidade
+    acceptable_documents: []
+    expected_fragment: "nenhuma consulta foi concluída na conta"
+    policy_id: TC-REF-014
+    tags: [refund, eligibility]
+
+  REFUND_ORIGINAL_PAYMENT_METHOD:
+    canonical_document: refund-policy
+    canonical_section: Destino e prazo de processamento
+    acceptable_documents: []
+    expected_fragment: "retorna ao método de pagamento original"
+    policy_id: TC-REF-014
+    tags: [refund, payment]
+
+  REFUND_PROCESSING_TIME:
+    canonical_document: refund-policy
+    canonical_section: Destino e prazo de processamento
+    acceptable_documents: []
+    expected_fragment: "10 dias úteis"
+    policy_id: TC-REF-014
+    tags: [refund, processing]
+
+  PRIVACY_AUTHORIZED_PERSONNEL_ACCESS:
+    canonical_document: privacy-policy
+    canonical_section: Acesso pelo serviço
+    acceptable_documents: []
+    expected_fragment: "Pessoas autorizadas da equipe do serviço podem acessar registros de consulta"
+    policy_id: null
+    tags: [privacy, access]
+
+  EMPLOYER_NO_INDIVIDUAL_CONSULTATION_CONTENT:
+    canonical_document: privacy-policy
+    canonical_section: Informações para empregadores
+    acceptable_documents: []
+    expected_fragment: "Empregadores não recebem o conteúdo individual das consultas"
+    policy_id: null
+    tags: [privacy, employer]
+
+  EMPLOYER_AGGREGATED_UTILIZATION_REPORTS:
+    canonical_document: privacy-policy
+    canonical_section: Informações para empregadores
+    acceptable_documents: []
+    expected_fragment: "Empregadores podem receber relatórios agregados de utilização"
+    policy_id: null
+    tags: [privacy, employer]
+
+  AGGREGATED_REPORTS_EXCLUDE_MEDICAL_CONVERSATIONS:
+    canonical_document: privacy-policy
+    canonical_section: Informações para empregadores
+    acceptable_documents: []
+    expected_fragment: "Relatórios agregados não incluem conversas médicas individuais"
+    policy_id: null
+    tags: [privacy, employer]
+
+  PROFILE_CORRECTION_THROUGH_SUPPORT:
+    canonical_document: privacy-policy
+    canonical_section: Correção de perfil
+    acceptable_documents: []
+    expected_fragment: "solicitar ao suporte a correção de informações básicas do perfil"
+    policy_id: null
+    tags: [privacy, profile, support]
+
+  SUPPORT_EMAIL:
+    canonical_document: support
+    canonical_section: Canais
+    acceptable_documents: []
+    expected_fragment: "suporte@topcare.example"
+    policy_id: null
+    tags: [support, contact]
+
+  SUPPORT_PHONE:
+    canonical_document: support
+    canonical_section: Canais
+    acceptable_documents: []
+    expected_fragment: "+55 00 0000-0000"
+    policy_id: null
+    tags: [support, contact]
+
+  BILLING_MONTHLY_RENEWAL:
+    canonical_document: billing-and-payments
+    canonical_section: Renovação
+    acceptable_documents: []
+    expected_fragment: "renovada automaticamente todos os meses"
+    policy_id: TC-BILL-003
+    tags: [billing, renewal]
+
+  BILLING_REGISTERED_PAYMENT_METHOD:
+    canonical_document: billing-and-payments
+    canonical_section: Renovação
+    acceptable_documents: []
+    expected_fragment: "método de pagamento cadastrado"
+    policy_id: TC-BILL-003
+    tags: [billing, payment]
+
+  BILLING_FAILED_PAYMENT_GRACE_PERIOD:
+    canonical_document: billing-and-payments
+    canonical_section: Falha de pagamento
+    acceptable_documents: []
+    expected_fragment: "período de carência de **3 dias**"
+    policy_id: TC-BILL-003
+    tags: [billing, payment, multi_document]
+
+  BILLING_SUSPENDS_AFTER_GRACE:
+    canonical_document: billing-and-payments
+    canonical_section: Falha de pagamento
+    acceptable_documents: []
+    expected_fragment: "acesso é suspenso após o fim do período de carência"
+    policy_id: TC-BILL-003
+    tags: [billing, access]
+
+  BILLING_PAYMENT_RESTORES_ACCESS:
+    canonical_document: billing-and-payments
+    canonical_section: Falha de pagamento
+    acceptable_documents: []
+    expected_fragment: "pagamento bem-sucedido restaura o acesso"
+    policy_id: TC-BILL-003
+    tags: [billing, access]
+
+  PLAN_ESSENTIAL_PRICE:
+    canonical_document: billing-and-payments
+    canonical_section: Preços mensais
+    acceptable_documents: []
+    expected_fragment: "R$ 29,90 por mês"
+    policy_id: TC-BILL-003
+    tags: [billing, plan, price]
+
+  PLAN_FAMILY_PRICE:
+    canonical_document: billing-and-payments
+    canonical_section: Preços mensais
+    acceptable_documents: []
+    expected_fragment: "R$ 49,90 por mês"
+    policy_id: TC-BILL-003
+    tags: [billing, plan, price]
+
+  PLAN_PREMIUM_PRICE:
+    canonical_document: billing-and-payments
+    canonical_section: Preços mensais
+    acceptable_documents: []
+    expected_fragment: "R$ 79,90 por mês"
+    policy_id: TC-BILL-003
+    tags: [billing, plan, price]
+
+  NO_AMBULANCE_DISPATCH:
+    canonical_document: service-limitations
+    canonical_section: Serviço não emergencial
+    acceptable_documents: []
+    expected_fragment: "serviço não envia ambulâncias"
+    policy_id: null
+    tags: [limitation, emergency]
+
+  NO_PHYSICAL_CLINIC_BOOKING:
+    canonical_document: service-limitations
+    canonical_section: Capacidades não oferecidas
+    acceptable_documents: []
+    expected_fragment: "Agendamento em clínica física"
+    policy_id: null
+    tags: [limitation]
+
+  NO_LAB_BOOKING:
+    canonical_document: service-limitations
+    canonical_section: Capacidades não oferecidas
+    acceptable_documents: []
+    expected_fragment: "Agendamento de exames laboratoriais"
+    policy_id: null
+    tags: [limitation]
+
+  NO_OFFLINE_CONSULTATIONS:
+    canonical_document: service-limitations
+    canonical_section: Capacidades não oferecidas
+    acceptable_documents: []
+    expected_fragment: "Consultas sem conexão"
+    policy_id: null
+    tags: [limitation]
+
+  NO_TRAVEL_INSURANCE:
+    canonical_document: service-limitations
+    canonical_section: Capacidades não oferecidas
+    acceptable_documents: []
+    expected_fragment: "Seguro para viagens internacionais"
+    policy_id: null
+    tags: [limitation]
+
+  NO_EXTERNAL_SERVICE_REIMBURSEMENT:
+    canonical_document: service-limitations
+    canonical_section: Capacidades não oferecidas
+    acceptable_documents: []
+    expected_fragment: "Reembolso de serviços médicos externos sem relação"
+    policy_id: null
+    tags: [limitation, refund]
+
+  ESCALATE_UNVERIFIED_IDENTITY:
+    canonical_document: escalation-procedure
+    canonical_section: Quando escalar
+    acceptable_documents: []
+    expected_fragment: "A identidade não pode ser verificada"
+    policy_id: null
+    tags: [escalation, identity]
+
+  ESCALATE_PAYMENT_NOT_RESTORED:
+    canonical_document: escalation-procedure
+    canonical_section: Quando escalar
+    acceptable_documents: [billing-and-payments]
+    expected_fragment: "pagamento bem-sucedido não restaurou o acesso"
+    policy_id: null
+    tags: [escalation, billing]
+
+  ESCALATE_REFUND_RECORD_CONFLICT:
+    canonical_document: escalation-procedure
+    canonical_section: Quando escalar
+    acceptable_documents: []
+    expected_fragment: "evidência apresentada para reembolso entra em conflito"
+    policy_id: null
+    tags: [escalation, refund, conflict]
+
+  ESCALATE_ACCOUNT_OWNERSHIP_DISPUTE:
+    canonical_document: escalation-procedure
+    canonical_section: Quando escalar
+    acceptable_documents: []
+    expected_fragment: "titularidade da conta está em disputa"
+    policy_id: null
+    tags: [escalation, account]
+
+  ESCALATE_UNDEFINED_EXCEPTION:
+    canonical_document: escalation-procedure
+    canonical_section: Quando escalar
+    acceptable_documents: []
+    expected_fragment: "base não define a exceção solicitada"
+    policy_id: null
+    tags: [escalation, limitation]
+
+  ESCALATE_CONFLICTING_APPROVED_DOCUMENTS:
+    canonical_document: escalation-procedure
+    canonical_section: Quando escalar
+    acceptable_documents: []
+    expected_fragment: "Documentos aprovados apresentam informações conflitantes"
+    policy_id: null
+    tags: [escalation, conflict]
