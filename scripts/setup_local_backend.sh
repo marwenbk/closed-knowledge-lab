@@ -9,6 +9,15 @@ if [[ ! -f "${TOPMED_PROJECT_ROOT}/.env" ]]; then
   echo "✓ Created .env from local demo defaults"
 fi
 
+set -a
+# shellcheck disable=SC1090
+source "${TOPMED_PROJECT_ROOT}/.env"
+set +a
+if [[ -z "${DEEPSEEK_API_KEY:-}" ]]; then
+  echo "error: set DEEPSEEK_API_KEY in .env before backend setup" >&2
+  exit 1
+fi
+
 bash "${TOPMED_PROJECT_ROOT}/scripts/setup_local_data.sh"
 "${TOPMED_VENV}/bin/python" -m pip install --editable "${TOPMED_PROJECT_ROOT}/backend[dev]"
 bash "${TOPMED_PROJECT_ROOT}/scripts/start_local_postgres.sh"
@@ -19,4 +28,4 @@ bash "${TOPMED_PROJECT_ROOT}/scripts/start_local_postgres.sh"
 "${TOPMED_VENV}/bin/python" -m app.cli kb activate
 "${TOPMED_VENV}/bin/python" -m app.cli system ready
 
-echo "✓ Local PostgreSQL and closed-knowledge retrieval are ready"
+echo "✓ PostgreSQL, retrieval, and grounded answering are ready"

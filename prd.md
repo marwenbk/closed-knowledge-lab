@@ -44,7 +44,7 @@ The implementation uses:
 - **PostgreSQL full-text search** for lexical retrieval;
 - **`pg_trgm`** as a low-confidence typo fallback;
 - **Server-Sent Events (SSE)** for widget and back-office updates;
-- a configurable LLM provider for bounded query rewriting, evidence assessment, grounded generation, and verification.
+- a small provider interface backed initially by the official DeepSeek API and `deepseek-v4-flash` for evidence assessment, grounded generation, and verification.
 
 The system does not stream raw model tokens to customers. It may stream safe processing-state events, but a factual AI response is delivered only after citation validation and grounding verification succeed.
 
@@ -2454,9 +2454,9 @@ APP_BASE_URL=
 API_BASE_URL=
 
 # LLM and retrieval
-LLM_PROVIDER=
-LLM_API_KEY=
-CHAT_MODEL=
+DEEPSEEK_BASE_URL=https://api.deepseek.com
+DEEPSEEK_API_KEY=
+CHAT_MODEL=deepseek-v4-flash
 EMBEDDING_MODEL=
 EMBEDDING_VERSION=
 VECTOR_TOP_K=10
@@ -2510,7 +2510,7 @@ Configuration principles:
 - Next.js on Vercel or a container platform;
 - Dockerized FastAPI service;
 - managed PostgreSQL with `vector` and `pg_trgm` extensions;
-- external LLM API with no web-search tools;
+- the official DeepSeek API using non-thinking JSON output and no external tools;
 - optional reverse proxy for same-origin API and SSE routing.
 
 ### 28.2 Public Surfaces

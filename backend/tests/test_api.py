@@ -2,13 +2,15 @@ from __future__ import annotations
 
 import threading
 import time
-from collections.abc import Iterator, Sequence
+from collections.abc import Iterator, Mapping, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import MagicMock, patch
 from uuid import UUID
 
 import pytest
+from app.answering import Citation, GroundedAnswer, ModelIdentity
 from app.api import _provider
+from app.config import Settings
 from app.main import create_app
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -28,10 +30,32 @@ class StubEmbeddingProvider:
         raise AssertionError(f"unexpected query embedding request: {texts!r}")
 
 
+class StubLLMProvider:
+    provider_id = "test"
+
+    def __init__(self) -> None:
+        settings = Settings(_env_file=None)
+        self.model_id = settings.chat_model
+        self.model_version = settings.chat_model
+
+    def ensure_ready(self) -> str:
+        return self.model_version
+
+    def structured_generate(
+        self,
+        messages: Sequence[Mapping[str, str]],
+        response_model: type[object],
+    ) -> object:
+        raise AssertionError(f"unexpected generation request: {messages!r}, {response_model!r}")
+
+    def close(self) -> None:
+        pass
+
+
 @pytest.fixture
 def application() -> Iterator[FastAPI]:
     engine = create_engine("sqlite+pysqlite:///:memory:")
-    yield create_app(engine, StubEmbeddingProvider())
+    yield create_app(engine, StubEmbeddingProvider(), StubLLMProvider())
     engine.dispose()
 
 
@@ -96,28 +120,34 @@ def test_readiness_and_status_fail_closed_without_postgresql(client: TestClient)
         {"query": "plano\x7ffamília"},
     ],
 )
-def test_retrieval_rejects_invalid_payloads_without_loading_the_model(
+@pytest.mark.parametrize("path", ["/api/v1/kb/retrieve", "/api/v1/kb/answer"])
+def test_knowledge_queries_reject_invalid_payloads_without_loading_models(
     payload: dict[str, object],
+    path: str,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     engine = create_engine("sqlite+pysqlite:///:memory:")
     application = create_app(engine)
     factory = MagicMock()
+    llm_factory = MagicMock()
     monkeypatch.setattr("app.api.OnnxE5EmbeddingProvider", factory)
+    monkeypatch.setattr("app.api.DeepSeekProvider", llm_factory)
 
     with TestClient(application, raise_server_exceptions=False) as test_client:
-        response = test_client.post("/api/v1/kb/retrieve", json=payload)
+        response = test_client.post(path, json=payload)
 
     engine.dispose()
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "VALIDATION_ERROR"
     UUID(response.headers["X-Request-ID"])
     factory.assert_not_called()
+    llm_factory.assert_not_called()
 
 
 def test_openapi_describes_typed_success_and_error_contracts(application: FastAPI) -> None:
     schema = application.openapi()
     retrieval = schema["paths"]["/api/v1/kb/retrieve"]["post"]
+    answer = schema["paths"]["/api/v1/kb/answer"]["post"]
     readiness = schema["paths"]["/ready"]["get"]
 
     assert retrieval["requestBody"]["content"]["application/json"]["schema"]["$ref"].endswith(
@@ -136,6 +166,54 @@ def test_openapi_describes_typed_success_and_error_contracts(application: FastAP
         "/ReadinessResponse"
     )
     assert retrieval["tags"] == ["knowledge-base"]
+    assert answer["requestBody"]["content"]["application/json"]["schema"]["$ref"].endswith(
+        "/RetrievalRequest"
+    )
+    assert answer["responses"]["200"]["content"]["application/json"]["schema"]["$ref"].endswith(
+        "/GroundedAnswer"
+    )
+
+
+def test_answer_endpoint_returns_only_the_grounded_contract(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    result = GroundedAnswer(
+        status="ANSWERABLE",
+        answer="O plano Família permite até 3 dependentes.",
+        citations=(
+            Citation(
+                citation_id="c1",
+                chunk_id=UUID(int=1),
+                stable_chunk_key="family-members__limits__001",
+                document_key="family-members",
+                document="Membros da família e dependentes",
+                section="Limites de dependentes",
+                quote="O plano Família permite o cadastro de até 3 dependentes.",
+            ),
+        ),
+        dataset_id="topmed-demo",
+        dataset_version="2.0.0",
+        model=ModelIdentity(
+            provider="test",
+            name="deepseek-v4-flash",
+            version="deepseek-v4-flash",
+            prompt_version="1.0.0",
+        ),
+        verification_status="VERIFIED",
+        regenerated=False,
+        duration_ms=10.0,
+    )
+    monkeypatch.setattr("app.api.answer_knowledge", lambda *_: result)
+
+    response = client.post(
+        "/api/v1/kb/answer",
+        json={"query": "Quantos dependentes o plano Família permite?"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["verification_status"] == "VERIFIED"
+    assert response.json()["citations"][0]["citation_id"] == "c1"
 
 
 def test_method_not_allowed_preserves_headers(client: TestClient) -> None:

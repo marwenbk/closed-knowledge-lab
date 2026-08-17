@@ -9,10 +9,12 @@ from typing import Any
 
 from sqlalchemy.exc import SQLAlchemyError
 
+from app.answering import AnsweringError, answer_knowledge
 from app.config import PROJECT_ROOT, get_settings
 from app.db import get_engine
 from app.embeddings import EmbeddingError, OnnxE5EmbeddingProvider, embed_knowledge_base
 from app.kb import KnowledgeImportError, activate_knowledge_base, import_knowledge_base
+from app.llm import DeepSeekProvider, LLMError
 from app.retrieval import RetrievalError, retrieve_knowledge
 from app.services import KnowledgeBaseUnavailable, kb_status, readiness
 
@@ -46,6 +48,8 @@ def parse_args() -> argparse.Namespace:
     activate_parser.add_argument("--dataset-version")
     retrieve_parser = kb_commands.add_parser("retrieve", help="Run closed-KB hybrid retrieval")
     retrieve_parser.add_argument("--query", required=True, help="Portuguese retrieval query")
+    answer_parser = kb_commands.add_parser("answer", help="Generate a verified closed-KB answer")
+    answer_parser.add_argument("--query", required=True, help="Portuguese customer question")
     kb_commands.add_parser("status", help="Show the active KB status")
     system_parser = resources.add_parser("system", help="Inspect backend system state")
     system_commands = system_parser.add_subparsers(dest="command", required=True)
@@ -57,6 +61,7 @@ def main() -> int:
     args = parse_args()
     engine = get_engine()
     settings = get_settings()
+    llm_provider: DeepSeekProvider | None = None
     try:
         if args.resource == "kb" and args.command == "import":
             import_result = import_knowledge_base(engine, args.manifest)
@@ -90,10 +95,17 @@ def main() -> int:
             provider = OnnxE5EmbeddingProvider(settings)
             retrieval_result = retrieve_knowledge(engine, provider, settings, args.query)
             print(json.dumps(retrieval_result.as_dict(), ensure_ascii=False, indent=2))
+        elif args.resource == "kb" and args.command == "answer":
+            provider = OnnxE5EmbeddingProvider(settings)
+            llm_provider = DeepSeekProvider(settings)
+            result = answer_knowledge(engine, provider, llm_provider, settings, args.query)
+            print(json.dumps(result.model_dump(mode="json"), ensure_ascii=False, indent=2))
         elif args.resource == "kb" and args.command == "status":
             print(json.dumps(kb_status(engine, dataset_id=settings.expected_dataset_id), indent=2))
         elif args.resource == "system" and args.command == "ready":
             OnnxE5EmbeddingProvider(settings)
+            llm_provider = DeepSeekProvider(settings)
+            llm_version = llm_provider.ensure_ready()
             readiness_result = readiness(
                 engine,
                 expected_dataset_id=settings.expected_dataset_id,
@@ -101,20 +113,27 @@ def main() -> int:
                 expected_embedding_version=settings.embedding_model_revision,
                 expected_embedding_dimensions=settings.embedding_dimensions,
                 embedding_runtime_ready=True,
+                llm_runtime_ready=True,
+                expected_chat_model=settings.chat_model,
+                chat_model_version=llm_version,
             )
             print(json.dumps(readiness_result, indent=2))
             if readiness_result["status"] != "ready":
                 return 1
     except (
         EmbeddingError,
+        AnsweringError,
         KnowledgeImportError,
         KnowledgeBaseUnavailable,
+        LLMError,
         RetrievalError,
         SQLAlchemyError,
     ) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
     finally:
+        if llm_provider is not None:
+            llm_provider.close()
         engine.dispose()
     return 0
 

@@ -21,6 +21,7 @@ from app.api import ApiError, knowledge_router, system_router
 from app.config import Settings, get_settings
 from app.db import get_engine
 from app.embeddings import EmbeddingProvider
+from app.llm import DeepSeekProvider, LLMProvider
 
 logger = logging.getLogger("topmed.api")
 
@@ -81,6 +82,7 @@ def _error_response(
 def create_app(
     engine: Engine | None = None,
     embedding_provider: EmbeddingProvider | None = None,
+    llm_provider: LLMProvider | None = None,
     settings: Settings | None = None,
 ) -> FastAPI:
     configured_settings = get_settings() if settings is None else settings
@@ -89,11 +91,14 @@ def create_app(
     database = get_engine() if engine is None else engine
 
     @asynccontextmanager
-    async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         logger.info("starting %s", configured_settings.app_name)
         try:
             yield
         finally:
+            provider = application.state.llm_provider
+            if llm_provider is None and isinstance(provider, DeepSeekProvider):
+                provider.close()
             if owns_engine:
                 database.dispose()
 
@@ -106,6 +111,8 @@ def create_app(
     application.state.settings = configured_settings
     application.state.embedding_provider = embedding_provider
     application.state.embedding_provider_lock = threading.Lock()
+    application.state.llm_provider = llm_provider
+    application.state.llm_provider_lock = threading.Lock()
 
     @application.middleware("http")
     async def request_context(

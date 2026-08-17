@@ -3,8 +3,9 @@ from __future__ import annotations
 from functools import lru_cache
 from pathlib import Path
 from typing import Annotated, Literal
+from urllib.parse import urlsplit
 
-from pydantic import Field, StringConstraints, field_validator
+from pydantic import Field, SecretStr, StringConstraints, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -43,6 +44,13 @@ class Settings(BaseSettings):
     trigram_min_similarity: Similarity = 0.30
     trigram_fallback_enabled: bool = True
     second_hop_enabled: bool = True
+    deepseek_base_url: str = "https://api.deepseek.com"
+    deepseek_api_key: SecretStr | None = None
+    chat_model: Literal["deepseek-v4-flash", "deepseek-v4-pro"] = "deepseek-v4-flash"
+    prompt_version: str = "1.0.0"
+    llm_timeout_seconds: Annotated[float, Field(gt=0, le=600)] = 180.0
+    llm_max_output_tokens: Annotated[int, Field(ge=128, le=2048)] = 768
+    llm_temperature: Annotated[float, Field(ge=0, le=0.2)] = 0.0
 
     model_config = SettingsConfigDict(
         env_file=PROJECT_ROOT / ".env",
@@ -64,6 +72,21 @@ class Settings(BaseSettings):
         if path.is_absolute() or ".." in path.parts or path.suffix != ".onnx":
             raise ValueError("embedding model file must be a safe relative ONNX path")
         return value
+
+    @field_validator("deepseek_base_url")
+    @classmethod
+    def require_official_deepseek_api(cls, value: str) -> str:
+        parsed = urlsplit(value)
+        if (
+            parsed.scheme != "https"
+            or parsed.hostname != "api.deepseek.com"
+            or parsed.username is not None
+            or parsed.path not in {"", "/"}
+            or parsed.query
+            or parsed.fragment
+        ):
+            raise ValueError("DeepSeek must use its official HTTPS API endpoint")
+        return value.rstrip("/")
 
     @property
     def embedding_cache_path(self) -> Path:

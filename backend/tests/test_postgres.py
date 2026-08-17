@@ -5,8 +5,9 @@ import json
 import math
 import os
 import shutil
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping, Sequence
 from pathlib import Path
+from typing import Any
 from uuid import uuid4
 
 import pytest
@@ -59,6 +60,28 @@ class FakeEmbeddingProvider:
 
     def embed_queries(self, texts: list[str]) -> list[list[float]]:
         return [self._vector(f"query: {text_value}") for text_value in texts]
+
+
+class FakeLLMProvider:
+    provider_id = "test"
+
+    def __init__(self) -> None:
+        settings = get_settings()
+        self.model_id = settings.chat_model
+        self.model_version = settings.chat_model
+
+    def ensure_ready(self) -> str:
+        return self.model_version
+
+    def structured_generate(
+        self,
+        _messages: Sequence[Mapping[str, str]],
+        _response_model: type[Any],
+    ) -> Any:
+        raise AssertionError("generation is not expected in this integration test")
+
+    def close(self) -> None:
+        pass
 
 
 def embed_version(
@@ -236,7 +259,7 @@ def test_migration_import_indexes_and_api(postgres_engine: Engine, tmp_path: Pat
         )
         assert all(chunk.embedding is None for chunk in imported_chunks)
 
-    application = create_app(postgres_engine, FakeEmbeddingProvider())
+    application = create_app(postgres_engine, FakeEmbeddingProvider(), FakeLLMProvider())
     with TestClient(application, raise_server_exceptions=False) as client:
         ready_response = client.get("/ready")
         status_response = client.get("/api/v1/kb/status")
@@ -290,7 +313,7 @@ def test_migration_import_indexes_and_api(postgres_engine: Engine, tmp_path: Pat
     with Session(postgres_engine) as session:
         assert session.scalar(select(func.count()).select_from(AuditEvent)) == 3
 
-    application = create_app(postgres_engine, provider)
+    application = create_app(postgres_engine, provider, FakeLLMProvider())
     with TestClient(application, raise_server_exceptions=False) as client:
         ready_response = client.get("/ready")
         policy_response = client.post(
@@ -377,7 +400,7 @@ def test_migration_import_indexes_and_api(postgres_engine: Engine, tmp_path: Pat
         assert states == {"2.0.0": "RETIRED", "2.0.1": "ACTIVE"}
         assert session.scalar(select(func.count()).select_from(AuditEvent)) == 6
 
-    application = create_app(postgres_engine, provider)
+    application = create_app(postgres_engine, provider, FakeLLMProvider())
     with TestClient(application, raise_server_exceptions=False) as client:
         active_response = client.post(
             "/api/v1/kb/retrieve", json={"query": "Qual é a regra TM-REF-014?"}

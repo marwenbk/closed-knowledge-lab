@@ -85,13 +85,14 @@ Conflict scenarios are disabled by default. They may be included only after thei
 
 ## PostgreSQL and Backend Knowledge Foundation
 
-Phase 1A projects the generated Markdown corpus into PostgreSQL. Phase 1B adds local embeddings and read-only hybrid retrieval over that closed corpus. These phases do not add authentication, conversations, answer generation, or frontend code.
+Phase 1A projects the generated Markdown corpus into PostgreSQL. Phase 1B adds local embeddings and hybrid retrieval. Phase 2 adds answerability, grounded generation, exact citations, and verification. Authentication, conversations, realtime delivery, and frontend code remain later phases.
 
 ### Prerequisites
 
 - Python 3.12 or newer;
 - either Docker with Docker Compose or Apple's `container` CLI;
-- internet access during the first dependency, container-image, and embedding-model installation;
+- a DeepSeek API key with available credit;
+- internet access for dependency/model installation and grounded-answer requests;
 - ports `5433` and `8000` available locally.
 
 Both Phase 0 and the backend use the root `.venv`. PostgreSQL runs from the pinned `pgvector/pgvector:0.8.6-pg17-bookworm` image and keeps its data in the `topmed-postgres-data` volume.
@@ -99,10 +100,12 @@ Both Phase 0 and the backend use the root `.venv`. PostgreSQL runs from the pinn
 ### First-time backend setup
 
 ```bash
+cp .env.example .env
+# Set DEEPSEEK_API_KEY in .env, then run:
 bash scripts/setup_local_backend.sh
 ```
 
-The setup command creates `.env` from `.env.example` when needed, creates or reuses `.venv`, installs pinned data and backend dependencies, regenerates and validates the 15-document dataset, starts PostgreSQL, applies Alembic migrations, imports `topmed-demo:2.0.0` as a draft, downloads and checksums the pinned embedding model, embeds every chunk, activates the complete version, and verifies readiness.
+The setup command creates or reuses `.venv`, installs pinned data and backend dependencies, regenerates and validates the 15-document dataset, starts PostgreSQL, applies Alembic migrations, imports and embeds `topmed-demo:2.0.0`, activates the complete version, and verifies PostgreSQL, retrieval, and DeepSeek readiness.
 
 The command is idempotent. Running it again reuses the environment, database, and model cache; identical import and embedding operations both report `"no_op": true`.
 
@@ -123,9 +126,12 @@ curl -fsS http://localhost:8000/api/v1/kb/status
 curl -fsS -X POST http://localhost:8000/api/v1/kb/retrieve \
   -H 'Content-Type: application/json' \
   -d '{"query":"Quantos dependentes o nível Gold permite?"}'
+curl -fsS -X POST http://localhost:8000/api/v1/kb/answer \
+  -H 'Content-Type: application/json' \
+  -d '{"query":"Quantos dependentes o nível Gold permite?"}'
 ```
 
-`/health` checks only the API process. `/ready` checks PostgreSQL, the current migration, required extensions, the active knowledge base, lexical indexes, complete current embeddings, and whether the pinned local model can load. The current 30-chunk corpus uses exact pgvector search; an ANN index is unnecessary at this size.
+`/health` checks only the API process. `/ready` checks PostgreSQL, migrations, extensions, the active knowledge base, lexical indexes, current embeddings, the embedding runtime, and authenticated access to the configured DeepSeek model. The current 30-chunk corpus uses exact pgvector search; an ANN index is unnecessary at this size.
 
 ### Migrations and knowledge imports
 
@@ -156,6 +162,13 @@ Run hybrid retrieval without starting the HTTP server:
   --query "Qual é a regra TM-REF-014?"
 ```
 
+Run the complete grounded-answer pipeline from the CLI:
+
+```bash
+.venv/bin/python -m app.cli kb answer \
+  --query "Quantos dependentes o nível Gold permite?"
+```
+
 Inspect backend readiness or the active dataset without starting the HTTP server:
 
 ```bash
@@ -178,9 +191,27 @@ Each query stays inside the active TopMed dataset and runs:
 5. trigram typo fallback only when strict lexical search has no result and semantic confidence is weak;
 6. at most one deterministic second hop from an employer tier to its consumer plan.
 
-The response includes source path, document key, section path, stable chunk key, ordering, per-channel ranks and scores, and the fused score. This phase retrieves evidence only. Answerability decisions, response generation, citation verification, and conversational APIs are the following backend phase.
+The retrieval response includes source path, document key, section path, stable chunk key, ordering, per-channel ranks and scores, and the fused score.
 
-The API loads the local model on the first readiness or retrieval request and keeps it cached in the process. The first load is slower; subsequent requests use the warm runtime.
+The API loads the local embedding model on the first readiness or retrieval request and keeps it cached in the process. The first load is slower; subsequent requests use the warm runtime.
+
+### DeepSeek grounded answering
+
+Grounded generation uses the official DeepSeek API with `deepseek-v4-flash`, non-thinking mode, temperature `0`, and JSON output validated against Pydantic schemas. The API key stays in the ignored local `.env` file and is never returned by the backend.
+
+Each answer sends the question and at most six retrieved fictional TopMed chunks to DeepSeek. The provider receives no tools, browser, or web-search capability; PostgreSQL remains the only factual source used by the pipeline.
+
+For each question, the backend:
+
+1. retrieves at most six approved chunks from the active dataset;
+2. classifies the request as answerable, partial, ambiguous, unsupported, or conflicting;
+3. skips generation for ambiguous, unsupported, and conflicting requests;
+4. generates structured claims and normalized exact evidence quotes for supported requests;
+5. rejects missing, invented, unselected, or non-matching citations server-side;
+6. verifies every factual statement against the selected evidence;
+7. permits one constrained regeneration, then returns a limitation response if verification still fails.
+
+Malformed provider JSON receives one format-only retry before failing closed. The answer endpoint never streams draft model tokens. Conversation persistence and delivery are introduced in the next backend phase.
 
 ### Tests and static checks
 
@@ -191,14 +222,15 @@ set -a
 source .env
 set +a
 
-TOPMED_REQUIRE_MODEL_TESTS=1 .venv/bin/pytest backend/tests
+TOPMED_REQUIRE_MODEL_TESTS=1 TOPMED_REQUIRE_LLM_TESTS=1 \
+  .venv/bin/pytest backend/tests
 .venv/bin/ruff check --config backend/pyproject.toml backend
 .venv/bin/ruff format --check --config backend/pyproject.toml backend
 .venv/bin/mypy --config-file backend/pyproject.toml backend/app
 .venv/bin/python -m compileall -q backend/app backend/tests
 ```
 
-The PostgreSQL test creates a uniquely named disposable test database through `TOPMED_TEST_DATABASE_URL` and removes only that database afterward. Setting `TOPMED_REQUIRE_MODEL_TESTS=1` makes a missing pinned model fail the complete verification instead of silently skipping it.
+The PostgreSQL test creates a uniquely named disposable test database through `TOPMED_TEST_DATABASE_URL` and removes only that database afterward. The two `TOPMED_REQUIRE_*_TESTS` flags make missing embedding artifacts or DeepSeek access fail complete verification instead of silently skipping model tests. Live DeepSeek checks consume API credit and run only when `TOPMED_REQUIRE_LLM_TESTS=1` is explicit; they cover structured output plus eight representative cases loaded from `evals/cases.yaml`.
 
 ### Stop PostgreSQL
 
@@ -223,4 +255,5 @@ Both commands preserve the named database volume.
 - If `/health` succeeds but `/ready` returns `503`, inspect the individual readiness checks, then rerun the migration, import, and embedding commands above.
 - If semantic status is `pending`, import the intended version, run `kb embed --download`, then run `kb activate`. The previous active version stays available until the replacement is completely embedded.
 - If model download or checksum validation fails, remove only the affected revision directory shown in the error and rerun `kb embed --download`; do not bypass checksum validation.
+- If the `llm_runtime` readiness check fails, confirm that `DEEPSEEK_API_KEY` is set in `.env`, the account has credit, and `https://api.deepseek.com` is reachable.
 - If neither supported container provider is installed, install Docker with Compose or Apple's `container` CLI before running the backend setup.

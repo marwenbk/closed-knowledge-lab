@@ -101,6 +101,9 @@ def readiness(
     expected_embedding_version: str,
     expected_embedding_dimensions: int,
     embedding_runtime_ready: bool,
+    llm_runtime_ready: bool,
+    expected_chat_model: str,
+    chat_model_version: str | None,
 ) -> dict[str, Any]:
     checks: dict[str, Any] = {
         "database": {"status": "not_ready"},
@@ -118,6 +121,12 @@ def readiness(
             "ann_required": False,
         },
         "embedding_runtime": {"status": "ready" if embedding_runtime_ready else "not_ready"},
+    }
+    llm_matches = chat_model_version == expected_chat_model
+    checks["llm_runtime"] = {
+        "status": "ready" if llm_runtime_ready and llm_matches else "not_ready",
+        "model": expected_chat_model,
+        "version": chat_model_version,
     }
     try:
         with engine.connect() as connection:
@@ -221,6 +230,7 @@ def readiness(
         "lexical_indexes",
         "semantic_index",
         "embedding_runtime",
+        "llm_runtime",
     )
     ready = all(checks[name]["status"] == "ready" for name in required_checks)
     return {"status": "ready" if ready else "not_ready", "checks": checks}

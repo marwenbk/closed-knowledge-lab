@@ -11,8 +11,10 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy import Engine
 from sqlalchemy.exc import SQLAlchemyError
 
+from app.answering import AnsweringError, GroundedAnswer, answer_knowledge
 from app.config import Settings
 from app.embeddings import EmbeddingError, EmbeddingProvider, OnnxE5EmbeddingProvider
+from app.llm import DeepSeekProvider, LLMError, LLMProvider
 from app.retrieval import RetrievalError, retrieve_knowledge
 from app.services import KnowledgeBaseUnavailable, kb_status, readiness
 
@@ -152,6 +154,18 @@ def _provider(request: Request) -> EmbeddingProvider:
     return provider
 
 
+def _llm_provider(request: Request) -> LLMProvider:
+    provider = cast(LLMProvider | None, request.app.state.llm_provider)
+    if provider is None:
+        lock = cast(threading.Lock, request.app.state.llm_provider_lock)
+        with lock:
+            provider = cast(LLMProvider | None, request.app.state.llm_provider)
+            if provider is None:
+                provider = DeepSeekProvider(request.app.state.settings)
+                request.app.state.llm_provider = provider
+    return provider
+
+
 ERROR_RESPONSE = {"model": ErrorResponse}
 system_router = APIRouter(tags=["system"])
 knowledge_router = APIRouter(prefix="/api/v1/kb", tags=["knowledge-base"])
@@ -178,6 +192,14 @@ def ready(
         runtime_ready = False
     else:
         runtime_ready = True
+    try:
+        llm = _llm_provider(request)
+        llm_version = llm.ensure_ready()
+    except LLMError:
+        llm_runtime_ready = False
+        llm_version = None
+    else:
+        llm_runtime_ready = True
     result = ReadinessResponse.model_validate(
         readiness(
             engine,
@@ -186,6 +208,9 @@ def ready(
             expected_embedding_version=settings.embedding_model_revision,
             expected_embedding_dimensions=settings.embedding_dimensions,
             embedding_runtime_ready=runtime_ready,
+            llm_runtime_ready=llm_runtime_ready,
+            expected_chat_model=settings.chat_model,
+            chat_model_version=llm_version,
         )
     )
     response.status_code = 200 if result.status == "ready" else 503
@@ -232,3 +257,42 @@ def retrieve(
             "The knowledge database is unavailable",
         ) from exc
     return RetrievalResponse.model_validate(result.as_dict())
+
+
+@knowledge_router.post(
+    "/answer",
+    responses={422: ERROR_RESPONSE, 503: ERROR_RESPONSE, 500: ERROR_RESPONSE},
+)
+def answer(
+    request: Request,
+    payload: RetrievalRequest,
+    engine: EngineDep,
+    settings: SettingsDep,
+) -> GroundedAnswer:
+    try:
+        result = answer_knowledge(
+            engine,
+            _provider(request),
+            _llm_provider(request),
+            settings,
+            payload.query,
+        )
+    except LLMError as exc:
+        raise ApiError(
+            503,
+            "LLM_NOT_READY",
+            "The grounded-answer provider is not ready",
+        ) from exc
+    except (AnsweringError, EmbeddingError, RetrievalError) as exc:
+        raise ApiError(
+            503,
+            "ANSWERING_NOT_READY",
+            "The grounded-answer pipeline is not ready",
+        ) from exc
+    except SQLAlchemyError as exc:
+        raise ApiError(
+            503,
+            "DATABASE_NOT_READY",
+            "The knowledge database is unavailable",
+        ) from exc
+    return result
