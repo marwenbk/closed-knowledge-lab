@@ -17,7 +17,7 @@ SCRIPTS_DIR = PROJECT_ROOT / "scripts"
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Generate and validate local TopCare demo data.")
+    parser = argparse.ArgumentParser(description="Generate and validate local TopMed demo data.")
     parser.add_argument("--force", action="store_true", help="Replace changed generated data.")
     parser.add_argument("--api-url", default="http://localhost:8000")
     parser.add_argument("--admin-token")

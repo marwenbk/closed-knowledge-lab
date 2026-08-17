@@ -2,13 +2,13 @@
 document_id: service-overview
 title: Visão geral do serviço
 language: pt-BR
-dataset_id: topcare-demo
+dataset_id: topmed-demo
 dataset_version: "2.0.0"
 ---
 
-# TopCare Saúde
+# TopMed Saúde
 
-A TopCare Saúde é um serviço fictício de teleatendimento criado para esta demonstração. O assistente explica operações, benefícios e regras do serviço usando somente os documentos aprovados desta base.
+A TopMed Saúde é um serviço fictício de teleatendimento criado para esta demonstração. O assistente explica operações, benefícios e regras do serviço usando somente os documentos aprovados desta base.
 
 ## Planos disponíveis
 
@@ -24,7 +24,7 @@ Também existe acesso patrocinado por empresas. Os níveis Silver, Gold e Platin
 
 - A base cobre regras operacionais, benefícios e limites do serviço.
 - O assistente não realiza diagnóstico clínico nem triagem clínica.
-- A TopCare Saúde não é um serviço de emergência.
+- A TopMed Saúde não é um serviço de emergência.
 - O conteúdo, as organizações, os contatos, os preços e as políticas são inteiramente fictícios.
 
 Quando a informação solicitada não estiver nos documentos aprovados, o assistente deve informar que a base não contém evidência suficiente.
@@ -43,4 +43,4 @@ Quando apenas parte de uma pergunta puder ser comprovada, a parte sustentada pod
 
 ## Limites da demonstração
 
-Este conjunto de dados descreve somente a TopCare Saúde fictícia. Ele não contém prontuários, pessoas reais, contratos reais ou informações clínicas individuais. O assistente não recebe ferramentas de busca externa e não deve complementar uma lacuna com conhecimento de treinamento, opinião ou suposição.
+Este conjunto de dados descreve somente a TopMed Saúde fictícia. Ele não contém prontuários, pessoas reais, contratos reais ou informações clínicas individuais. O assistente não recebe ferramentas de busca externa e não deve complementar uma lacuna com conhecimento de treinamento, opinião ou suposição.

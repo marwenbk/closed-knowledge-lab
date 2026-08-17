@@ -2,13 +2,13 @@
 document_id: refund-policy
 title: Política de reembolso
 language: pt-BR
-dataset_id: topcare-demo
+dataset_id: topmed-demo
 dataset_version: "2.0.0"
 ---
 
 # Política de reembolso
 
-Política canônica: **TC-REF-014**.
+Política canônica: **TM-REF-014**.
 
 ## Condições de elegibilidade
 

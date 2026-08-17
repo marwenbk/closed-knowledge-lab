@@ -1,5 +1,5 @@
 schema_version: "1.0.0"
-dataset_id: topcare-demo
+dataset_id: topmed-demo
 dataset_version: "2.0.0"
 language: pt-BR
 
@@ -174,7 +174,7 @@ groups:
     forbidden_fact_ids: []
     variants:
       - "Existe assinatura anual?"
-      - "A TopCare oferece desconto para estudantes?"
+      - "A TopMed oferece desconto para estudantes?"
       - "Como funciona o prorrateio ao mudar de plano?"
       - "Quais idiomas a interface suporta?"
       - "Quais recursos de acessibilidade estão disponíveis?"

@@ -2,13 +2,13 @@
 document_id: cancellation
 title: Cancelamento de assinatura
 language: pt-BR
-dataset_id: topcare-demo
+dataset_id: topmed-demo
 dataset_version: "2.0.0"
 ---
 
 # Cancelamento de assinatura
 
-Política canônica: **TC-CAN-003**.
+Política canônica: **TM-CAN-003**.
 
 ## Solicitação
 

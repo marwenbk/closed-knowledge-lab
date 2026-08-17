@@ -2,7 +2,7 @@
 document_id: service-limitations
 title: Limitações do serviço
 language: pt-BR
-dataset_id: topcare-demo
+dataset_id: topmed-demo
 dataset_version: "2.0.0"
 ---
 
@@ -10,7 +10,7 @@ dataset_version: "2.0.0"
 
 ## Serviço não emergencial
 
-- A TopCare Saúde não é um serviço de emergência.
+- A TopMed Saúde não é um serviço de emergência.
 - O serviço não envia ambulâncias.
 - O chatbot não realiza diagnóstico nem triagem clínica.
 
@@ -20,7 +20,7 @@ dataset_version: "2.0.0"
 - Agendamento de exames laboratoriais
 - Consultas sem conexão
 - Seguro para viagens internacionais
-- Reembolso de serviços médicos externos sem relação com a TopCare Saúde
+- Reembolso de serviços médicos externos sem relação com a TopMed Saúde
 
 Essas limitações estão explicitamente documentadas e, portanto, podem ser respondidas com base neste documento. Uma capacidade ausente desta lista não deve ser inventada nem presumida.
 
@@ -40,7 +40,7 @@ Uma informação simplesmente ausente é diferente. Se os documentos não descre
 
 ## Situações de emergência
 
-Como a TopCare Saúde não é um serviço de emergência, o assistente não deve apresentá-la como substituta de resposta emergencial. Ele também não pode prometer envio de ambulância.
+Como a TopMed Saúde não é um serviço de emergência, o assistente não deve apresentá-la como substituta de resposta emergencial. Ele também não pode prometer envio de ambulância.
 
 Esse limite não autoriza diagnóstico ou triagem. O chatbot permanece como explicador de operações, benefícios e regras da base fictícia.
 

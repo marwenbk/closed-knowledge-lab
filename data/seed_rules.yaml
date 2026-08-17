@@ -1,7 +1,7 @@
 schema_version: "1.0.0"
 
 dataset:
-  id: topcare-demo
+  id: topmed-demo
   version: "2.0.0"
   generator_version: "1.0.0"
   language: pt-BR
@@ -9,7 +9,7 @@ dataset:
   currency: BRL
 
 service:
-  name: TopCare Saúde
+  name: TopMed Saúde
   fictional: true
   assistant_scope:
     - operations
@@ -68,7 +68,7 @@ plans:
     gold:
       name: Gold
       consumer_plan: familia
-      policy_id: TC-EMP-GOLD
+      policy_id: TM-EMP-GOLD
     platinum:
       name: Platinum
       consumer_plan: premium
@@ -129,7 +129,7 @@ eligibility:
   registered_users_only: true
 
 dependents:
-  policy_id: TC-DEP-005
+  policy_id: TM-DEP-005
   one_active_consumer_account_per_dependent: true
   adding_dependent_resets_billing_cycle: false
 
@@ -150,7 +150,7 @@ consultation_flow:
 
 policies:
   cancellation:
-    id: TC-CAN-003
+    id: TM-CAN-003
     request_allowed_at_any_time: true
     access_ends_at_paid_period_end: true
     disables_future_renewal: true
@@ -160,7 +160,7 @@ policies:
       - customer_support
 
   refund:
-    id: TC-REF-014
+    id: TM-REF-014
     eligibility:
       maximum_days_after_initial_payment: 14
       completed_consultations_allowed: 0
@@ -169,7 +169,7 @@ policies:
     defined_exceptions: []
 
   billing:
-    id: TC-BILL-003
+    id: TM-BILL-003
     renewal_frequency: monthly
     automatic_renewal: true
     payment_method: registered_payment_method
@@ -192,7 +192,7 @@ privacy:
   profile_correction_available_through_support: true
 
 support:
-  email: suporte@topcare.example
+  email: suporte@topmed.example
   phone: "+55 00 0000-0000"
   in_app: true
   categories:

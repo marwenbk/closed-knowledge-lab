@@ -2,7 +2,7 @@
 document_id: support
 title: Canais e categorias de suporte
 language: pt-BR
-dataset_id: topcare-demo
+dataset_id: topmed-demo
 dataset_version: "2.0.0"
 ---
 
@@ -10,7 +10,7 @@ dataset_version: "2.0.0"
 
 ## Canais
 
-- E-mail: **suporte@topcare.example**
+- E-mail: **suporte@topmed.example**
 - Telefone: **+55 00 0000-0000**
 - Suporte dentro do aplicativo
 
@@ -38,7 +38,7 @@ A categoria ajuda a direcionar o atendimento, mas não altera as políticas. Um 
 
 ## Escolha do canal
 
-O usuário pode utilizar o endereço suporte@topcare.example, o número +55 00 0000-0000 ou o canal dentro do aplicativo. O documento não prioriza um desses meios; eles são opções de contato.
+O usuário pode utilizar o endereço suporte@topmed.example, o número +55 00 0000-0000 ou o canal dentro do aplicativo. O documento não prioriza um desses meios; eles são opções de contato.
 
 Uma resposta deve reproduzir o contato exatamente. Endereços ou números não presentes na base não podem ser completados por semelhança.
 

@@ -41,7 +41,7 @@ INTENTIONAL_GAP_PATTERNS = {
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Validate the generated TopCare knowledge base.")
+    parser = argparse.ArgumentParser(description="Validate the generated TopMed knowledge base.")
     parser.add_argument("--seed", type=Path, default=DEFAULT_SEED_PATH)
     parser.add_argument("--fact-catalog", type=Path, default=DEFAULT_FACT_CATALOG_PATH)
     parser.add_argument("--templates", type=Path, default=DEFAULT_TEMPLATE_DIR)
@@ -200,8 +200,6 @@ def validate(seed_path: Path, fact_catalog_path: Path, template_dir: Path, knowl
         documents_by_id[document_id] = content
 
     corpus = "\n".join(documents.values())
-    if re.search(r"topmed", corpus, flags=re.IGNORECASE):
-        raise DataToolError("Generated corpus contains prohibited TopMed content")
     if "{{" in corpus or "{%" in corpus or "{#" in corpus:
         raise DataToolError("Generated corpus contains unrendered Jinja markers")
     if not re.search(r"^\|.+\|$", corpus, flags=re.MULTILINE):

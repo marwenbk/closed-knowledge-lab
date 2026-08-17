@@ -41,7 +41,7 @@ VALID_STATUSES = {
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Generate deterministic TopCare evaluation cases.")
+    parser = argparse.ArgumentParser(description="Generate deterministic TopMed evaluation cases.")
     parser.add_argument("--blueprints", type=Path, default=DEFAULT_EVAL_BLUEPRINTS_PATH)
     parser.add_argument("--fact-catalog", type=Path, default=DEFAULT_FACT_CATALOG_PATH)
     parser.add_argument("--conflict-fixtures", type=Path, default=DEFAULT_CONFLICT_FIXTURES_PATH)

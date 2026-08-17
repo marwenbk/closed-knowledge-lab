@@ -1,11 +1,11 @@
 schema_version: "1.0.0"
-dataset_id: topcare-demo
+dataset_id: topmed-demo
 dataset_version: "2.0.0"
 
 facts:
   SERVICE_IS_FICTIONAL:
     canonical_document: service-overview
-    canonical_section: TopCare Saúde
+    canonical_section: TopMed Saúde
     acceptable_documents: []
     expected_fragment: "serviço fictício de teleatendimento"
     policy_id: null
@@ -64,7 +64,7 @@ facts:
     canonical_section: Cadastro individual
     acceptable_documents: [eligibility]
     expected_fragment: "antes da primeira consulta"
-    policy_id: TC-DEP-005
+    policy_id: TM-DEP-005
     tags: [eligibility, dependents]
 
   EMPLOYER_ACTIVE_ENROLLMENT_REQUIRED:
@@ -168,7 +168,7 @@ facts:
     canonical_section: Limites de dependentes
     acceptable_documents: []
     expected_fragment: "Essencial permite **0 dependentes**"
-    policy_id: TC-DEP-005
+    policy_id: TM-DEP-005
     tags: [plan, dependents]
 
   PLAN_FAMILY_MAX_DEPENDENTS:
@@ -176,7 +176,7 @@ facts:
     canonical_section: Limites de dependentes
     acceptable_documents: []
     expected_fragment: "até 3 dependentes"
-    policy_id: TC-DEP-005
+    policy_id: TM-DEP-005
     tags: [plan, dependents, direct, multi_document]
 
   PLAN_PREMIUM_MAX_DEPENDENTS:
@@ -184,7 +184,7 @@ facts:
     canonical_section: Limites de dependentes
     acceptable_documents: []
     expected_fragment: "até 5 dependentes"
-    policy_id: TC-DEP-005
+    policy_id: TM-DEP-005
     tags: [plan, dependents, direct]
 
   DEPENDENT_ONE_ACTIVE_ACCOUNT:
@@ -192,7 +192,7 @@ facts:
     canonical_section: Cadastro individual
     acceptable_documents: []
     expected_fragment: "somente uma conta de consumidor ativa"
-    policy_id: TC-DEP-005
+    policy_id: TM-DEP-005
     tags: [dependents, account]
 
   ADDING_DEPENDENT_DOES_NOT_RESET_BILLING:
@@ -200,7 +200,7 @@ facts:
     canonical_section: Relação com a cobrança
     acceptable_documents: [billing-and-payments]
     expected_fragment: "Adicionar um dependente não reinicia o ciclo de cobrança"
-    policy_id: TC-DEP-005
+    policy_id: TM-DEP-005
     tags: [dependents, billing]
 
   EMPLOYER_SILVER_MAPS_ESSENTIAL:
@@ -216,7 +216,7 @@ facts:
     canonical_section: Correspondência dos níveis
     acceptable_documents: []
     expected_fragment: "Gold → Família"
-    policy_id: TC-EMP-GOLD
+    policy_id: TM-EMP-GOLD
     tags: [employer, mapping, multi_document]
 
   EMPLOYER_PLATINUM_MAPS_PREMIUM:
@@ -328,7 +328,7 @@ facts:
     canonical_section: Solicitação
     acceptable_documents: []
     expected_fragment: "cancelamento pode ser solicitado a qualquer momento"
-    policy_id: TC-CAN-003
+    policy_id: TM-CAN-003
     tags: [cancellation, direct]
 
   CANCELLATION_CHANNELS:
@@ -336,7 +336,7 @@ facts:
     canonical_section: Solicitação
     acceptable_documents: []
     expected_fragment: "portal da conta e o suporte ao cliente"
-    policy_id: TC-CAN-003
+    policy_id: TM-CAN-003
     tags: [cancellation, support]
 
   CANCELLATION_ACCESS_UNTIL_PERIOD_END:
@@ -344,7 +344,7 @@ facts:
     canonical_section: Período de acesso
     acceptable_documents: []
     expected_fragment: "acesso permanece ativo até o final do período de cobrança já pago"
-    policy_id: TC-CAN-003
+    policy_id: TM-CAN-003
     tags: [cancellation, access]
 
   CANCELLATION_DISABLES_RENEWAL:
@@ -352,7 +352,7 @@ facts:
     canonical_section: Solicitação
     acceptable_documents: []
     expected_fragment: "renovação futura é desativada"
-    policy_id: TC-CAN-003
+    policy_id: TM-CAN-003
     tags: [cancellation, billing]
 
   CANCELLATION_NO_AUTOMATIC_REFUND:
@@ -360,7 +360,7 @@ facts:
     canonical_section: Cancelamento não é reembolso
     acceptable_documents: [refund-policy]
     expected_fragment: "Cancelar não produz reembolso automático"
-    policy_id: TC-CAN-003
+    policy_id: TM-CAN-003
     tags: [cancellation, refund, multi_document]
 
   REFUND_REQUEST_WINDOW:
@@ -368,7 +368,7 @@ facts:
     canonical_section: Condições de elegibilidade
     acceptable_documents: []
     expected_fragment: "14 dias corridos"
-    policy_id: TC-REF-014
+    policy_id: TM-REF-014
     tags: [refund, direct]
 
   REFUND_REQUIRES_NO_COMPLETED_CONSULTATION:
@@ -376,7 +376,7 @@ facts:
     canonical_section: Condições de elegibilidade
     acceptable_documents: []
     expected_fragment: "nenhuma consulta foi concluída na conta"
-    policy_id: TC-REF-014
+    policy_id: TM-REF-014
     tags: [refund, eligibility]
 
   REFUND_ORIGINAL_PAYMENT_METHOD:
@@ -384,7 +384,7 @@ facts:
     canonical_section: Destino e prazo de processamento
     acceptable_documents: []
     expected_fragment: "retorna ao método de pagamento original"
-    policy_id: TC-REF-014
+    policy_id: TM-REF-014
     tags: [refund, payment]
 
   REFUND_PROCESSING_TIME:
@@ -392,7 +392,7 @@ facts:
     canonical_section: Destino e prazo de processamento
     acceptable_documents: []
     expected_fragment: "10 dias úteis"
-    policy_id: TC-REF-014
+    policy_id: TM-REF-014
     tags: [refund, processing]
 
   PRIVACY_AUTHORIZED_PERSONNEL_ACCESS:
@@ -439,7 +439,7 @@ facts:
     canonical_document: support
     canonical_section: Canais
     acceptable_documents: []
-    expected_fragment: "suporte@topcare.example"
+    expected_fragment: "suporte@topmed.example"
     policy_id: null
     tags: [support, contact]
 
@@ -456,7 +456,7 @@ facts:
     canonical_section: Renovação
     acceptable_documents: []
     expected_fragment: "renovada automaticamente todos os meses"
-    policy_id: TC-BILL-003
+    policy_id: TM-BILL-003
     tags: [billing, renewal]
 
   BILLING_REGISTERED_PAYMENT_METHOD:
@@ -464,7 +464,7 @@ facts:
     canonical_section: Renovação
     acceptable_documents: []
     expected_fragment: "método de pagamento cadastrado"
-    policy_id: TC-BILL-003
+    policy_id: TM-BILL-003
     tags: [billing, payment]
 
   BILLING_FAILED_PAYMENT_GRACE_PERIOD:
@@ -472,7 +472,7 @@ facts:
     canonical_section: Falha de pagamento
     acceptable_documents: []
     expected_fragment: "período de carência de **3 dias**"
-    policy_id: TC-BILL-003
+    policy_id: TM-BILL-003
     tags: [billing, payment, multi_document]
 
   BILLING_SUSPENDS_AFTER_GRACE:
@@ -480,7 +480,7 @@ facts:
     canonical_section: Falha de pagamento
     acceptable_documents: []
     expected_fragment: "acesso é suspenso após o fim do período de carência"
-    policy_id: TC-BILL-003
+    policy_id: TM-BILL-003
     tags: [billing, access]
 
   BILLING_PAYMENT_RESTORES_ACCESS:
@@ -488,7 +488,7 @@ facts:
     canonical_section: Falha de pagamento
     acceptable_documents: []
     expected_fragment: "pagamento bem-sucedido restaura o acesso"
-    policy_id: TC-BILL-003
+    policy_id: TM-BILL-003
     tags: [billing, access]
 
   PLAN_ESSENTIAL_PRICE:
@@ -496,7 +496,7 @@ facts:
     canonical_section: Preços mensais
     acceptable_documents: []
     expected_fragment: "R$ 29,90 por mês"
-    policy_id: TC-BILL-003
+    policy_id: TM-BILL-003
     tags: [billing, plan, price]
 
   PLAN_FAMILY_PRICE:
@@ -504,7 +504,7 @@ facts:
     canonical_section: Preços mensais
     acceptable_documents: []
     expected_fragment: "R$ 49,90 por mês"
-    policy_id: TC-BILL-003
+    policy_id: TM-BILL-003
     tags: [billing, plan, price]
 
   PLAN_PREMIUM_PRICE:
@@ -512,7 +512,7 @@ facts:
     canonical_section: Preços mensais
     acceptable_documents: []
     expected_fragment: "R$ 79,90 por mês"
-    policy_id: TC-BILL-003
+    policy_id: TM-BILL-003
     tags: [billing, plan, price]
 
   NO_AMBULANCE_DISPATCH:

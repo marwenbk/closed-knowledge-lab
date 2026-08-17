@@ -29,7 +29,7 @@ from data_tools import (
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Generate the deterministic TopCare knowledge base.")
+    parser = argparse.ArgumentParser(description="Generate the deterministic TopMed knowledge base.")
     parser.add_argument("--force", action="store_true", help="Replace changed generated files.")
     parser.add_argument("--seed", type=Path, default=DEFAULT_SEED_PATH)
     parser.add_argument("--templates", type=Path, default=DEFAULT_TEMPLATE_DIR)

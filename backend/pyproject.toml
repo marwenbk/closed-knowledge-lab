@@ -1,0 +1,55 @@
+[build-system]
+requires = ["setuptools==80.9.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "topmed-backend"
+version = "0.1.0"
+description = "TopMed closed-knowledge backend foundation"
+requires-python = ">=3.11"
+dependencies = [
+  "alembic==1.18.5",
+  "fastapi==0.139.2",
+  "pgvector==0.5.0",
+  "psycopg[binary]==3.3.4",
+  "pydantic-settings==2.14.2",
+  "PyYAML==6.0.3",
+  "SQLAlchemy==2.0.51",
+  "uvicorn==0.51.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "httpx2==2.9.0",
+  "mypy==2.3.1",
+  "pytest==9.1.1",
+  "ruff==0.16.0",
+  "types-PyYAML==6.0.12.20260724",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+markers = [
+  "postgres: requires a running PostgreSQL instance with pgvector available",
+]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.mypy]
+python_version = "3.11"
+files = ["app"]
+check_untyped_defs = true
+disallow_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true

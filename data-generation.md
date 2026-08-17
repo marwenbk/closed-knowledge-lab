@@ -3,7 +3,7 @@
 **Document:** `data-generation.md`  
 **Version:** 2.0.0  
 **Status:** Implementation-ready draft  
-**Dataset:** `topcare-demo`  
+**Dataset:** `topmed-demo`
 **Dataset version:** `2.0.0`  
 **Primary language:** Portuguese (Brazil), `pt-BR`  
 **Timezone:** `America/Sao_Paulo`  
@@ -12,7 +12,7 @@
 
 ## 1. Purpose
 
-This document defines how to create, validate, version, and use the synthetic data required by the TopCare Guide demo.
+This document defines how to create, validate, version, and use the synthetic data required by the TopMed Guide demo.
 
 The demo data includes four distinct layers:
 
@@ -63,9 +63,9 @@ The implementation sequence must be:
 
 Use a fully fictional telehealth service:
 
-> **TopCare Saúde**
+> **TopMed Saúde**
 
-TopCare Saúde is created only for the technical case study.
+TopMed Saúde is created only for the technical case study.
 
 The dataset must not contain:
 
@@ -236,7 +236,7 @@ Every document must include YAML front matter with:
 document_id:
 title:
 language: pt-BR
-dataset_id: topcare-demo
+dataset_id: topmed-demo
 dataset_version: 2.0.0
 ```
 
@@ -307,7 +307,7 @@ All hours use `America/Sao_Paulo`.
 
 ### 8.5 Cancellation
 
-Policy ID: `TC-CAN-003`.
+Policy ID: `TM-CAN-003`.
 
 - cancellation may be requested at any time;
 - access remains active until the end of the current paid billing period;
@@ -317,7 +317,7 @@ Policy ID: `TC-CAN-003`.
 
 ### 8.6 Refund
 
-Policy ID: `TC-REF-014`.
+Policy ID: `TM-REF-014`.
 
 A refund request is eligible only when:
 
@@ -328,7 +328,7 @@ Approved refunds return to the original payment method and may take up to 10 bus
 
 ### 8.7 Billing
 
-Policy ID: `TC-BILL-003`.
+Policy ID: `TM-BILL-003`.
 
 - automatic monthly renewal;
 - charge to the registered payment method;
@@ -354,7 +354,7 @@ Policy ID: `TC-BILL-003`.
 
 ### 8.10 Emergency and Service Limitations
 
-TopCare is not an emergency service.
+TopMed is not an emergency service.
 
 It does not provide:
 
@@ -396,11 +396,11 @@ Use these stable identifiers:
 
 | Policy ID | Canonical document | Topic |
 |---|---|---|
-| `TC-REF-014` | `refund-policy` | Refund eligibility |
-| `TC-CAN-003` | `cancellation` | Subscription cancellation |
-| `TC-DEP-005` | `family-members` | Dependent limits and registration |
-| `TC-EMP-GOLD` | `employer-plans` | Gold-to-Família mapping |
-| `TC-BILL-003` | `billing-and-payments` | Failed payment grace period |
+| `TM-REF-014` | `refund-policy` | Refund eligibility |
+| `TM-CAN-003` | `cancellation` | Subscription cancellation |
+| `TM-DEP-005` | `family-members` | Dependent limits and registration |
+| `TM-EMP-GOLD` | `employer-plans` | Gold-to-Família mapping |
+| `TM-BILL-003` | `billing-and-payments` | Failed payment grace period |
 
 Identifiers must appear in the canonical document and be unique across the corpus.
 
@@ -414,12 +414,12 @@ Purpose: introduce the fictional service without duplicating detailed rules.
 
 Include:
 
-- what TopCare is;
+- what TopMed is;
 - supported channels;
 - plan names;
 - employer-program concept;
 - statement that availability depends on plan and specialty;
-- statement that TopCare is not an emergency service;
+- statement that TopMed is not an emergency service;
 - fictional-data notice.
 
 Do not include precise dependent limits or prices.
@@ -461,7 +461,7 @@ Do not duplicate hours.
 
 Include:
 
-- `TC-DEP-005`;
+- `TM-DEP-005`;
 - Família limit: three dependents;
 - Premium limit: five dependents;
 - separate dependent profiles;
@@ -478,7 +478,7 @@ Include:
 - Silver → Essencial;
 - Gold → Família;
 - Platinum → Premium;
-- `TC-EMP-GOLD`;
+- `TM-EMP-GOLD`;
 - employer pays for sponsored access;
 - active enrollment requirement;
 - employer controls plan upgrades.
@@ -513,13 +513,13 @@ Include all prescription rules and state explicitly that the chatbot cannot pres
 
 ### 11.9 `09-cancellation.md`
 
-Include `TC-CAN-003` and all cancellation rules.
+Include `TM-CAN-003` and all cancellation rules.
 
 Keep cancellation and refund separate.
 
 ### 11.10 `10-refund-policy.md`
 
-Include `TC-REF-014`, the two eligibility conditions, original payment method, and maximum processing period.
+Include `TM-REF-014`, the two eligibility conditions, original payment method, and maximum processing period.
 
 Do not define exceptions for hospitalization, bereavement, travel, technical outage, or manager discretion.
 
@@ -531,7 +531,7 @@ Include the fictional privacy rules without claiming actual certification.
 
 Use:
 
-- `suporte@topcare.example`;
+- `suporte@topmed.example`;
 - `+55 00 0000-0000`;
 - in-app support;
 - general, billing, and technical support categories;
@@ -562,7 +562,7 @@ Escalate when:
 
 Include:
 
-- `TC-BILL-003`;
+- `TM-BILL-003`;
 - monthly prices;
 - automatic renewal;
 - registered payment method;
@@ -870,7 +870,7 @@ Canonical manifest example:
 
 ```json
 {
-  "dataset_id": "topcare-demo",
+  "dataset_id": "topmed-demo",
   "dataset_version": "2.0.0",
   "generator_version": "1.0.0",
   "language": "pt-BR",
@@ -913,7 +913,7 @@ Validation must check:
 - policy IDs are unique;
 - manifest checksums match files;
 - manifest seed and template checksums match current inputs;
-- no `topmed` content appears;
+- all TopMed-branded content is generated from the repository's synthetic source rules;
 - fictional emails use `.example`;
 - intentional-gap phrases are absent;
 - expected plan limits and employer mappings are consistent;

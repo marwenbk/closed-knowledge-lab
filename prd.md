@@ -3,7 +3,7 @@
 **Document:** `prd.md`  
 **Version:** 3.0.0  
 **Status:** Implementation-ready product specification  
-**Product:** TopCare Guide  
+**Product:** TopMed Guide
 **Product type:** Web-based, closed-knowledge conversational assistant  
 **Primary language of demo knowledge base:** Portuguese (Brazil), `pt-BR`  
 **Primary timezone:** `America/Sao_Paulo`  
@@ -12,7 +12,7 @@
 
 ## 1. Executive Summary
 
-TopCare Guide is a closed-knowledge support platform with two user-facing surfaces:
+TopMed Guide is a closed-knowledge support platform with two user-facing surfaces:
 
 1. an **embeddable customer chat widget** built with **assistant-ui + shadcn/ui**;
 2. an **operations and governance back office** built with **Refine v5 + shadcn/ui**.
@@ -299,7 +299,7 @@ P1 and P2 work must not reduce P0 grounding reliability or delay a functional en
 
 ### 7.1 Customer / End User
 
-A person seeking information about the fictional TopCare service.
+A person seeking information about the fictional TopMed service.
 
 Primary needs:
 
@@ -379,7 +379,7 @@ Primary needs:
 
 ### Name
 
-**TopCare Guide**
+**TopMed Guide**
 
 ### Role
 
@@ -387,7 +387,7 @@ A fictional telehealth operations, benefits, and service-rules assistant.
 
 ### Objective
 
-Help users understand TopCare Health using only the active approved knowledge base.
+Help users understand TopMed Health using only the active approved knowledge base.
 
 ### Allowed Topics
 
@@ -594,7 +594,7 @@ Example integration:
 ```html
 <script
   src="https://chat.example/widget.js"
-  data-assistant-key="topcare-demo"
+  data-assistant-key="topmed-demo"
   data-position="bottom-right"
   data-locale="pt-BR"
 ></script>
@@ -1906,7 +1906,7 @@ Reports database connectivity, active KB/index readiness, event-store readiness,
   "answer": "Funcionários Gold recebem acesso ao plano Família, que permite até três dependentes cadastrados.",
   "sender": {
     "type": "AI",
-    "label": "TopCare Guide"
+    "label": "TopMed Guide"
   },
   "citations": [
     {
@@ -2469,7 +2469,7 @@ TRIGRAM_FALLBACK_ENABLED=true
 SECOND_HOP_ENABLED=true
 
 # Active versions
-ACTIVE_DATASET_ID=topcare-demo
+ACTIVE_DATASET_ID=topmed-demo
 ACTIVE_DATASET_VERSION=2.0.0
 PROMPT_VERSION=1.0.0
 SETTINGS_VERSION=1.0.0

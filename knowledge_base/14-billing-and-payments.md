@@ -2,13 +2,13 @@
 document_id: billing-and-payments
 title: Cobrança e pagamentos
 language: pt-BR
-dataset_id: topcare-demo
+dataset_id: topmed-demo
 dataset_version: "2.0.0"
 ---
 
 # Cobrança e pagamentos
 
-Política canônica: **TC-BILL-003**.
+Política canônica: **TM-BILL-003**.
 
 ## Preços mensais
 

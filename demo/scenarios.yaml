@@ -1,5 +1,5 @@
 schema_version: "1.0.0"
-dataset_id: topcare-demo
+dataset_id: topmed-demo
 dataset_version: "2.0.0"
 
 scenarios:
@@ -65,7 +65,7 @@ scenarios:
     title: Consulta por identificador de política
     category: exact_policy_id
     messages:
-      - text: "O que determina a política TC-REF-014?"
+      - text: "O que determina a política TM-REF-014?"
         expected_status: ANSWERABLE
 
   - id: typo_family_dependents
