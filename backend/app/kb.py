@@ -29,6 +29,10 @@ class KnowledgeImportError(RuntimeError):
     pass
 
 
+def _lock_dataset(session: Session, dataset_id: str) -> None:
+    session.execute(select(func.pg_advisory_xact_lock(func.hashtextextended(dataset_id, 0))))
+
+
 @dataclass(frozen=True)
 class ManifestDocument:
     document_id: str
@@ -579,6 +583,7 @@ def _activate_version(
     if previous is not None and previous.id != version.id:
         previous_version_id = previous.id
         previous.status = "RETIRED"
+        session.flush([previous])
     previous_status = version.status
     version.status = "ACTIVE"
     version.activated_at = datetime.now(UTC)
@@ -626,6 +631,7 @@ def activate_knowledge_base(
     expected_embedding_dimensions: int,
 ) -> ActivationResult:
     with Session(engine) as session, session.begin():
+        _lock_dataset(session, dataset_id)
         version = session.scalar(
             select(KnowledgeBaseVersion)
             .where(
@@ -653,6 +659,7 @@ def import_knowledge_base(
 ) -> ImportResult:
     manifest, prepared_documents = prepare_dataset(manifest_path)
     with Session(engine) as session, session.begin():
+        _lock_dataset(session, manifest.dataset_id)
         existing = session.scalar(
             select(KnowledgeBaseVersion)
             .where(
