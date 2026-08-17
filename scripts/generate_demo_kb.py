@@ -6,8 +6,6 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from jinja2 import Environment, FileSystemLoader, StrictUndefined, TemplateError
-
 from data_tools import (
     DEFAULT_OUTPUT_DIR,
     DEFAULT_SEED_PATH,
@@ -26,10 +24,13 @@ from data_tools import (
     validate_seed_contract,
     word_count,
 )
+from jinja2 import Environment, FileSystemLoader, StrictUndefined, TemplateError
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Generate the deterministic TopMed knowledge base.")
+    parser = argparse.ArgumentParser(
+        description="Generate the deterministic TopMed knowledge base."
+    )
     parser.add_argument("--force", action="store_true", help="Replace changed generated files.")
     parser.add_argument("--seed", type=Path, default=DEFAULT_SEED_PATH)
     parser.add_argument("--templates", type=Path, default=DEFAULT_TEMPLATE_DIR)
@@ -55,7 +56,9 @@ def render_documents(seed: dict[str, Any], template_dir: Path) -> dict[str, str]
     if missing:
         raise DataToolError(f"Missing templates: {', '.join(missing)}")
 
-    unexpected = sorted(path.name for path in template_dir.glob("*.md.j2") if path.name not in EXPECTED_TEMPLATES)
+    unexpected = sorted(
+        path.name for path in template_dir.glob("*.md.j2") if path.name not in EXPECTED_TEMPLATES
+    )
     if unexpected:
         raise DataToolError(f"Unexpected templates: {', '.join(unexpected)}")
 
@@ -64,7 +67,9 @@ def render_documents(seed: dict[str, Any], template_dir: Path) -> dict[str, str]
     try:
         for template_name in EXPECTED_TEMPLATES:
             output_name = template_name.removesuffix(".j2")
-            rendered[output_name] = normalize_text(environment.get_template(template_name).render(seed=seed))
+            rendered[output_name] = normalize_text(
+                environment.get_template(template_name).render(seed=seed)
+            )
     except TemplateError as exc:
         raise DataToolError(f"Template rendering failed: {exc}") from exc
     return rendered

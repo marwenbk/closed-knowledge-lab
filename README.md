@@ -288,6 +288,23 @@ TOPMED_REQUIRE_MODEL_TESTS=1 TOPMED_REQUIRE_LLM_TESTS=1 \
 
 The PostgreSQL tests create uniquely named disposable databases through `TOPMED_TEST_DATABASE_URL` and remove only those databases afterward. They cover migrations, knowledge indexing, signed widget sessions, origin scoping, state transitions, idempotency, failed runs, persisted provenance, ordered replay, and append-only events. The two `TOPMED_REQUIRE_*_TESTS` flags make missing embedding artifacts or DeepSeek access fail complete verification instead of silently skipping model tests. Live DeepSeek checks consume API credit and run only when `TOPMED_REQUIRE_LLM_TESTS=1` is explicit; they cover structured output plus eight representative cases loaded from `evals/cases.yaml`.
 
+### Pre-commit hooks
+
+The backend setup installs the Git hook automatically. For an existing environment, install it once with:
+
+```bash
+.venv/bin/python -m pip install --editable "backend[dev]"
+.venv/bin/pre-commit install --install-hooks
+```
+
+Run every hook manually with:
+
+```bash
+.venv/bin/pre-commit run --all-files
+```
+
+Commits check whitespace, YAML and TOML syntax, merge markers, large files, private keys, Ruff linting and formatting, MyPy, and the unit suite. PostgreSQL, embedding-model, and live DeepSeek tests remain in the explicit complete-suite command above so ordinary commits stay local and fast.
+
 ### Stop PostgreSQL
 
 Use the command matching the local provider:

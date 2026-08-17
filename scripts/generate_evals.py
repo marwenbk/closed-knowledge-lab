@@ -45,7 +45,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--fact-catalog", type=Path, default=DEFAULT_FACT_CATALOG_PATH)
     parser.add_argument("--conflict-fixtures", type=Path, default=DEFAULT_CONFLICT_FIXTURES_PATH)
     parser.add_argument("--output", type=Path, default=DEFAULT_EVAL_OUTPUT_PATH)
-    parser.add_argument("--force", action="store_true", help="Replace a changed generated evaluation file.")
+    parser.add_argument(
+        "--force", action="store_true", help="Replace a changed generated evaluation file."
+    )
     return parser.parse_args()
 
 
@@ -56,14 +58,18 @@ def inherited(group: dict[str, Any], variant: dict[str, Any], key: str, default:
 def normalize_messages(value: Any, case_id: str) -> list[str]:
     if isinstance(value, str):
         messages = [value]
-    elif isinstance(value, list) and value and all(isinstance(item, str) and item for item in value):
+    elif (
+        isinstance(value, list) and value and all(isinstance(item, str) and item for item in value)
+    ):
         messages = value
     else:
         raise DataToolError(f"Evaluation case {case_id} must define one or more string messages")
     return messages
 
 
-def build_expected_documents(required_fact_ids: list[str], facts: dict[str, Any]) -> dict[str, list[str]]:
+def build_expected_documents(
+    required_fact_ids: list[str], facts: dict[str, Any]
+) -> dict[str, list[str]]:
     canonical = {facts[fact_id]["canonical_document"] for fact_id in required_fact_ids}
     acceptable = {
         document
@@ -107,20 +113,27 @@ def validate_conflict_fixtures(fixtures_data: dict[str, Any], catalog: dict[str,
             raise DataToolError(f"Fixture {fixture_id} references an unknown fact")
         namespace = fixture.get("namespace")
         if not isinstance(namespace, str) or not namespace.startswith("eval-conflict-"):
-            raise DataToolError(f"Fixture {fixture_id} must use an isolated eval-conflict namespace")
+            raise DataToolError(
+                f"Fixture {fixture_id} must use an isolated eval-conflict namespace"
+            )
         if namespace in namespaces:
             raise DataToolError(f"Duplicate conflict fixture namespace: {namespace}")
         namespaces.add(namespace)
         document = fixture.get("document")
         if not isinstance(document, dict) or not all(
-            isinstance(document.get(key), str) and document[key] for key in ("document_id", "title", "content")
+            isinstance(document.get(key), str) and document[key]
+            for key in ("document_id", "title", "content")
         ):
             raise DataToolError(f"Fixture {fixture_id} must define a complete temporary document")
         if document["document_id"] in document_ids:
-            raise DataToolError(f"Duplicate conflict fixture document ID: {document['document_id']}")
+            raise DataToolError(
+                f"Duplicate conflict fixture document ID: {document['document_id']}"
+            )
         document_ids.add(document["document_id"])
         if facts[conflict_fact_id]["expected_fragment"] in document["content"]:
-            raise DataToolError(f"Fixture {fixture_id} repeats the canonical fact instead of contradicting it")
+            raise DataToolError(
+                f"Fixture {fixture_id} repeats the canonical fact instead of contradicting it"
+            )
     return fixture_ids
 
 
@@ -226,11 +239,15 @@ def generate_cases(
             category_counts[category] += 1
 
     if len(cases) < 95:
-        raise DataToolError(f"Generated only {len(cases)} evaluation cases; at least 95 are required")
+        raise DataToolError(
+            f"Generated only {len(cases)} evaluation cases; at least 95 are required"
+        )
     for category, minimum in CATEGORY_MINIMUMS.items():
         actual = category_counts[category]
         if actual < minimum:
-            raise DataToolError(f"Category {category} has {actual} cases; at least {minimum} are required")
+            raise DataToolError(
+                f"Category {category} has {actual} cases; at least {minimum} are required"
+            )
     return cases, category_counts
 
 
@@ -257,7 +274,9 @@ def generate(
     output_path.write_text(output, encoding="utf-8", newline="\n")
 
     print(f"✓ Generated {len(cases)} evaluation cases")
-    summary = ", ".join(f"{category}={count}" for category, count in sorted(category_counts.items()))
+    summary = ", ".join(
+        f"{category}={count}" for category, count in sorted(category_counts.items())
+    )
     print(f"✓ Category counts: {summary}")
     print(f"✓ Wrote evaluations: {output_path}")
 
@@ -265,7 +284,9 @@ def generate(
 def main() -> int:
     args = parse_args()
     try:
-        generate(args.blueprints, args.fact_catalog, args.conflict_fixtures, args.output, args.force)
+        generate(
+            args.blueprints, args.fact_catalog, args.conflict_fixtures, args.output, args.force
+        )
     except DataToolError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1

@@ -8,7 +8,6 @@ from typing import Any
 
 import yaml
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_SEED_PATH = PROJECT_ROOT / "data" / "seed_rules.yaml"
 DEFAULT_FACT_CATALOG_PATH = PROJECT_ROOT / "data" / "fact_catalog.yaml"
@@ -94,7 +93,9 @@ def validate_seed_contract(seed: Mapping[str, Any]) -> None:
     )
 
     dataset = require_mapping(seed["dataset"], "seed.dataset")
-    require_keys(dataset, ("id", "version", "generator_version", "language", "timezone"), "seed.dataset")
+    require_keys(
+        dataset, ("id", "version", "generator_version", "language", "timezone"), "seed.dataset"
+    )
 
     plans = require_mapping(seed["plans"], "seed.plans")
     require_keys(plans, ("consumer", "employer_tiers", "employer_rules"), "seed.plans")

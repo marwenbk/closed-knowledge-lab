@@ -123,12 +123,16 @@ def validate_fact_catalog(
         fragment = fact["expected_fragment"]
         if canonical not in documents_by_id:
             raise DataToolError(f"Fact {fact_id} references unknown canonical document {canonical}")
-        if not isinstance(acceptable, list) or any(item not in documents_by_id for item in acceptable):
+        if not isinstance(acceptable, list) or any(
+            item not in documents_by_id for item in acceptable
+        ):
             raise DataToolError(f"Fact {fact_id} has invalid acceptable documents")
         if not isinstance(fragment, str) or not fragment:
             raise DataToolError(f"Fact {fact_id} must define an expected fragment")
 
-        locations = {document_id for document_id, content in documents_by_id.items() if fragment in content}
+        locations = {
+            document_id for document_id, content in documents_by_id.items() if fragment in content
+        }
         if canonical not in locations:
             raise DataToolError(f"Fact {fact_id} is absent from canonical document {canonical}")
         if not isinstance(canonical_section, str) or not canonical_section:
@@ -144,8 +148,9 @@ def validate_fact_catalog(
             )
         unexpected = locations - {canonical, *acceptable}
         if unexpected:
+            duplicate_documents = ", ".join(sorted(unexpected))
             raise DataToolError(
-                f"Fact {fact_id} appears in undeclared duplicate documents: {', '.join(sorted(unexpected))}"
+                f"Fact {fact_id} appears in undeclared duplicate documents: {duplicate_documents}"
             )
 
         policy_id = fact["policy_id"]
@@ -156,7 +161,9 @@ def validate_fact_catalog(
     return len(facts)
 
 
-def validate(seed_path: Path, fact_catalog_path: Path, template_dir: Path, knowledge_base: Path) -> None:
+def validate(
+    seed_path: Path, fact_catalog_path: Path, template_dir: Path, knowledge_base: Path
+) -> None:
     seed_path = seed_path.resolve()
     fact_catalog_path = fact_catalog_path.resolve()
     template_dir = template_dir.resolve()
@@ -169,7 +176,9 @@ def validate(seed_path: Path, fact_catalog_path: Path, template_dir: Path, knowl
     if missing:
         raise DataToolError(f"Missing generated documents: {', '.join(missing)}")
 
-    unexpected = sorted(path.name for path in knowledge_base.glob("*.md") if path.name not in expected_names)
+    unexpected = sorted(
+        path.name for path in knowledge_base.glob("*.md") if path.name not in expected_names
+    )
     if unexpected:
         raise DataToolError(f"Unexpected generated documents: {', '.join(unexpected)}")
 
@@ -215,7 +224,9 @@ def validate(seed_path: Path, fact_catalog_path: Path, template_dir: Path, knowl
 
     unknown_gaps = sorted(set(seed["intentional_gaps"]) - set(INTENTIONAL_GAP_PATTERNS))
     if unknown_gaps:
-        raise DataToolError(f"No validation patterns defined for intentional gaps: {', '.join(unknown_gaps)}")
+        raise DataToolError(
+            f"No validation patterns defined for intentional gaps: {', '.join(unknown_gaps)}"
+        )
     for gap in seed["intentional_gaps"]:
         for pattern in INTENTIONAL_GAP_PATTERNS[gap]:
             if re.search(pattern, corpus, flags=re.IGNORECASE):
@@ -244,6 +255,11 @@ def validate(seed_path: Path, fact_catalog_path: Path, template_dir: Path, knowl
 
     consumer_plans = seed["plans"]["consumer"]
     employer_tiers = seed["plans"]["employer_tiers"]
+    refund_policy = seed["policies"]["refund"]
+
+    def employer_plan_name(tier: str) -> str:
+        return consumer_plans[employer_tiers[tier]["consumer_plan"]]["name"]
+
     required_fragments = {
         "03-consultation-hours.md": (
             f"{seed['specialties']['general_practice']['name']}:** atendimento 24 horas",
@@ -254,14 +270,13 @@ def validate(seed_path: Path, fact_catalog_path: Path, template_dir: Path, knowl
             f"até {consumer_plans['premium']['max_dependents']} dependentes",
         ),
         "06-employer-plans.md": (
-            f"{employer_tiers['silver']['name']} → {consumer_plans[employer_tiers['silver']['consumer_plan']]['name']}",
-            f"{employer_tiers['gold']['name']} → {consumer_plans[employer_tiers['gold']['consumer_plan']]['name']}",
-            f"{employer_tiers['platinum']['name']} → "
-            f"{consumer_plans[employer_tiers['platinum']['consumer_plan']]['name']}",
+            f"{employer_tiers['silver']['name']} → {employer_plan_name('silver')}",
+            f"{employer_tiers['gold']['name']} → {employer_plan_name('gold')}",
+            f"{employer_tiers['platinum']['name']} → {employer_plan_name('platinum')}",
         ),
         "10-refund-policy.md": (
-            f"{seed['policies']['refund']['eligibility']['maximum_days_after_initial_payment']} dias corridos",
-            f"{seed['policies']['refund']['maximum_processing_business_days_after_approval']} dias úteis",
+            f"{refund_policy['eligibility']['maximum_days_after_initial_payment']} dias corridos",
+            f"{refund_policy['maximum_processing_business_days_after_approval']} dias úteis",
         ),
         "12-support.md": (seed["support"]["email"], seed["support"]["phone"]),
         "14-billing-and-payments.md": (

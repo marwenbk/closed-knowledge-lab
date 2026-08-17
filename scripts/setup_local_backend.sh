@@ -20,6 +20,7 @@ fi
 
 bash "${TOPMED_PROJECT_ROOT}/scripts/setup_local_data.sh"
 "${TOPMED_VENV}/bin/python" -m pip install --editable "${TOPMED_PROJECT_ROOT}/backend[dev]"
+"${TOPMED_VENV}/bin/pre-commit" install --install-hooks
 bash "${TOPMED_PROJECT_ROOT}/scripts/start_local_postgres.sh"
 "${TOPMED_VENV}/bin/alembic" -c "${TOPMED_PROJECT_ROOT}/backend/alembic.ini" upgrade head
 "${TOPMED_VENV}/bin/python" -m app.cli kb import \

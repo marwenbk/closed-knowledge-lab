@@ -1,0 +1,42 @@
+minimum_pre_commit_version: "4.5.1"
+default_stages: [pre-commit]
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: [--maxkb=1024]
+      - id: detect-private-key
+
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff check
+        entry: .venv/bin/ruff check --config backend/pyproject.toml --fix
+        language: system
+        types: [python]
+      - id: ruff-format
+        name: ruff format
+        entry: .venv/bin/ruff format --config backend/pyproject.toml
+        language: system
+        types: [python]
+      - id: mypy
+        name: mypy
+        entry: .venv/bin/mypy --config-file backend/pyproject.toml backend/app
+        language: system
+        types: [python]
+        files: ^(backend/app/|backend/tests/|scripts/)
+        pass_filenames: false
+      - id: pytest-unit
+        name: pytest unit suite
+        entry: .venv/bin/pytest backend/tests -q -m "not postgres and not model and not llm"
+        language: system
+        files: ^(backend/|scripts/|data/|knowledge_base/|evals/|demo/)
+        pass_filenames: false
