@@ -65,27 +65,30 @@ The generators refuse to overwrite changed outputs unless `--force` is supplied.
 
 Generation is deterministic: the manifest contains checksums of the canonical seed, templates, and every generated document, without a changing timestamp.
 
-### Replay scenarios after the API exists
+### Replay scenarios through the widget API
 
-The data-only bootstrap does not require a backend. Once the protected re-index and chat endpoints are implemented, index the generated dataset, wait for readiness, and replay the enabled scenarios with:
+The data-only bootstrap does not require a backend. After the local backend setup is ready and the API is running, replay the ten enabled scenarios through the real session, conversation, and message endpoints:
 
 ```bash
-export ADMIN_TOKEN="replace-with-the-protected-api-token"
+set -a
+source .env
+set +a
 
 .venv/bin/python scripts/bootstrap_demo.py \
   --force \
   --api-url http://localhost:8000 \
-  --admin-token "$ADMIN_TOKEN" \
+  --assistant-key "$WIDGET_ASSISTANT_KEY" \
+  --origin http://localhost:3000 \
   --seed-runtime
 ```
 
-Runtime replay always uses `POST /api/chat`; it never inserts conversations directly into a database. The local report is written to `demo/seed-report.json` and ignored by Git.
+Runtime replay always uses the public `/api/v1/widget` HTTP APIs; it never inserts sessions, conversations, messages, or RAG runs directly into PostgreSQL. The local report is written to `demo/seed-report.json` and ignored by Git.
 
 Conflict scenarios are disabled by default. They may be included only after their declared `eval-conflict-*` fixture namespace has been prepared and isolated from the canonical knowledge-base version.
 
 ## PostgreSQL and Backend Knowledge Foundation
 
-Phase 1A projects the generated Markdown corpus into PostgreSQL. Phase 1B adds local embeddings and hybrid retrieval. Phase 2 adds answerability, grounded generation, exact citations, and verification. Authentication, conversations, realtime delivery, and frontend code remain later phases.
+Phase 1A projects the generated Markdown corpus into PostgreSQL. Phase 1B adds local embeddings and hybrid retrieval. Phase 2 adds answerability, grounded generation, exact citations, and verification. Phase 3 adds signed widget sessions, persistent conversations, RAG runs, messages, and replayable SSE. Frontend, handoff, admin authentication, and Refine remain later phases.
 
 ### Prerequisites
 
@@ -105,7 +108,7 @@ cp .env.example .env
 bash scripts/setup_local_backend.sh
 ```
 
-The setup command creates or reuses `.venv`, installs pinned data and backend dependencies, regenerates and validates the 15-document dataset, starts PostgreSQL, applies Alembic migrations, imports and embeds `topmed-demo:2.0.0`, activates the complete version, and verifies PostgreSQL, retrieval, and DeepSeek readiness.
+The setup command creates or reuses `.venv`, installs pinned data and backend dependencies, regenerates and validates the 15-document dataset, starts PostgreSQL, applies Alembic migrations, imports and embeds `topmed-demo:2.0.0`, activates the complete version, and verifies PostgreSQL, the event store, retrieval, and DeepSeek readiness.
 
 The command is idempotent. Running it again reuses the environment, database, and model cache; identical import and embedding operations both report `"no_op": true`.
 
@@ -131,7 +134,7 @@ curl -fsS -X POST http://localhost:8000/api/v1/kb/answer \
   -d '{"query":"Quantos dependentes o nível Gold permite?"}'
 ```
 
-`/health` checks only the API process. `/ready` checks PostgreSQL, migrations, extensions, the active knowledge base, lexical indexes, current embeddings, the embedding runtime, and authenticated access to the configured DeepSeek model. The current 30-chunk corpus uses exact pgvector search; an ANN index is unnecessary at this size.
+`/health` checks only the API process. `/ready` checks PostgreSQL, migrations, extensions, the active knowledge base, lexical indexes, current embeddings, the embedding runtime, the conversation event store, and authenticated access to the configured DeepSeek model. The current 30-chunk corpus uses exact pgvector search; an ANN index is unnecessary at this size.
 
 ### Migrations and knowledge imports
 
@@ -211,7 +214,60 @@ For each question, the backend:
 6. verifies every factual statement against the selected evidence;
 7. permits one constrained regeneration, then returns a limitation response if verification still fails.
 
-Malformed provider JSON receives one format-only retry before failing closed. The answer endpoint never streams draft model tokens. Conversation persistence and delivery are introduced in the next backend phase.
+Malformed provider JSON receives one format-only retry before failing closed. The direct knowledge answer endpoint never streams or persists draft model tokens; the widget message endpoint below persists only the final verified result.
+
+### Conversations and realtime events
+
+Widget access uses a short-lived signed session bound to an allowed `Origin`. For local development, `.env.example` permits `http://localhost:3000` and `http://127.0.0.1:3000`. Change `WIDGET_ASSISTANT_KEY`, `WIDGET_TOKEN_SECRET`, and `WIDGET_ALLOWED_ORIGINS` together for any non-local environment; production configuration rejects the documented local credentials.
+
+Create a session and conversation using only the Python standard library to extract response IDs:
+
+```bash
+SESSION_JSON="$(curl -fsS -X POST http://localhost:8000/api/v1/widget/sessions \
+  -H 'Content-Type: application/json' \
+  -H 'Origin: http://localhost:3000' \
+  -d '{"assistant_key":"topmed-local-demo"}')"
+WIDGET_TOKEN="$(printf '%s' "$SESSION_JSON" | \
+  .venv/bin/python -c 'import json,sys; print(json.load(sys.stdin)["token"])')"
+
+CONVERSATION_JSON="$(curl -fsS -X POST http://localhost:8000/api/v1/widget/conversations \
+  -H 'Content-Type: application/json' \
+  -H 'Origin: http://localhost:3000' \
+  -H "Authorization: Bearer $WIDGET_TOKEN" \
+  -d '{}')"
+CONVERSATION_ID="$(printf '%s' "$CONVERSATION_JSON" | \
+  .venv/bin/python -c 'import json,sys; print(json.load(sys.stdin)["conversation_id"])')"
+```
+
+Submit a message with a client-generated idempotency key:
+
+```bash
+CLIENT_MESSAGE_ID="$(.venv/bin/python -c 'import uuid; print(uuid.uuid4())')"
+curl -fsS -X POST \
+  "http://localhost:8000/api/v1/widget/conversations/$CONVERSATION_ID/messages" \
+  -H 'Content-Type: application/json' \
+  -H 'Origin: http://localhost:3000' \
+  -H "Authorization: Bearer $WIDGET_TOKEN" \
+  -d "{\"content\":\"Quantos dependentes o plano Família permite?\",\
+       \"client_message_id\":\"$CLIENT_MESSAGE_ID\"}"
+```
+
+Repeating that request with the same ID and content returns the original committed AI message and RAG run without generating again. Reusing the ID with different content is rejected.
+
+Listen for persisted public events and replay from the last received numeric event ID:
+
+```bash
+curl -N \
+  "http://localhost:8000/api/v1/widget/conversations/$CONVERSATION_ID/events" \
+  -H 'Accept: text/event-stream' \
+  -H 'Origin: http://localhost:3000' \
+  -H "Authorization: Bearer $WIDGET_TOKEN" \
+  -H 'Last-Event-ID: 0'
+```
+
+The server commits the customer message and `processing.started` before calling DeepSeek. Model inference runs without holding a database transaction. Only a verified answer is then committed with its AI message, exact citations, versioned RAG metadata, and delivery events. SSE is only a delivery channel: reconnecting clients replay the append-only PostgreSQL event log, bounded by `SSE_REPLAY_LIMIT`.
+
+The server defines the complete conversation state graph, while this phase exposes only AI-active conversation creation, messaging, retrieval, replay, and customer close. Handoff transitions and human messages remain Phase 5.
 
 ### Tests and static checks
 
@@ -230,7 +286,7 @@ TOPMED_REQUIRE_MODEL_TESTS=1 TOPMED_REQUIRE_LLM_TESTS=1 \
 .venv/bin/python -m compileall -q backend/app backend/tests
 ```
 
-The PostgreSQL test creates a uniquely named disposable test database through `TOPMED_TEST_DATABASE_URL` and removes only that database afterward. The two `TOPMED_REQUIRE_*_TESTS` flags make missing embedding artifacts or DeepSeek access fail complete verification instead of silently skipping model tests. Live DeepSeek checks consume API credit and run only when `TOPMED_REQUIRE_LLM_TESTS=1` is explicit; they cover structured output plus eight representative cases loaded from `evals/cases.yaml`.
+The PostgreSQL tests create uniquely named disposable databases through `TOPMED_TEST_DATABASE_URL` and remove only those databases afterward. They cover migrations, knowledge indexing, signed widget sessions, origin scoping, state transitions, idempotency, failed runs, persisted provenance, ordered replay, and append-only events. The two `TOPMED_REQUIRE_*_TESTS` flags make missing embedding artifacts or DeepSeek access fail complete verification instead of silently skipping model tests. Live DeepSeek checks consume API credit and run only when `TOPMED_REQUIRE_LLM_TESTS=1` is explicit; they cover structured output plus eight representative cases loaded from `evals/cases.yaml`.
 
 ### Stop PostgreSQL
 
@@ -256,4 +312,6 @@ Both commands preserve the named database volume.
 - If semantic status is `pending`, import the intended version, run `kb embed --download`, then run `kb activate`. The previous active version stays available until the replacement is completely embedded.
 - If model download or checksum validation fails, remove only the affected revision directory shown in the error and rerun `kb embed --download`; do not bypass checksum validation.
 - If the `llm_runtime` readiness check fails, confirm that `DEEPSEEK_API_KEY` is set in `.env`, the account has credit, and `https://api.deepseek.com` is reachable.
+- If widget session creation returns `401`, confirm that the request `Origin` exactly matches an entry in `WIDGET_ALLOWED_ORIGINS` and that the assistant key matches `WIDGET_ASSISTANT_KEY`.
+- If SSE replay returns `409`, reload the conversation snapshot and reconnect from its latest event; the missed range exceeded `SSE_REPLAY_LIMIT`.
 - If neither supported container provider is installed, install Docker with Compose or Apple's `container` CLI before running the backend setup.

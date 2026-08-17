@@ -77,6 +77,33 @@ def _retrieval() -> RetrievalResult:
     )
 
 
+def _multi_hop_retrieval() -> RetrievalResult:
+    mapping = RetrievalMatch(
+        chunk_id=UUID(int=2),
+        stable_chunk_key="employer-plans__mapping__001",
+        document_key="employer-plans",
+        document_title="Planos empresariais",
+        source_path="knowledge_base/03-employer-plans.md",
+        section="Gold",
+        section_path=("Planos empresariais", "Gold"),
+        ordinal=1,
+        content="O nível Gold corresponde ao plano Família.",
+        rrf_score=1.0,
+        signals={},
+    )
+    return RetrievalResult(
+        query="Tenho Gold. Quantos dependentes posso cadastrar?",
+        dataset_id="topmed-demo",
+        dataset_version="2.0.0",
+        embedding_model="test/embedding",
+        embedding_version="a" * 40,
+        matches=(mapping, _match()),
+        trigram_fallback_used=False,
+        second_hop_query="plano Família limite de dependentes",
+        duration_ms=1.0,
+    )
+
+
 def _draft(quote: str) -> AnswerDraft:
     return AnswerDraft(
         answer="O plano Família permite até 3 dependentes.",
@@ -172,6 +199,56 @@ def test_invalid_citation_is_regenerated_once(monkeypatch: pytest.MonkeyPatch) -
     assert result.status == "ANSWERABLE"
     assert result.verification_status == "VERIFIED"
     assert result.regenerated is True
+
+
+def test_multi_hop_answer_requires_the_mapping_citation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repaired_draft = AnswerDraft(
+        answer="O nível Gold segue o plano Família, que permite até 3 dependentes.",
+        claims=[
+            DraftClaim(
+                text="O nível Gold segue o plano Família, que permite até 3 dependentes.",
+                evidence=[
+                    EvidenceReference(
+                        chunk_id=str(UUID(int=2)),
+                        quote="O nível Gold corresponde ao plano Família.",
+                    ),
+                    EvidenceReference(
+                        chunk_id=str(UUID(int=1)),
+                        quote="O plano Família permite o cadastro de até 3 dependentes.",
+                    ),
+                ],
+            )
+        ],
+    )
+    provider = StubLLMProvider(
+        [
+            AnswerabilityDecision(
+                status="ANSWERABLE",
+                selected_chunk_ids=[str(UUID(int=1))],
+                unsupported_aspects=[],
+            ),
+            _draft("O plano Família permite o cadastro de até 3 dependentes."),
+            repaired_draft,
+            VerificationDecision(supported=True, issues=[]),
+        ]
+    )
+    monkeypatch.setattr(answering, "retrieve_knowledge", lambda *_: _multi_hop_retrieval())
+
+    result = answer_knowledge(
+        object(),
+        object(),
+        provider,
+        Settings(_env_file=None),
+        "Tenho Gold. Quantos dependentes posso cadastrar?",
+    )
+
+    assert result.regenerated is True
+    assert {citation.document_key for citation in result.citations} == {
+        "employer-plans",
+        "family-members",
+    }
 
 
 def test_normalized_exact_citation_is_accepted_without_regeneration(

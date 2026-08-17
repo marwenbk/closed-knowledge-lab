@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Annotated, Literal
 from urllib.parse import urlsplit
 
-from pydantic import Field, SecretStr, StringConstraints, field_validator
+from pydantic import Field, SecretStr, StringConstraints, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -51,6 +51,15 @@ class Settings(BaseSettings):
     llm_timeout_seconds: Annotated[float, Field(gt=0, le=600)] = 180.0
     llm_max_output_tokens: Annotated[int, Field(ge=128, le=2048)] = 768
     llm_temperature: Annotated[float, Field(ge=0, le=0.2)] = 0.0
+    settings_version: str = "1.0.0"
+    widget_assistant_key: SecretStr = SecretStr("topmed-local-demo")
+    widget_token_secret: SecretStr = SecretStr("topmed-local-development-token-secret")
+    widget_allowed_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
+    widget_session_ttl_seconds: Annotated[int, Field(ge=60, le=86_400)] = 3_600
+    widget_assistant_label: str = "TopMed Guide"
+    sse_keepalive_seconds: Annotated[float, Field(gt=0, le=60)] = 15.0
+    sse_poll_interval_seconds: Annotated[float, Field(gt=0, le=5)] = 0.5
+    sse_replay_limit: Annotated[int, Field(gt=0, le=5_000)] = 500
 
     model_config = SettingsConfigDict(
         env_file=PROJECT_ROOT / ".env",
@@ -88,11 +97,43 @@ class Settings(BaseSettings):
             raise ValueError("DeepSeek must use its official HTTPS API endpoint")
         return value.rstrip("/")
 
+    @field_validator("widget_token_secret")
+    @classmethod
+    def require_strong_widget_secret(cls, value: SecretStr) -> SecretStr:
+        if len(value.get_secret_value()) < 32:
+            raise ValueError("widget token secret must contain at least 32 characters")
+        return value
+
+    @field_validator("widget_allowed_origins")
+    @classmethod
+    def require_widget_origins(cls, value: str) -> str:
+        if not [origin.strip() for origin in value.split(",") if origin.strip()]:
+            raise ValueError("at least one widget origin is required")
+        return value
+
+    @model_validator(mode="after")
+    def reject_local_widget_credentials_in_production(self) -> Settings:
+        if self.app_env == "production" and (
+            self.widget_assistant_key.get_secret_value() == "topmed-local-demo"
+            or self.widget_token_secret.get_secret_value()
+            == "topmed-local-development-token-secret"
+        ):
+            raise ValueError("production requires explicit widget credentials")
+        return self
+
     @property
     def embedding_cache_path(self) -> Path:
         if self.embedding_cache_dir.is_absolute():
             return self.embedding_cache_dir
         return PROJECT_ROOT / self.embedding_cache_dir
+
+    @property
+    def allowed_widget_origins(self) -> frozenset[str]:
+        return frozenset(
+            origin.strip().rstrip("/")
+            for origin in self.widget_allowed_origins.split(",")
+            if origin.strip()
+        )
 
 
 @lru_cache

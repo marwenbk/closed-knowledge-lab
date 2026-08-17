@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 import time
@@ -9,8 +10,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-from data_tools import DEFAULT_SEED_PATH, DataToolError, load_yaml_mapping
-
+from data_tools import DataToolError
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS_DIR = PROJECT_ROOT / "scripts"
@@ -20,7 +20,10 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Generate and validate local TopMed demo data.")
     parser.add_argument("--force", action="store_true", help="Replace changed generated data.")
     parser.add_argument("--api-url", default="http://localhost:8000")
-    parser.add_argument("--admin-token")
+    parser.add_argument(
+        "--assistant-key", default=os.environ.get("WIDGET_ASSISTANT_KEY", "topmed-local-demo")
+    )
+    parser.add_argument("--origin", default="http://localhost:3000")
     parser.add_argument("--seed-runtime", action="store_true")
     parser.add_argument("--ready-timeout", type=int, default=120)
     return parser.parse_args()
@@ -36,15 +39,12 @@ def request_json(
     *,
     method: str = "GET",
     payload: dict[str, object] | None = None,
-    admin_token: str | None = None,
 ) -> dict[str, object]:
     headers = {"Accept": "application/json"}
     body = None
     if payload is not None:
         headers["Content-Type"] = "application/json"
         body = json.dumps(payload).encode("utf-8")
-    if admin_token:
-        headers["Authorization"] = f"Bearer {admin_token}"
     request = urllib.request.Request(url, data=body, headers=headers, method=method)
     try:
         with urllib.request.urlopen(request, timeout=30) as response:
@@ -65,18 +65,8 @@ def request_json(
     return parsed
 
 
-def reindex_and_wait(api_url: str, admin_token: str, timeout_seconds: int) -> None:
-    seed = load_yaml_mapping(DEFAULT_SEED_PATH)
-    dataset = seed["dataset"]
+def wait_until_ready(api_url: str, timeout_seconds: int) -> None:
     base_url = api_url.rstrip("/")
-    request_json(
-        f"{base_url}/api/admin/reindex",
-        method="POST",
-        payload={"dataset_id": dataset["id"], "dataset_version": dataset["version"]},
-        admin_token=admin_token,
-    )
-    print("✓ Requested protected knowledge-base re-index")
-
     deadline = time.monotonic() + timeout_seconds
     last_error: str | None = None
     while time.monotonic() < deadline:
@@ -99,15 +89,19 @@ def main() -> int:
         run("generate_evals.py", *generator_arguments)
         run("seed_demo_runtime.py", "--dry-run")
         if args.seed_runtime:
-            if not args.admin_token:
-                raise DataToolError("--admin-token is required with --seed-runtime")
-            reindex_and_wait(args.api_url, args.admin_token, args.ready_timeout)
+            if not args.assistant_key:
+                raise DataToolError(
+                    "--assistant-key or WIDGET_ASSISTANT_KEY is required with --seed-runtime"
+                )
+            wait_until_ready(args.api_url, args.ready_timeout)
             run(
                 "seed_demo_runtime.py",
                 "--base-url",
                 args.api_url,
-                "--admin-token",
-                args.admin_token,
+                "--assistant-key",
+                args.assistant_key,
+                "--origin",
+                args.origin,
             )
     except subprocess.CalledProcessError as exc:
         return exc.returncode

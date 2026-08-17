@@ -11,7 +11,14 @@ from app.models import Chunk, Document, KnowledgeBaseVersion
 
 REQUIRED_EXTENSIONS = {"vector", "pg_trgm"}
 REQUIRED_LEXICAL_INDEXES = {"ix_chunks_search_vector", "ix_chunks_content_trgm"}
-MIGRATION_HEAD = "0002_embedding_retrieval"
+MIGRATION_HEAD = "0003_conversation_backbone"
+REQUIRED_EVENT_TABLES = {
+    "conversation_events",
+    "conversations",
+    "messages",
+    "rag_runs",
+    "widget_sessions",
+}
 logger = logging.getLogger("topmed.services")
 
 
@@ -121,6 +128,10 @@ def readiness(
             "ann_required": False,
         },
         "embedding_runtime": {"status": "ready" if embedding_runtime_ready else "not_ready"},
+        "event_store": {
+            "status": "not_ready",
+            "required": sorted(REQUIRED_EVENT_TABLES),
+        },
     }
     llm_matches = chat_model_version == expected_chat_model
     checks["llm_runtime"] = {
@@ -172,6 +183,18 @@ def readiness(
                 "status": ("ready" if REQUIRED_LEXICAL_INDEXES.issubset(indexes) else "not_ready"),
                 "required": sorted(REQUIRED_LEXICAL_INDEXES),
                 "installed": sorted(REQUIRED_LEXICAL_INDEXES.intersection(indexes)),
+            }
+            event_tables = set(
+                connection.execute(
+                    text("SELECT tablename FROM pg_tables WHERE schemaname = current_schema()")
+                ).scalars()
+            ).intersection(REQUIRED_EVENT_TABLES)
+            checks["event_store"] = {
+                "status": (
+                    "ready" if REQUIRED_EVENT_TABLES.issubset(event_tables) else "not_ready"
+                ),
+                "required": sorted(REQUIRED_EVENT_TABLES),
+                "installed": sorted(event_tables),
             }
         active = kb_status(engine, dataset_id=expected_dataset_id)
         knowledge_ready = (
@@ -231,6 +254,7 @@ def readiness(
         "semantic_index",
         "embedding_runtime",
         "llm_runtime",
+        "event_store",
     )
     ready = all(checks[name]["status"] == "ready" for name in required_checks)
     return {"status": "ready" if ready else "not_ready", "checks": checks}

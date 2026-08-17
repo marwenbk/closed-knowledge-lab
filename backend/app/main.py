@@ -22,6 +22,7 @@ from app.config import Settings, get_settings
 from app.db import get_engine
 from app.embeddings import EmbeddingProvider
 from app.llm import DeepSeekProvider, LLMProvider
+from app.widget_api import widget_router
 
 logger = logging.getLogger("topmed.api")
 
@@ -179,6 +180,7 @@ def create_app(
 
     application.include_router(system_router)
     application.include_router(knowledge_router)
+    application.include_router(widget_router)
     return application
 
 

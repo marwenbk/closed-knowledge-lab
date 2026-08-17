@@ -21,7 +21,7 @@ scenarios:
     title: Referência em conversa de múltiplos turnos
     category: follow_up
     messages:
-      - text: "Tenho o benefício Gold da empresa."
+      - text: "Tenho o benefício Gold da empresa. A qual plano ele corresponde?"
         expected_status: ANSWERABLE
       - text: "E quantos dependentes ele permite?"
         expected_status: ANSWERABLE

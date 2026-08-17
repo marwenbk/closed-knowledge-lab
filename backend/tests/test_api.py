@@ -9,7 +9,7 @@ from uuid import UUID
 
 import pytest
 from app.answering import Citation, GroundedAnswer, ModelIdentity
-from app.api import _provider
+from app.api import embedding_provider
 from app.config import Settings
 from app.main import create_app
 from fastapi import FastAPI
@@ -149,6 +149,11 @@ def test_openapi_describes_typed_success_and_error_contracts(application: FastAP
     retrieval = schema["paths"]["/api/v1/kb/retrieve"]["post"]
     answer = schema["paths"]["/api/v1/kb/answer"]["post"]
     readiness = schema["paths"]["/ready"]["get"]
+    widget_session = schema["paths"]["/api/v1/widget/sessions"]["post"]
+    widget_message = schema["paths"]["/api/v1/widget/conversations/{conversation_id}/messages"][
+        "post"
+    ]
+    widget_events = schema["paths"]["/api/v1/widget/conversations/{conversation_id}/events"]["get"]
 
     assert retrieval["requestBody"]["content"]["application/json"]["schema"]["$ref"].endswith(
         "/RetrievalRequest"
@@ -172,6 +177,14 @@ def test_openapi_describes_typed_success_and_error_contracts(application: FastAP
     assert answer["responses"]["200"]["content"]["application/json"]["schema"]["$ref"].endswith(
         "/GroundedAnswer"
     )
+    assert widget_session["responses"]["201"]["content"]["application/json"]["schema"][
+        "$ref"
+    ].endswith("/WidgetSessionResponse")
+    assert widget_message["responses"]["200"]["content"]["application/json"]["schema"][
+        "$ref"
+    ].endswith("/MessageResponse")
+    assert widget_events["responses"]["200"]["content"]["text/event-stream"]
+    assert widget_message["security"] == [{"HTTPBearer": []}]
 
 
 def test_answer_endpoint_returns_only_the_grounded_contract(
@@ -286,7 +299,7 @@ def test_lazy_embedding_provider_initializes_once_across_threads(
     monkeypatch.setattr("app.api.OnnxE5EmbeddingProvider", provider_factory)
     request = Request({"type": "http", "app": application})
     with ThreadPoolExecutor(max_workers=8) as executor:
-        resolved = list(executor.map(lambda _: _provider(request), range(16)))
+        resolved = list(executor.map(lambda _: embedding_provider(request), range(16)))
 
     assert all(item is provider for item in resolved)
     assert call_count == 1

@@ -135,7 +135,7 @@ EngineDep = Annotated[Engine, Depends(_engine)]
 SettingsDep = Annotated[Settings, Depends(_settings)]
 
 
-def _provider(request: Request) -> EmbeddingProvider:
+def embedding_provider(request: Request) -> EmbeddingProvider:
     provider = cast(EmbeddingProvider | None, request.app.state.embedding_provider)
     if provider is None:
         lock = cast(threading.Lock, request.app.state.embedding_provider_lock)
@@ -154,7 +154,7 @@ def _provider(request: Request) -> EmbeddingProvider:
     return provider
 
 
-def _llm_provider(request: Request) -> LLMProvider:
+def llm_provider(request: Request) -> LLMProvider:
     provider = cast(LLMProvider | None, request.app.state.llm_provider)
     if provider is None:
         lock = cast(threading.Lock, request.app.state.llm_provider_lock)
@@ -187,13 +187,13 @@ def ready(
     settings: SettingsDep,
 ) -> ReadinessResponse:
     try:
-        _provider(request)
+        embedding_provider(request)
     except ApiError:
         runtime_ready = False
     else:
         runtime_ready = True
     try:
-        llm = _llm_provider(request)
+        llm = llm_provider(request)
         llm_version = llm.ensure_ready()
     except LLMError:
         llm_runtime_ready = False
@@ -243,7 +243,7 @@ def retrieve(
     settings: SettingsDep,
 ) -> RetrievalResponse:
     try:
-        result = retrieve_knowledge(engine, _provider(request), settings, payload.query)
+        result = retrieve_knowledge(engine, embedding_provider(request), settings, payload.query)
     except (EmbeddingError, RetrievalError) as exc:
         raise ApiError(
             503,
@@ -272,8 +272,8 @@ def answer(
     try:
         result = answer_knowledge(
             engine,
-            _provider(request),
-            _llm_provider(request),
+            embedding_provider(request),
+            llm_provider(request),
             settings,
             payload.query,
         )

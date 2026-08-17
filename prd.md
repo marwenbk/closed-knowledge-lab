@@ -2539,7 +2539,8 @@ When APIs are running:
 ```bash
 .venv/bin/python scripts/bootstrap_demo.py \
   --api-url http://localhost:8000 \
-  --admin-token "$ADMIN_TOKEN" \
+  --assistant-key "$WIDGET_ASSISTANT_KEY" \
+  --origin http://localhost:3000 \
   --seed-runtime
 ```
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import time
 import urllib.error
@@ -9,14 +10,14 @@ import urllib.request
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
 from data_tools import (
     DEFAULT_CONFLICT_FIXTURES_PATH,
-    DataToolError,
     PROJECT_ROOT,
+    DataToolError,
     load_yaml_mapping,
 )
-
 
 DEFAULT_SCENARIOS_PATH = PROJECT_ROOT / "demo" / "scenarios.yaml"
 DEFAULT_REPORT_PATH = PROJECT_ROOT / "demo" / "seed-report.json"
@@ -30,9 +31,14 @@ VALID_STATUSES = {
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Replay versioned demo scenarios through the real chat API.")
+    parser = argparse.ArgumentParser(
+        description="Replay versioned demo scenarios through the real chat API."
+    )
     parser.add_argument("--base-url", default="http://localhost:8000")
-    parser.add_argument("--admin-token")
+    parser.add_argument(
+        "--assistant-key", default=os.environ.get("WIDGET_ASSISTANT_KEY", "topmed-local-demo")
+    )
+    parser.add_argument("--origin", default="http://localhost:3000")
     parser.add_argument("--scenarios", type=Path, default=DEFAULT_SCENARIOS_PATH)
     parser.add_argument("--conflict-fixtures", type=Path, default=DEFAULT_CONFLICT_FIXTURES_PATH)
     parser.add_argument("--report", type=Path, default=DEFAULT_REPORT_PATH)
@@ -69,7 +75,11 @@ def validate_scenarios(data: dict[str, Any], fixture_ids: set[str]) -> list[dict
         if not isinstance(messages, list) or not messages:
             raise DataToolError(f"Scenario {scenario_id} needs messages")
         for message in messages:
-            if not isinstance(message, dict) or not isinstance(message.get("text"), str) or not message["text"]:
+            if (
+                not isinstance(message, dict)
+                or not isinstance(message.get("text"), str)
+                or not message["text"]
+            ):
                 raise DataToolError(f"Scenario {scenario_id} contains an invalid message")
             expected_status = message.get("expected_status")
             if expected_status is not None and expected_status not in VALID_STATUSES:
@@ -88,8 +98,18 @@ def validate_scenarios(data: dict[str, Any], fixture_ids: set[str]) -> list[dict
     return scenarios
 
 
-def post_json(url: str, payload: dict[str, Any], token: str | None = None) -> dict[str, Any]:
-    headers = {"Content-Type": "application/json", "Accept": "application/json"}
+def post_json(
+    url: str,
+    payload: dict[str, Any],
+    *,
+    origin: str,
+    token: str | None = None,
+) -> dict[str, Any]:
+    headers = {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "Origin": origin,
+    }
     if token:
         headers["Authorization"] = f"Bearer {token}"
     request = urllib.request.Request(
@@ -99,7 +119,7 @@ def post_json(url: str, payload: dict[str, Any], token: str | None = None) -> di
         method="POST",
     )
     try:
-        with urllib.request.urlopen(request, timeout=30) as response:
+        with urllib.request.urlopen(request, timeout=240) as response:
             raw = response.read().decode("utf-8")
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode("utf-8", errors="replace")
@@ -118,22 +138,37 @@ def post_json(url: str, payload: dict[str, Any], token: str | None = None) -> di
 def replay_scenario(
     base_url: str,
     scenario: dict[str, Any],
-    admin_token: str | None,
+    assistant_key: str,
+    origin: str,
 ) -> dict[str, Any]:
-    conversation_id: str | None = None
+    session = post_json(
+        f"{base_url.rstrip('/')}/api/v1/widget/sessions",
+        {"assistant_key": assistant_key, "anonymous_subject": f"demo-{scenario['id']}"},
+        origin=origin,
+    )
+    token = session.get("token")
+    if not isinstance(token, str) or not token:
+        raise DataToolError(f"Scenario {scenario['id']} received no widget token")
+    conversation = post_json(
+        f"{base_url.rstrip('/')}/api/v1/widget/conversations",
+        {},
+        origin=origin,
+        token=token,
+    )
+    conversation_id = conversation.get("conversation_id")
+    if not isinstance(conversation_id, str) or not conversation_id:
+        raise DataToolError(f"Scenario {scenario['id']} received no conversation_id")
     message_results = []
     started = time.perf_counter()
     for message in scenario["messages"]:
         response = post_json(
-            f"{base_url.rstrip('/')}/api/chat",
-            {"conversation_id": conversation_id, "message": message["text"]},
+            f"{base_url.rstrip('/')}/api/v1/widget/conversations/{conversation_id}/messages",
+            {"content": message["text"], "client_message_id": str(uuid4())},
+            origin=origin,
+            token=token,
         )
-        response_conversation_id = response.get("conversation_id")
-        if not isinstance(response_conversation_id, str) or not response_conversation_id:
-            raise DataToolError(f"Scenario {scenario['id']} received no conversation_id")
-        if conversation_id is not None and response_conversation_id != conversation_id:
+        if response.get("conversation_id") != conversation_id:
             raise DataToolError(f"Scenario {scenario['id']} changed conversation_id between turns")
-        conversation_id = response_conversation_id
         expected_status = message.get("expected_status")
         actual_status = response.get("status")
         if expected_status is not None and actual_status != expected_status:
@@ -148,36 +183,27 @@ def replay_scenario(
                 "actual_status": actual_status,
             }
         )
-    feedback_submitted = False
     if scenario.get("feedback"):
-        if not admin_token:
-            raise DataToolError(f"Scenario {scenario['id']} requires --admin-token for feedback")
-        last_rag_run_id = message_results[-1]["rag_run_id"]
-        if not isinstance(last_rag_run_id, str) or not last_rag_run_id:
-            raise DataToolError(f"Scenario {scenario['id']} received no rag_run_id for feedback")
-        post_json(
-            f"{base_url.rstrip('/')}/api/admin/feedback",
-            {
-                "rag_run_id": last_rag_run_id,
-                "rating": scenario["feedback"]["rating"],
-                "note": scenario["feedback"].get("note"),
-            },
-            admin_token,
+        raise DataToolError(
+            f"Scenario {scenario['id']} requires the later authenticated feedback API"
         )
-        feedback_submitted = True
     return {
         "id": scenario["id"],
         "conversation_id": conversation_id,
         "duration_ms": round((time.perf_counter() - started) * 1000),
         "messages": message_results,
-        "feedback_submitted": feedback_submitted,
+        "feedback_submitted": False,
     }
 
 
 def write_report(path: Path, data: dict[str, Any]) -> None:
     path = path.resolve()
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
+    path.write_text(
+        json.dumps(data, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+        newline="\n",
+    )
 
 
 def main() -> int:
@@ -207,36 +233,36 @@ def main() -> int:
             print(f"✓ Validated {len(scenarios)} runtime scenarios")
             print(f"✓ {len(selected)} scenarios enabled for replay")
             return 0
+        if not args.assistant_key:
+            raise DataToolError("--assistant-key or WIDGET_ASSISTANT_KEY is required")
 
         results = []
-        try:
-            for scenario in selected:
-                results.append(replay_scenario(args.base_url, scenario, args.admin_token))
-        except DataToolError as exc:
-            write_report(
-                args.report,
-                {
-                    "dataset_id": scenario_data["dataset_id"],
-                    "dataset_version": scenario_data["dataset_version"],
-                    "seeded_at": datetime.now(UTC).isoformat(),
-                    "base_url": args.base_url,
-                    "status": "failed",
-                    "error": str(exc),
-                    "completed_scenario_count": len(results),
-                    "results": results,
-                },
-            )
-            raise
+        failures = []
+        for scenario in selected:
+            try:
+                results.append(
+                    replay_scenario(args.base_url, scenario, args.assistant_key, args.origin)
+                )
+            except DataToolError as exc:
+                failures.append({"id": scenario["id"], "error": str(exc)})
         report = {
             "dataset_id": scenario_data["dataset_id"],
             "dataset_version": scenario_data["dataset_version"],
             "seeded_at": datetime.now(UTC).isoformat(),
             "base_url": args.base_url,
-            "status": "complete",
-            "scenario_count": len(results),
+            "status": "failed" if failures else "complete",
+            "scenario_count": len(selected),
+            "completed_scenario_count": len(results),
+            "failures": failures,
             "results": results,
         }
         write_report(args.report, report)
+        if failures:
+            failed_ids = ", ".join(failure["id"] for failure in failures)
+            raise DataToolError(
+                f"{len(failures)} runtime scenario(s) failed: {failed_ids}; "
+                f"see {args.report.resolve()}"
+            )
         print(f"✓ Replayed {len(results)} runtime scenarios")
         print(f"✓ Wrote seed report: {args.report.resolve()}")
     except DataToolError as exc:
