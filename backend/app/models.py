@@ -10,6 +10,7 @@ from sqlalchemy import (
     Computed,
     DateTime,
     ForeignKey,
+    ForeignKeyConstraint,
     Index,
     Integer,
     String,
@@ -64,6 +65,7 @@ class Document(Base):
         CheckConstraint("status IN ('IMPORTED', 'RETIRED')", name="ck_documents_status"),
         UniqueConstraint("kb_version_id", "document_key", name="uq_documents_version_key"),
         UniqueConstraint("kb_version_id", "source_path", name="uq_documents_version_path"),
+        UniqueConstraint("id", "kb_version_id", name="uq_documents_id_version"),
     )
 
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
@@ -91,6 +93,7 @@ class DocumentRevision(Base):
     __table_args__ = (
         CheckConstraint("revision_number > 0", name="ck_document_revisions_number"),
         UniqueConstraint("document_id", "revision_number", name="uq_document_revision_number"),
+        UniqueConstraint("id", "document_id", name="uq_document_revisions_id_document"),
     )
 
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
@@ -111,6 +114,27 @@ class Chunk(Base):
     __table_args__ = (
         CheckConstraint("ordinal > 0", name="ck_chunks_ordinal"),
         CheckConstraint("token_count > 0", name="ck_chunks_token_count"),
+        CheckConstraint(
+            "(embedding IS NULL AND embedding_model IS NULL AND embedding_version IS NULL "
+            "AND embedding_dimensions IS NULL AND embedding_content_checksum IS NULL "
+            "AND embedded_at IS NULL) OR "
+            "(embedding IS NOT NULL AND embedding_model IS NOT NULL "
+            "AND embedding_version IS NOT NULL AND embedding_dimensions = 384 "
+            "AND embedding_content_checksum = content_checksum AND embedded_at IS NOT NULL)",
+            name="ck_chunks_embedding_metadata_complete",
+        ),
+        ForeignKeyConstraint(
+            ["document_id", "kb_version_id"],
+            ["documents.id", "documents.kb_version_id"],
+            name="fk_chunks_document_version",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["revision_id", "document_id"],
+            ["document_revisions.id", "document_revisions.document_id"],
+            name="fk_chunks_revision_document",
+            ondelete="RESTRICT",
+        ),
         UniqueConstraint("kb_version_id", "stable_chunk_key", name="uq_chunks_stable_key"),
         UniqueConstraint("document_id", "ordinal", name="uq_chunks_document_ordinal"),
         Index("ix_chunks_search_vector", "search_vector", postgresql_using="gin"),
@@ -138,10 +162,17 @@ class Chunk(Base):
     ordinal: Mapped[int] = mapped_column(Integer, nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     content_normalized: Mapped[str] = mapped_column(Text, nullable=False)
+    content_checksum: Mapped[str] = mapped_column(
+        String(64),
+        Computed("encode(sha256(content_normalized::bytea), 'hex')", persisted=True),
+    )
     token_count: Mapped[int] = mapped_column(Integer, nullable=False)
-    embedding: Mapped[Any | None] = mapped_column(VECTOR())
+    embedding: Mapped[Any | None] = mapped_column(VECTOR(384))
     embedding_model: Mapped[str | None] = mapped_column(String(200))
     embedding_version: Mapped[str | None] = mapped_column(String(100))
+    embedding_dimensions: Mapped[int | None] = mapped_column(Integer)
+    embedding_content_checksum: Mapped[str | None] = mapped_column(String(64))
+    embedded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     metadata_json: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
     search_vector: Mapped[Any] = mapped_column(
         TSVECTOR,

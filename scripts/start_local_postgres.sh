@@ -20,6 +20,7 @@ set +a
 POSTGRES_USER="${POSTGRES_USER:-topmed}"
 POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-topmed}"
 POSTGRES_DB="${POSTGRES_DB:-topmed}"
+POSTGRES_BIND_HOST="${POSTGRES_BIND_HOST:-127.0.0.1}"
 POSTGRES_HOST_PORT="${POSTGRES_HOST_PORT:-5433}"
 TOPMED_POSTGRES_PROVIDER=""
 
@@ -32,7 +33,7 @@ fi
 if [[ -z "${TOPMED_POSTGRES_PROVIDER}" ]] && command -v container >/dev/null 2>&1; then
   container system start >/dev/null
   if container inspect "${TOPMED_CONTAINER_NAME}" >/dev/null 2>&1; then
-    container start "${TOPMED_CONTAINER_NAME}" >/dev/null 2>&1 || true
+    container start "${TOPMED_CONTAINER_NAME}" >/dev/null
   else
     if ! container volume inspect "${TOPMED_VOLUME_NAME}" >/dev/null 2>&1; then
       container volume create "${TOPMED_VOLUME_NAME}" >/dev/null
@@ -40,7 +41,7 @@ if [[ -z "${TOPMED_POSTGRES_PROVIDER}" ]] && command -v container >/dev/null 2>&
     container run \
       --detach \
       --name "${TOPMED_CONTAINER_NAME}" \
-      --publish "${POSTGRES_HOST_PORT}:5432" \
+      --publish "${POSTGRES_BIND_HOST}:${POSTGRES_HOST_PORT}:5432" \
       --env "POSTGRES_USER=${POSTGRES_USER}" \
       --env "POSTGRES_PASSWORD=${POSTGRES_PASSWORD}" \
       --env "POSTGRES_DB=${POSTGRES_DB}" \
@@ -60,7 +61,7 @@ fi
 for _ in {1..60}; do
   if command -v pg_isready >/dev/null 2>&1; then
     if pg_isready \
-      --host localhost \
+      --host "${POSTGRES_BIND_HOST}" \
       --port "${POSTGRES_HOST_PORT}" \
       --username "${POSTGRES_USER}" \
       --dbname "${POSTGRES_DB}" >/dev/null 2>&1; then

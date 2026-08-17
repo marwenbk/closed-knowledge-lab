@@ -2530,14 +2530,14 @@ A same-site deployment can simplify cookie and CORS behavior. Separate domains r
 ```bash
 git clone ...
 cp .env.example .env
-python scripts/bootstrap_demo.py --force
-docker compose up --build
+bash scripts/setup_local_backend.sh
+bash scripts/run_local_backend.sh
 ```
 
 When APIs are running:
 
 ```bash
-python scripts/bootstrap_demo.py \
+.venv/bin/python scripts/bootstrap_demo.py \
   --api-url http://localhost:8000 \
   --admin-token "$ADMIN_TOKEN" \
   --seed-runtime

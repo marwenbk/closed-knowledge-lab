@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from sqlalchemy import Engine, func, select, text
@@ -10,31 +11,51 @@ from app.models import Chunk, Document, KnowledgeBaseVersion
 
 REQUIRED_EXTENSIONS = {"vector", "pg_trgm"}
 REQUIRED_LEXICAL_INDEXES = {"ix_chunks_search_vector", "ix_chunks_content_trgm"}
-MIGRATION_HEAD = "0001_knowledge_foundation"
+MIGRATION_HEAD = "0002_embedding_retrieval"
+logger = logging.getLogger("topmed.services")
 
 
 class KnowledgeBaseUnavailable(RuntimeError):
     pass
 
 
-def kb_status(engine: Engine) -> dict[str, Any]:
+def kb_status(engine: Engine, *, dataset_id: str) -> dict[str, Any]:
     with Session(engine) as session:
         version = session.scalar(
-            select(KnowledgeBaseVersion).where(KnowledgeBaseVersion.status == "ACTIVE")
+            select(KnowledgeBaseVersion).where(
+                KnowledgeBaseVersion.status == "ACTIVE",
+                KnowledgeBaseVersion.dataset_id == dataset_id,
+            )
         )
         if version is None:
-            raise KnowledgeBaseUnavailable("No active knowledge-base version is loaded")
+            raise KnowledgeBaseUnavailable(
+                f"No active knowledge-base version is loaded for dataset {dataset_id!r}"
+            )
         document_count = session.scalar(
             select(func.count()).select_from(Document).where(Document.kb_version_id == version.id)
         )
         chunk_count = session.scalar(
             select(func.count()).select_from(Chunk).where(Chunk.kb_version_id == version.id)
         )
-        embedded_count = session.scalar(
-            select(func.count())
-            .select_from(Chunk)
-            .where(Chunk.kb_version_id == version.id, Chunk.embedding.is_not(None))
-        )
+        embedding_rows = session.execute(
+            select(
+                Chunk.embedding_model,
+                Chunk.embedding_version,
+                Chunk.embedding_dimensions,
+                func.count().label("chunk_count"),
+            )
+            .where(
+                Chunk.kb_version_id == version.id,
+                Chunk.embedding.is_not(None),
+                Chunk.embedding_content_checksum == Chunk.content_checksum,
+            )
+            .group_by(
+                Chunk.embedding_model,
+                Chunk.embedding_version,
+                Chunk.embedding_dimensions,
+            )
+        ).all()
+        embedded_count = sum(row.chunk_count for row in embedding_rows)
         token_range = session.execute(
             select(func.min(Chunk.token_count), func.max(Chunk.token_count)).where(
                 Chunk.kb_version_id == version.id
@@ -50,6 +71,20 @@ def kb_status(engine: Engine) -> dict[str, Any]:
             "document_count": int(document_count or 0),
             "chunk_count": int(chunk_count or 0),
             "embedded_chunk_count": int(embedded_count or 0),
+            "embedding": {
+                "status": (
+                    "ready"
+                    if chunk_count and embedded_count == chunk_count and len(embedding_rows) == 1
+                    else "pending"
+                ),
+                "model_id": embedding_rows[0].embedding_model if len(embedding_rows) == 1 else None,
+                "model_version": (
+                    embedding_rows[0].embedding_version if len(embedding_rows) == 1 else None
+                ),
+                "dimensions": (
+                    embedding_rows[0].embedding_dimensions if len(embedding_rows) == 1 else None
+                ),
+            },
             "chunk_token_range": {
                 "minimum": int(token_range[0] or 0),
                 "maximum": int(token_range[1] or 0),
@@ -61,8 +96,11 @@ def kb_status(engine: Engine) -> dict[str, Any]:
 def readiness(
     engine: Engine,
     *,
-    expected_dataset_id: str | None = None,
-    expected_dataset_version: str | None = None,
+    expected_dataset_id: str,
+    expected_embedding_model: str,
+    expected_embedding_version: str,
+    expected_embedding_dimensions: int,
+    embedding_runtime_ready: bool,
 ) -> dict[str, Any]:
     checks: dict[str, Any] = {
         "database": {"status": "not_ready"},
@@ -73,7 +111,13 @@ def readiness(
             "status": "not_ready",
             "required": sorted(REQUIRED_LEXICAL_INDEXES),
         },
-        "semantic_index": {"status": "pending", "ann_index": False},
+        "semantic_index": {
+            "status": "pending",
+            "strategy": "exact",
+            "ann_index": False,
+            "ann_required": False,
+        },
+        "embedding_runtime": {"status": "ready" if embedding_runtime_ready else "not_ready"},
     }
     try:
         with engine.connect() as connection:
@@ -120,46 +164,63 @@ def readiness(
                 "required": sorted(REQUIRED_LEXICAL_INDEXES),
                 "installed": sorted(REQUIRED_LEXICAL_INDEXES.intersection(indexes)),
             }
-            ann_index = any(
-                "hnsw" in index_name or "ivfflat" in index_name for index_name in indexes
-            )
-            checks["semantic_index"]["ann_index"] = ann_index
-
-        active = kb_status(engine)
-        dataset_matches = expected_dataset_id is None or active["dataset_id"] == expected_dataset_id
-        version_matches = (
-            expected_dataset_version is None
-            or active["dataset_version"] == expected_dataset_version
-        )
+        active = kb_status(engine, dataset_id=expected_dataset_id)
         knowledge_ready = (
             active["document_count"] > 0
             and active["chunk_count"] > 0
-            and dataset_matches
-            and version_matches
+            and active["dataset_id"] == expected_dataset_id
         )
         checks["knowledge_base"] = {
             "status": "ready" if knowledge_ready else "not_ready",
             "dataset_id": active["dataset_id"],
             "dataset_version": active["dataset_version"],
             "expected_dataset_id": expected_dataset_id,
-            "expected_dataset_version": expected_dataset_version,
             "document_count": active["document_count"],
             "chunk_count": active["chunk_count"],
         }
         embedded = active["embedded_chunk_count"]
         total = active["chunk_count"]
-        semantic_status = "ready" if total > 0 and embedded == total else "pending"
+        embedding = active["embedding"]
+        metadata_matches = (
+            embedding["model_id"] == expected_embedding_model
+            and embedding["model_version"] == expected_embedding_version
+            and embedding["dimensions"] == expected_embedding_dimensions
+        )
+        semantic_ready = (
+            total > 0 and embedded == total and embedding["status"] == "ready" and metadata_matches
+        )
         checks["semantic_index"] = {
-            "status": semantic_status,
+            "status": "ready" if semantic_ready else "pending",
             "embedded_chunks": embedded,
             "total_chunks": total,
-            "ann_index": checks["semantic_index"]["ann_index"],
+            "strategy": "exact",
+            "ann_index": False,
+            "ann_required": False,
+            "model_id": embedding["model_id"],
+            "model_version": embedding["model_version"],
+            "dimensions": embedding["dimensions"],
+            "expected_model_id": expected_embedding_model,
+            "expected_model_version": expected_embedding_version,
+            "expected_dimensions": expected_embedding_dimensions,
+            "metadata_matches": metadata_matches,
         }
     except KnowledgeBaseUnavailable as exc:
         checks["knowledge_base"]["detail"] = str(exc)
     except SQLAlchemyError as exc:
-        checks["database"]["detail"] = str(exc)
+        logger.warning("readiness database check failed", exc_info=exc)
+        checks["database"] = {
+            "status": "not_ready",
+            "detail": "Database connectivity or metadata check failed",
+        }
 
-    required_checks = ("database", "migrations", "extensions", "knowledge_base", "lexical_indexes")
+    required_checks = (
+        "database",
+        "migrations",
+        "extensions",
+        "knowledge_base",
+        "lexical_indexes",
+        "semantic_index",
+        "embedding_runtime",
+    )
     ready = all(checks[name]["status"] == "ready" for name in required_checks)
     return {"status": "ready" if ready else "not_ready", "checks": checks}

@@ -22,7 +22,7 @@ Generated outputs:
 
 ### First-time setup
 
-Requires Python 3.11 or newer.
+Requires Python 3.12 or newer.
 
 ```bash
 bash scripts/setup_local_data.sh --force
@@ -85,13 +85,13 @@ Conflict scenarios are disabled by default. They may be included only after thei
 
 ## PostgreSQL and Backend Knowledge Foundation
 
-Phase 1A projects the generated Markdown corpus into PostgreSQL and exposes only operational status endpoints. It does not add authentication, conversations, answer generation, RAG endpoints, or frontend code.
+Phase 1A projects the generated Markdown corpus into PostgreSQL. Phase 1B adds local embeddings and read-only hybrid retrieval over that closed corpus. These phases do not add authentication, conversations, answer generation, or frontend code.
 
 ### Prerequisites
 
-- Python 3.11 or newer;
+- Python 3.12 or newer;
 - either Docker with Docker Compose or Apple's `container` CLI;
-- internet access during the first dependency and container-image installation;
+- internet access during the first dependency, container-image, and embedding-model installation;
 - ports `5433` and `8000` available locally.
 
 Both Phase 0 and the backend use the root `.venv`. PostgreSQL runs from the pinned `pgvector/pgvector:0.8.6-pg17-bookworm` image and keeps its data in the `topmed-postgres-data` volume.
@@ -102,9 +102,9 @@ Both Phase 0 and the backend use the root `.venv`. PostgreSQL runs from the pinn
 bash scripts/setup_local_backend.sh
 ```
 
-The setup command creates `.env` from `.env.example` when needed, creates or reuses `.venv`, installs pinned data and backend dependencies, regenerates and validates the 15-document dataset, starts PostgreSQL, applies Alembic migrations, imports and activates `topmed-demo:2.0.0`, and verifies readiness.
+The setup command creates `.env` from `.env.example` when needed, creates or reuses `.venv`, installs pinned data and backend dependencies, regenerates and validates the 15-document dataset, starts PostgreSQL, applies Alembic migrations, imports `topmed-demo:2.0.0` as a draft, downloads and checksums the pinned embedding model, embeds every chunk, activates the complete version, and verifies readiness.
 
-The command is idempotent. Running it again reuses the environment and database, leaves an identical imported version unchanged, and reports `"no_op": true` for the import.
+The command is idempotent. Running it again reuses the environment, database, and model cache; identical import and embedding operations both report `"no_op": true`.
 
 ### Run the API
 
@@ -112,17 +112,20 @@ The command is idempotent. Running it again reuses the environment and database,
 bash scripts/run_local_backend.sh
 ```
 
-The development server listens on `http://localhost:8000` and reloads when backend Python files change.
+The development server listens on `http://127.0.0.1:8000` and reloads when backend Python files change. Both local services bind to loopback; `POSTGRES_BIND_HOST` is available only for an intentional PostgreSQL override.
 
-In another terminal, check the three available endpoints:
+In another terminal, check operational status and run a retrieval query:
 
 ```bash
 curl -fsS http://localhost:8000/health
 curl -fsS http://localhost:8000/ready
 curl -fsS http://localhost:8000/api/v1/kb/status
+curl -fsS -X POST http://localhost:8000/api/v1/kb/retrieve \
+  -H 'Content-Type: application/json' \
+  -d '{"query":"Quantos dependentes o nível Gold permite?"}'
 ```
 
-`/health` checks only the API process. `/ready` checks PostgreSQL, the current migration, required extensions, the active knowledge base, and lexical indexes. The semantic section intentionally reports `pending`: vector storage is available, but embeddings and semantic retrieval belong to the next backend phase.
+`/health` checks only the API process. `/ready` checks PostgreSQL, the current migration, required extensions, the active knowledge base, lexical indexes, complete current embeddings, and whether the pinned local model can load. The current 30-chunk corpus uses exact pgvector search; an ANN index is unnecessary at this size.
 
 ### Migrations and knowledge imports
 
@@ -132,12 +135,25 @@ Apply all migrations:
 .venv/bin/alembic -c backend/alembic.ini upgrade head
 ```
 
-Import and atomically activate the canonical generated dataset:
+Import the canonical generated dataset as a draft:
 
 ```bash
 .venv/bin/python -m app.cli kb import \
-  --manifest knowledge_base/manifest.json \
-  --activate
+  --manifest knowledge_base/manifest.json
+```
+
+Download the pinned model if needed, verify its checksums, embed the draft, then activate it atomically:
+
+```bash
+.venv/bin/python -m app.cli kb embed --download
+.venv/bin/python -m app.cli kb activate
+```
+
+Run hybrid retrieval without starting the HTTP server:
+
+```bash
+.venv/bin/python -m app.cli kb retrieve \
+  --query "Qual é a regra TM-REF-014?"
 ```
 
 Inspect backend readiness or the active dataset without starting the HTTP server:
@@ -147,7 +163,24 @@ Inspect backend readiness or the active dataset without starting the HTTP server
 .venv/bin/python -m app.cli kb status
 ```
 
-Knowledge mutation is CLI-only in this phase. The generated Markdown and manifest remain the canonical inputs; PostgreSQL is their immutable runtime projection.
+Knowledge mutation remains CLI-only. The generated Markdown and manifest are canonical; PostgreSQL is their immutable runtime projection.
+
+### Local embeddings and closed-KB retrieval
+
+The embedding runtime uses the 384-dimensional [`intfloat/multilingual-e5-small`](https://huggingface.co/intfloat/multilingual-e5-small) model at the immutable revision recorded in `.env.example`. Setup downloads the 118 MB quantized ONNX model and its tokenizer through the standard Hugging Face cache, validates both SHA-256 checksums, and never commits model artifacts to Git. Documents use the required `passage:` prefix and queries use `query:`; vectors are mean-pooled and L2-normalized before storage.
+
+Each query stays inside the active TopMed dataset and runs:
+
+1. exact semantic search with pgvector, top 10;
+2. strict Portuguese full-text search, filled by a bounded broad lexical query when needed;
+3. an exact employer-tier mapping candidate when the query names Silver, Gold, or Platinum;
+4. weighted reciprocal-rank fusion with `k=60`, returning the best 6 chunks;
+5. trigram typo fallback only when strict lexical search has no result and semantic confidence is weak;
+6. at most one deterministic second hop from an employer tier to its consumer plan.
+
+The response includes source path, document key, section path, stable chunk key, ordering, per-channel ranks and scores, and the fused score. This phase retrieves evidence only. Answerability decisions, response generation, citation verification, and conversational APIs are the following backend phase.
+
+The API loads the local model on the first readiness or retrieval request and keeps it cached in the process. The first load is slower; subsequent requests use the warm runtime.
 
 ### Tests and static checks
 
@@ -158,14 +191,14 @@ set -a
 source .env
 set +a
 
-.venv/bin/pytest backend/tests
-.venv/bin/ruff check backend
-.venv/bin/ruff format --check backend
-.venv/bin/mypy backend/app
+TOPMED_REQUIRE_MODEL_TESTS=1 .venv/bin/pytest backend/tests
+.venv/bin/ruff check --config backend/pyproject.toml backend
+.venv/bin/ruff format --check --config backend/pyproject.toml backend
+.venv/bin/mypy --config-file backend/pyproject.toml backend/app
 .venv/bin/python -m compileall -q backend/app backend/tests
 ```
 
-The PostgreSQL test creates a uniquely named disposable test database through `TOPMED_TEST_DATABASE_URL` and removes only that database afterward.
+The PostgreSQL test creates a uniquely named disposable test database through `TOPMED_TEST_DATABASE_URL` and removes only that database afterward. Setting `TOPMED_REQUIRE_MODEL_TESTS=1` makes a missing pinned model fail the complete verification instead of silently skipping it.
 
 ### Stop PostgreSQL
 
@@ -187,6 +220,7 @@ Both commands preserve the named database volume.
 
 - If `.env` is missing, copy `.env.example` to `.env` or rerun the setup command.
 - If PostgreSQL cannot bind port `5433`, stop the process using that port or change `POSTGRES_HOST_PORT` and the port in `DATABASE_URL` and `TOPMED_TEST_DATABASE_URL` together.
-- If `/health` succeeds but `/ready` returns `503`, inspect the individual readiness checks, then rerun the migration and import commands above.
-- A semantic status of `pending` is expected in Phase 1A and does not make lexical readiness fail.
+- If `/health` succeeds but `/ready` returns `503`, inspect the individual readiness checks, then rerun the migration, import, and embedding commands above.
+- If semantic status is `pending`, import the intended version, run `kb embed --download`, then run `kb activate`. The previous active version stays available until the replacement is completely embedded.
+- If model download or checksum validation fails, remove only the affected revision directory shown in the error and rerun `kb embed --download`; do not bypass checksum validation.
 - If neither supported container provider is installed, install Docker with Compose or Apple's `container` CLI before running the backend setup.

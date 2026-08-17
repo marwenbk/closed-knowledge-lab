@@ -8,8 +8,8 @@ from pathlib import Path
 from typing import Any
 
 from data_tools import (
-    DEFAULT_OUTPUT_DIR,
     DEFAULT_FACT_CATALOG_PATH,
+    DEFAULT_OUTPUT_DIR,
     DEFAULT_SEED_PATH,
     DEFAULT_TEMPLATE_DIR,
     EXPECTED_TEMPLATES,
@@ -22,7 +22,6 @@ from data_tools import (
     validate_seed_contract,
     word_count,
 )
-
 
 INTENTIONAL_GAP_PATTERNS = {
     "annual_subscription_plans_or_discounts": (r"plano anual", r"desconto anual"),
@@ -177,6 +176,7 @@ def validate(seed_path: Path, fact_catalog_path: Path, template_dir: Path, knowl
     dataset = seed["dataset"]
     documents: dict[str, str] = {}
     documents_by_id: dict[str, str] = {}
+    document_ids_by_name: dict[str, str] = {}
     document_ids: set[str] = set()
     for name in expected_names:
         path = knowledge_base / name
@@ -198,6 +198,7 @@ def validate(seed_path: Path, fact_catalog_path: Path, template_dir: Path, knowl
         document_ids.add(document_id)
         documents[name] = content
         documents_by_id[document_id] = content
+        document_ids_by_name[name] = document_id
 
     corpus = "\n".join(documents.values())
     if "{{" in corpus or "{%" in corpus or "{#" in corpus:
@@ -255,7 +256,8 @@ def validate(seed_path: Path, fact_catalog_path: Path, template_dir: Path, knowl
         "06-employer-plans.md": (
             f"{employer_tiers['silver']['name']} → {consumer_plans[employer_tiers['silver']['consumer_plan']]['name']}",
             f"{employer_tiers['gold']['name']} → {consumer_plans[employer_tiers['gold']['consumer_plan']]['name']}",
-            f"{employer_tiers['platinum']['name']} → {consumer_plans[employer_tiers['platinum']['consumer_plan']]['name']}",
+            f"{employer_tiers['platinum']['name']} → "
+            f"{consumer_plans[employer_tiers['platinum']['consumer_plan']]['name']}",
         ),
         "10-refund-policy.md": (
             f"{seed['policies']['refund']['eligibility']['maximum_days_after_initial_payment']} dias corridos",
@@ -297,6 +299,8 @@ def validate(seed_path: Path, fact_catalog_path: Path, template_dir: Path, knowl
     for name, content in documents.items():
         entry = entries_by_path[name]
         path = knowledge_base / name
+        if entry.get("document_id") != document_ids_by_name[name]:
+            raise DataToolError(f"Manifest document ID mismatch for {name}")
         if entry.get("sha256") != sha256_file(path):
             raise DataToolError(f"Manifest checksum mismatch for {name}")
         if entry.get("word_count") != word_count(content):
@@ -313,7 +317,7 @@ def validate(seed_path: Path, fact_catalog_path: Path, template_dir: Path, knowl
     print("✓ Prose, table, and archived injection fixture present")
     print("✓ Manifest checksums match current inputs")
     if not 6_000 <= total_words <= 10_000:
-        raise DataToolError(f"Corpus has {total_words} words; required range is 6,000–10,000")
+        raise DataToolError(f"Corpus has {total_words} words; required range is 6,000-10,000")
     print(f"✓ Corpus size valid ({total_words} words)")
     print("✓ Dataset validation passed")
 

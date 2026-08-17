@@ -6,15 +6,19 @@ build-backend = "setuptools.build_meta"
 name = "topmed-backend"
 version = "0.1.0"
 description = "TopMed closed-knowledge backend foundation"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 dependencies = [
   "alembic==1.18.5",
   "fastapi==0.139.2",
+  "huggingface-hub==1.24.0",
+  "numpy==2.5.1",
+  "onnxruntime==1.27.0",
   "pgvector==0.5.0",
   "psycopg[binary]==3.3.4",
   "pydantic-settings==2.14.2",
   "PyYAML==6.0.3",
   "SQLAlchemy==2.0.51",
+  "tokenizers==0.23.1",
   "uvicorn==0.51.0",
 ]
 
@@ -35,6 +39,7 @@ include = ["app*"]
 testpaths = ["tests"]
 addopts = "-ra"
 markers = [
+  "model: requires the pinned local embedding model artifacts",
   "postgres: requires a running PostgreSQL instance with pgvector available",
 ]
 
@@ -46,7 +51,7 @@ line-length = 100
 select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.12"
 files = ["app"]
 check_untyped_defs = true
 disallow_untyped_defs = true

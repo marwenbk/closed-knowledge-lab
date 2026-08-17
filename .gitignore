@@ -9,4 +9,5 @@ __pycache__/
 .coverage
 htmlcov/
 backend/*.egg-info/
+.cache/models/
 demo/seed-report.json

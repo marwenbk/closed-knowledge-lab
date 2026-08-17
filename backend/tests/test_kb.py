@@ -6,7 +6,6 @@ import shutil
 from pathlib import Path
 
 import pytest
-
 from app.kb import (
     MAX_CHUNK_TOKENS,
     MIN_CHUNK_TOKENS,

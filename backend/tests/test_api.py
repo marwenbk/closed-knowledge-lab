@@ -1,38 +1,66 @@
 from __future__ import annotations
 
+import threading
+import time
+from collections.abc import Iterator, Sequence
+from concurrent.futures import ThreadPoolExecutor
+from unittest.mock import MagicMock, patch
 from uuid import UUID
 
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-
+import pytest
+from app.api import _provider
 from app.main import create_app
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+from sqlalchemy import Engine, create_engine
+from starlette.requests import Request
 
 
-def test_health_does_not_require_postgresql() -> None:
-    application = create_app(create_engine("sqlite+pysqlite:///:memory:"))
-    with TestClient(application, raise_server_exceptions=False) as client:
-        response = client.get("/health")
+class StubEmbeddingProvider:
+    model_id = "test/model"
+    model_version = "a" * 40
+    dimensions = 384
+
+    def embed_documents(self, texts: Sequence[str]) -> list[list[float]]:
+        raise AssertionError(f"unexpected document embedding request: {texts!r}")
+
+    def embed_queries(self, texts: Sequence[str]) -> list[list[float]]:
+        raise AssertionError(f"unexpected query embedding request: {texts!r}")
+
+
+@pytest.fixture
+def application() -> Iterator[FastAPI]:
+    engine = create_engine("sqlite+pysqlite:///:memory:")
+    yield create_app(engine, StubEmbeddingProvider())
+    engine.dispose()
+
+
+@pytest.fixture
+def client(application: FastAPI) -> Iterator[TestClient]:
+    with TestClient(application, raise_server_exceptions=False) as test_client:
+        yield test_client
+
+
+def test_health_does_not_require_postgresql(client: TestClient) -> None:
+    response = client.get("/health")
 
     assert response.status_code == 200
     assert response.json() == {"status": "ok", "service": "topmed-api"}
     UUID(response.headers["X-Request-ID"])
 
 
-def test_invalid_request_id_is_replaced() -> None:
-    application = create_app(create_engine("sqlite+pysqlite:///:memory:"))
-    with TestClient(application, raise_server_exceptions=False) as client:
-        response = client.get("/health", headers={"X-Request-ID": "not-a-uuid"})
+def test_invalid_request_id_is_replaced(client: TestClient) -> None:
+    response = client.get("/health", headers={"X-Request-ID": "not-a-uuid"})
 
-    assert response.status_code == 200
     assert response.headers["X-Request-ID"] != "not-a-uuid"
     UUID(response.headers["X-Request-ID"])
 
 
-def test_valid_request_id_is_preserved_and_errors_use_the_common_shape() -> None:
-    application = create_app(create_engine("sqlite+pysqlite:///:memory:"))
+def test_valid_request_id_is_preserved_and_errors_use_the_common_shape(
+    client: TestClient,
+) -> None:
     request_id = "b9cb7f73-3f53-4c40-8393-24af9c90c343"
-    with TestClient(application, raise_server_exceptions=False) as client:
-        response = client.get("/missing", headers={"X-Request-ID": request_id})
+    response = client.get("/missing", headers={"X-Request-ID": request_id})
 
     assert response.status_code == 404
     assert response.headers["X-Request-ID"] == request_id
@@ -45,14 +73,142 @@ def test_valid_request_id_is_preserved_and_errors_use_the_common_shape() -> None
     }
 
 
-def test_readiness_and_status_fail_closed_without_postgresql() -> None:
-    application = create_app(create_engine("sqlite+pysqlite:///:memory:"))
-    with TestClient(application, raise_server_exceptions=False) as client:
-        ready_response = client.get("/ready")
-        status_response = client.get("/api/v1/kb/status")
+def test_readiness_and_status_fail_closed_without_postgresql(client: TestClient) -> None:
+    ready_response = client.get("/ready")
+    status_response = client.get("/api/v1/kb/status")
 
     assert ready_response.status_code == 503
     assert ready_response.json()["status"] == "not_ready"
     assert ready_response.json()["checks"]["semantic_index"]["status"] == "pending"
     assert status_response.status_code == 503
     assert status_response.json()["error"]["code"] == "DATABASE_NOT_READY"
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"query": "   "},
+        {"query": "x" * 1001},
+        {"query": 123},
+        {"query": "planos", "unexpected": True},
+        {"query": "plano\x00família"},
+        {"query": "plano\nfamília"},
+        {"query": "plano\x7ffamília"},
+    ],
+)
+def test_retrieval_rejects_invalid_payloads_without_loading_the_model(
+    payload: dict[str, object],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    engine = create_engine("sqlite+pysqlite:///:memory:")
+    application = create_app(engine)
+    factory = MagicMock()
+    monkeypatch.setattr("app.api.OnnxE5EmbeddingProvider", factory)
+
+    with TestClient(application, raise_server_exceptions=False) as test_client:
+        response = test_client.post("/api/v1/kb/retrieve", json=payload)
+
+    engine.dispose()
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+    UUID(response.headers["X-Request-ID"])
+    factory.assert_not_called()
+
+
+def test_openapi_describes_typed_success_and_error_contracts(application: FastAPI) -> None:
+    schema = application.openapi()
+    retrieval = schema["paths"]["/api/v1/kb/retrieve"]["post"]
+    readiness = schema["paths"]["/ready"]["get"]
+
+    assert retrieval["requestBody"]["content"]["application/json"]["schema"]["$ref"].endswith(
+        "/RetrievalRequest"
+    )
+    assert retrieval["responses"]["200"]["content"]["application/json"]["schema"]["$ref"].endswith(
+        "/RetrievalResponse"
+    )
+    assert retrieval["responses"]["422"]["content"]["application/json"]["schema"]["$ref"].endswith(
+        "/ErrorResponse"
+    )
+    assert readiness["responses"]["200"]["content"]["application/json"]["schema"]["$ref"].endswith(
+        "/ReadinessResponse"
+    )
+    assert readiness["responses"]["503"]["content"]["application/json"]["schema"]["$ref"].endswith(
+        "/ReadinessResponse"
+    )
+    assert retrieval["tags"] == ["knowledge-base"]
+
+
+def test_method_not_allowed_preserves_headers(client: TestClient) -> None:
+    response = client.get("/api/v1/kb/retrieve")
+
+    assert response.status_code == 405
+    assert response.headers["Allow"] == "POST"
+    UUID(response.headers["X-Request-ID"])
+
+
+def test_unexpected_error_keeps_request_id_in_header_and_body(application: FastAPI) -> None:
+    @application.get("/test-only-unexpected-error")
+    def unexpected_error() -> None:
+        raise RuntimeError("internal details must not be returned")
+
+    request_id = "5d2422d8-a499-4b1f-8f6e-860483e38095"
+    with (
+        patch("app.main.logger.error") as error_log,
+        TestClient(application, raise_server_exceptions=False) as test_client,
+    ):
+        response = test_client.get(
+            "/test-only-unexpected-error",
+            headers={"X-Request-ID": request_id},
+        )
+
+    assert response.status_code == 500
+    assert response.headers["X-Request-ID"] == request_id
+    assert response.json()["error"]["request_id"] == request_id
+    assert "internal details" not in response.text
+    assert error_log.call_args.kwargs["extra"] == {
+        "request_id": request_id,
+        "method": "GET",
+        "path": "/test-only-unexpected-error",
+        "status_code": 500,
+    }
+
+
+def test_injected_engine_is_not_disposed_by_lifespan() -> None:
+    engine = MagicMock(spec=Engine)
+    with TestClient(create_app(engine), raise_server_exceptions=False) as test_client:
+        assert test_client.get("/health").status_code == 200
+    engine.dispose.assert_not_called()
+
+
+def test_app_owned_engine_is_disposed_by_lifespan() -> None:
+    engine = MagicMock(spec=Engine)
+    with (
+        patch("app.main.get_engine", return_value=engine),
+        TestClient(create_app(), raise_server_exceptions=False) as test_client,
+    ):
+        assert test_client.get("/health").status_code == 200
+    engine.dispose.assert_called_once_with()
+
+
+def test_lazy_embedding_provider_initializes_once_across_threads(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    application = create_app(create_engine("sqlite+pysqlite:///:memory:"))
+    provider = StubEmbeddingProvider()
+    call_lock = threading.Lock()
+    call_count = 0
+
+    def provider_factory(_: object) -> StubEmbeddingProvider:
+        nonlocal call_count
+        with call_lock:
+            call_count += 1
+        time.sleep(0.02)
+        return provider
+
+    monkeypatch.setattr("app.api.OnnxE5EmbeddingProvider", provider_factory)
+    request = Request({"type": "http", "app": application})
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        resolved = list(executor.map(lambda _: _provider(request), range(16)))
+
+    assert all(item is provider for item in resolved)
+    assert call_count == 1

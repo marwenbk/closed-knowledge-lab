@@ -90,11 +90,19 @@ groups:
     suite: pipeline
     category: multi_document
     expected_status: ANSWERABLE
-    required_fact_ids: [CANCELLATION_ALLOWED_ANY_TIME, CANCELLATION_NO_AUTOMATIC_REFUND, REFUND_REQUEST_WINDOW]
     forbidden_fact_ids: []
     variants:
-      - "Se eu cancelar hoje, recebo automaticamente o que paguei?"
-      - "Cancelar dentro de 14 dias garante reembolso?"
+      - messages: "Se eu cancelar hoje, recebo automaticamente o que paguei?"
+        required_fact_ids:
+          - CANCELLATION_ALLOWED_ANY_TIME
+          - CANCELLATION_NO_AUTOMATIC_REFUND
+          - REFUND_REQUEST_WINDOW
+          - REFUND_REQUIRES_NO_COMPLETED_CONSULTATION
+      - messages: "Cancelar dentro de 14 dias garante reembolso?"
+        required_fact_ids:
+          - CANCELLATION_NO_AUTOMATIC_REFUND
+          - REFUND_REQUEST_WINDOW
+          - REFUND_REQUIRES_NO_COMPLETED_CONSULTATION
 
   - id: multi_platinum_psychology
     suite: pipeline
@@ -140,11 +148,12 @@ groups:
     suite: pipeline
     category: partial_answer
     expected_status: PARTIALLY_ANSWERABLE
-    required_fact_ids: [SUPPORT_EMAIL, GENERAL_SUPPORT_HOURS]
     forbidden_fact_ids: []
     variants:
-      - "Qual é o e-mail do suporte e quais idiomas a tela oferece?"
-      - "Quando o suporte abre e existe interface em espanhol?"
+      - messages: "Qual é o e-mail do suporte e quais idiomas a tela oferece?"
+        required_fact_ids: [SUPPORT_EMAIL]
+      - messages: "Quando o suporte abre e existe interface em espanhol?"
+        required_fact_ids: [GENERAL_SUPPORT_HOURS]
 
   - id: partial_price_annual
     suite: pipeline

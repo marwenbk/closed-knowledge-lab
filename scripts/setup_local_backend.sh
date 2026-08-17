@@ -14,9 +14,9 @@ bash "${TOPMED_PROJECT_ROOT}/scripts/setup_local_data.sh"
 bash "${TOPMED_PROJECT_ROOT}/scripts/start_local_postgres.sh"
 "${TOPMED_VENV}/bin/alembic" -c "${TOPMED_PROJECT_ROOT}/backend/alembic.ini" upgrade head
 "${TOPMED_VENV}/bin/python" -m app.cli kb import \
-  --manifest "${TOPMED_PROJECT_ROOT}/knowledge_base/manifest.json" \
-  --activate
+  --manifest "${TOPMED_PROJECT_ROOT}/knowledge_base/manifest.json"
+"${TOPMED_VENV}/bin/python" -m app.cli kb embed --download
+"${TOPMED_VENV}/bin/python" -m app.cli kb activate
 "${TOPMED_VENV}/bin/python" -m app.cli system ready
 
-echo "✓ Local PostgreSQL and backend knowledge foundation are ready"
-
+echo "✓ Local PostgreSQL and closed-knowledge retrieval are ready"

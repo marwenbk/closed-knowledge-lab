@@ -3,16 +3,24 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from dataclasses import asdict
 from pathlib import Path
+from typing import Any
 
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.config import PROJECT_ROOT, get_settings
 from app.db import get_engine
-from app.kb import KnowledgeImportError, import_knowledge_base
+from app.embeddings import EmbeddingError, OnnxE5EmbeddingProvider, embed_knowledge_base
+from app.kb import KnowledgeImportError, activate_knowledge_base, import_knowledge_base
+from app.retrieval import RetrievalError, retrieve_knowledge
 from app.services import KnowledgeBaseUnavailable, kb_status, readiness
 
 DEFAULT_MANIFEST = PROJECT_ROOT / "knowledge_base" / "manifest.json"
+
+
+def print_result(result: Any) -> None:
+    print(json.dumps(asdict(result), default=str, indent=2))
 
 
 def parse_args() -> argparse.Namespace:
@@ -23,7 +31,21 @@ def parse_args() -> argparse.Namespace:
 
     import_parser = kb_commands.add_parser("import", help="Import a generated KB manifest")
     import_parser.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST)
-    import_parser.add_argument("--activate", action="store_true")
+    embed_parser = kb_commands.add_parser("embed", help="Embed a draft knowledge-base version")
+    embed_parser.add_argument("--dataset-id")
+    embed_parser.add_argument("--dataset-version")
+    embed_parser.add_argument(
+        "--download",
+        action="store_true",
+        help="Download and checksum the pinned model when it is not cached",
+    )
+    activate_parser = kb_commands.add_parser(
+        "activate", help="Activate a completely embedded knowledge-base version"
+    )
+    activate_parser.add_argument("--dataset-id")
+    activate_parser.add_argument("--dataset-version")
+    retrieve_parser = kb_commands.add_parser("retrieve", help="Run closed-KB hybrid retrieval")
+    retrieve_parser.add_argument("--query", required=True, help="Portuguese retrieval query")
     kb_commands.add_parser("status", help="Show the active KB status")
     system_parser = resources.add_parser("system", help="Inspect backend system state")
     system_commands = system_parser.add_subparsers(dest="command", required=True)
@@ -34,36 +56,62 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
     engine = get_engine()
+    settings = get_settings()
     try:
         if args.resource == "kb" and args.command == "import":
-            import_result = import_knowledge_base(engine, args.manifest, activate=args.activate)
-            print(
-                json.dumps(
-                    {
-                        "kb_version_id": str(import_result.kb_version_id),
-                        "dataset_id": import_result.dataset_id,
-                        "dataset_version": import_result.dataset_version,
-                        "status": import_result.status,
-                        "document_count": import_result.document_count,
-                        "chunk_count": import_result.chunk_count,
-                        "no_op": import_result.no_op,
-                    },
-                    indent=2,
+            import_result = import_knowledge_base(engine, args.manifest)
+            print_result(import_result)
+        elif args.resource == "kb" and args.command == "embed":
+            if args.download:
+                print(
+                    "Preparing the pinned checksum-verified embedding model...",
+                    file=sys.stderr,
                 )
+            provider = OnnxE5EmbeddingProvider(settings, download=args.download)
+            embedding_result = embed_knowledge_base(
+                engine,
+                provider,
+                batch_size=settings.embedding_batch_size,
+                dataset_id=args.dataset_id or settings.expected_dataset_id,
+                dataset_version=args.dataset_version or settings.expected_dataset_version,
             )
+            print_result(embedding_result)
+        elif args.resource == "kb" and args.command == "activate":
+            activation_result = activate_knowledge_base(
+                engine,
+                dataset_id=args.dataset_id or settings.expected_dataset_id,
+                dataset_version=args.dataset_version or settings.expected_dataset_version,
+                expected_embedding_model=settings.embedding_model_id,
+                expected_embedding_version=settings.embedding_model_revision,
+                expected_embedding_dimensions=settings.embedding_dimensions,
+            )
+            print_result(activation_result)
+        elif args.resource == "kb" and args.command == "retrieve":
+            provider = OnnxE5EmbeddingProvider(settings)
+            retrieval_result = retrieve_knowledge(engine, provider, settings, args.query)
+            print(json.dumps(retrieval_result.as_dict(), ensure_ascii=False, indent=2))
         elif args.resource == "kb" and args.command == "status":
-            print(json.dumps(kb_status(engine), indent=2))
+            print(json.dumps(kb_status(engine, dataset_id=settings.expected_dataset_id), indent=2))
         elif args.resource == "system" and args.command == "ready":
-            settings = get_settings()
+            OnnxE5EmbeddingProvider(settings)
             readiness_result = readiness(
                 engine,
                 expected_dataset_id=settings.expected_dataset_id,
-                expected_dataset_version=settings.expected_dataset_version,
+                expected_embedding_model=settings.embedding_model_id,
+                expected_embedding_version=settings.embedding_model_revision,
+                expected_embedding_dimensions=settings.embedding_dimensions,
+                embedding_runtime_ready=True,
             )
             print(json.dumps(readiness_result, indent=2))
             if readiness_result["status"] != "ready":
                 return 1
-    except (KnowledgeImportError, KnowledgeBaseUnavailable, SQLAlchemyError) as exc:
+    except (
+        EmbeddingError,
+        KnowledgeImportError,
+        KnowledgeBaseUnavailable,
+        RetrievalError,
+        SQLAlchemyError,
+    ) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
     finally:

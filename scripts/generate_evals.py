@@ -7,17 +7,15 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-
 from data_tools import (
+    DEFAULT_CONFLICT_FIXTURES_PATH,
     DEFAULT_EVAL_BLUEPRINTS_PATH,
     DEFAULT_EVAL_OUTPUT_PATH,
     DEFAULT_FACT_CATALOG_PATH,
-    DEFAULT_CONFLICT_FIXTURES_PATH,
     DataToolError,
     load_yaml_mapping,
     normalize_text,
 )
-
 
 CATEGORY_MINIMUMS = {
     "direct_answer": 15,
@@ -31,6 +29,7 @@ CATEGORY_MINIMUMS = {
     "user_falsehood": 10,
 }
 VALID_SUITES = {"retrieval", "pipeline", "adversarial"}
+VALID_CATEGORIES = {*CATEGORY_MINIMUMS, "conflict_fixture"}
 VALID_STATUSES = {
     "ANSWERABLE",
     "PARTIALLY_ANSWERABLE",
@@ -78,15 +77,17 @@ def build_expected_documents(required_fact_ids: list[str], facts: dict[str, Any]
     }
 
 
-def validate_conflict_fixtures(
-    fixtures_data: dict[str, Any], catalog: dict[str, Any]
-) -> set[str]:
+def validate_conflict_fixtures(fixtures_data: dict[str, Any], catalog: dict[str, Any]) -> set[str]:
+    if fixtures_data.get("schema_version") != catalog.get("schema_version"):
+        raise DataToolError("Conflict fixture and fact catalog schema versions do not match")
     if fixtures_data.get("dataset_id") != catalog.get("dataset_id"):
         raise DataToolError("Conflict fixture and fact catalog dataset IDs do not match")
     if fixtures_data.get("dataset_version") != catalog.get("dataset_version"):
         raise DataToolError("Conflict fixture and fact catalog versions do not match")
     fixtures = fixtures_data.get("fixtures")
     facts = catalog.get("facts")
+    if not isinstance(facts, dict):
+        raise DataToolError("Fact catalog facts must be a mapping")
     if not isinstance(fixtures, list) or not fixtures:
         raise DataToolError("Conflict fixtures must define a non-empty fixture list")
     fixture_ids: set[str] = set()
@@ -112,8 +113,7 @@ def validate_conflict_fixtures(
         namespaces.add(namespace)
         document = fixture.get("document")
         if not isinstance(document, dict) or not all(
-            isinstance(document.get(key), str) and document[key]
-            for key in ("document_id", "title", "content")
+            isinstance(document.get(key), str) and document[key] for key in ("document_id", "title", "content")
         ):
             raise DataToolError(f"Fixture {fixture_id} must define a complete temporary document")
         if document["document_id"] in document_ids:
@@ -129,6 +129,8 @@ def generate_cases(
     catalog: dict[str, Any],
     fixture_ids: set[str],
 ) -> tuple[list[dict[str, Any]], Counter[str]]:
+    if blueprints.get("schema_version") != catalog.get("schema_version"):
+        raise DataToolError("Evaluation blueprint and fact catalog schema versions do not match")
     if blueprints.get("dataset_id") != catalog.get("dataset_id"):
         raise DataToolError("Evaluation blueprint and fact catalog dataset IDs do not match")
     if blueprints.get("dataset_version") != catalog.get("dataset_version"):
@@ -178,8 +180,8 @@ def generate_cases(
             forbidden_fact_ids = inherited(group, variant, "forbidden_fact_ids", [])
             if suite not in VALID_SUITES:
                 raise DataToolError(f"Invalid suite for {case_id}: {suite}")
-            if not isinstance(category, str) or not category:
-                raise DataToolError(f"Missing category for {case_id}")
+            if category not in VALID_CATEGORIES:
+                raise DataToolError(f"Invalid category for {case_id}: {category}")
             if expected_status not in VALID_STATUSES:
                 raise DataToolError(f"Invalid expected status for {case_id}: {expected_status}")
             if not isinstance(required_fact_ids, list) or not isinstance(forbidden_fact_ids, list):

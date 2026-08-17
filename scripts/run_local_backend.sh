@@ -11,7 +11,6 @@ fi
 bash "${TOPMED_PROJECT_ROOT}/scripts/start_local_postgres.sh"
 exec "${TOPMED_PROJECT_ROOT}/.venv/bin/uvicorn" app.main:app \
   --app-dir "${TOPMED_PROJECT_ROOT}/backend" \
-  --host 0.0.0.0 \
+  --host 127.0.0.1 \
   --port 8000 \
   --reload
-

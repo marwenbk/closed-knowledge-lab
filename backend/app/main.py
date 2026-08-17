@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import json
 import logging
+import threading
 import time
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator, Mapping
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from typing import Any
@@ -14,10 +15,12 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, Response
 from sqlalchemy import Engine
 from starlette.exceptions import HTTPException as StarletteHTTPException
+from starlette.middleware.base import RequestResponseEndpoint
 
-from app.config import get_settings
+from app.api import ApiError, knowledge_router, system_router
+from app.config import Settings, get_settings
 from app.db import get_engine
-from app.services import KnowledgeBaseUnavailable, kb_status, readiness
+from app.embeddings import EmbeddingProvider
 
 logger = logging.getLogger("topmed.api")
 
@@ -31,8 +34,7 @@ class JsonLogFormatter(logging.Formatter):
             "message": record.getMessage(),
         }
         for field in ("request_id", "method", "path", "status_code", "duration_ms"):
-            value = getattr(record, field, None)
-            if value is not None:
+            if (value := getattr(record, field, None)) is not None:
                 payload[field] = value
         if record.exc_info:
             payload["exception"] = self.formatException(record.exc_info)
@@ -50,37 +52,66 @@ def configure_logging(level: str) -> None:
 
 
 def _request_id(request: Request) -> str:
-    return str(getattr(request.state, "request_id", uuid4()))
+    return str(getattr(request.state, "request_id", None) or uuid4())
 
 
-def _error_response(request: Request, status_code: int, code: str, message: str) -> JSONResponse:
+def _error_response(
+    request: Request,
+    status_code: int,
+    code: str,
+    message: str,
+    headers: Mapping[str, str] | None = None,
+) -> JSONResponse:
+    request_id = _request_id(request)
+    response_headers = dict(headers or {})
+    response_headers["X-Request-ID"] = request_id
     return JSONResponse(
         status_code=status_code,
         content={
             "error": {
                 "code": code,
                 "message": message,
-                "request_id": _request_id(request),
+                "request_id": request_id,
             }
         },
+        headers=response_headers,
     )
 
 
-def create_app(engine: Engine | None = None) -> FastAPI:
-    settings = get_settings()
-    configure_logging(settings.log_level)
-    database = engine or get_engine()
+def create_app(
+    engine: Engine | None = None,
+    embedding_provider: EmbeddingProvider | None = None,
+    settings: Settings | None = None,
+) -> FastAPI:
+    configured_settings = get_settings() if settings is None else settings
+    configure_logging(configured_settings.log_level)
+    owns_engine = engine is None
+    database = get_engine() if engine is None else engine
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
-        logger.info("starting %s", settings.app_name)
-        yield
-        database.dispose()
+        logger.info("starting %s", configured_settings.app_name)
+        try:
+            yield
+        finally:
+            if owns_engine:
+                database.dispose()
 
-    application = FastAPI(title=settings.app_name, version="0.1.0", lifespan=lifespan)
+    application = FastAPI(
+        title=configured_settings.app_name,
+        version="0.1.0",
+        lifespan=lifespan,
+    )
+    application.state.engine = database
+    application.state.settings = configured_settings
+    application.state.embedding_provider = embedding_provider
+    application.state.embedding_provider_lock = threading.Lock()
 
     @application.middleware("http")
-    async def request_id_middleware(request: Request, call_next: Callable[..., Any]) -> Response:
+    async def request_context(
+        request: Request,
+        call_next: RequestResponseEndpoint,
+    ) -> Response:
         started_at = time.perf_counter()
         supplied = request.headers.get("X-Request-ID")
         try:
@@ -102,9 +133,19 @@ def create_app(engine: Engine | None = None) -> FastAPI:
         )
         return response
 
+    @application.exception_handler(ApiError)
+    async def api_exception(request: Request, exc: ApiError) -> JSONResponse:
+        logger.warning(
+            "request_failed",
+            exc_info=(type(exc), exc, exc.__traceback__),
+            extra={"request_id": _request_id(request), "status_code": exc.status_code},
+        )
+        return _error_response(request, exc.status_code, exc.code, str(exc))
+
     @application.exception_handler(StarletteHTTPException)
     async def http_exception(request: Request, exc: StarletteHTTPException) -> JSONResponse:
-        return _error_response(request, exc.status_code, "HTTP_ERROR", str(exc.detail))
+        message = exc.detail if isinstance(exc.detail, str) else "The request is invalid"
+        return _error_response(request, exc.status_code, "HTTP_ERROR", message, exc.headers)
 
     @application.exception_handler(RequestValidationError)
     async def validation_exception(request: Request, _: RequestValidationError) -> JSONResponse:
@@ -112,37 +153,25 @@ def create_app(engine: Engine | None = None) -> FastAPI:
 
     @application.exception_handler(Exception)
     async def unhandled_exception(request: Request, exc: Exception) -> JSONResponse:
-        logger.exception("unhandled request error", exc_info=exc)
-        return _error_response(request, 500, "INTERNAL_ERROR", "The request could not be completed")
-
-    @application.get("/health")
-    def health() -> dict[str, str]:
-        return {"status": "ok", "service": "topmed-api"}
-
-    @application.get("/ready")
-    def ready() -> JSONResponse:
-        result = readiness(
-            database,
-            expected_dataset_id=settings.expected_dataset_id,
-            expected_dataset_version=settings.expected_dataset_version,
+        logger.error(
+            "unhandled_request_error",
+            exc_info=(type(exc), exc, exc.__traceback__),
+            extra={
+                "request_id": _request_id(request),
+                "method": request.method,
+                "path": request.url.path,
+                "status_code": 500,
+            },
         )
-        return JSONResponse(status_code=200 if result["status"] == "ready" else 503, content=result)
+        return _error_response(
+            request,
+            500,
+            "INTERNAL_ERROR",
+            "The request could not be completed",
+        )
 
-    @application.get("/api/v1/kb/status")
-    def knowledge_status(request: Request) -> JSONResponse:
-        try:
-            return JSONResponse(content=kb_status(database))
-        except KnowledgeBaseUnavailable as exc:
-            return _error_response(request, 503, "KNOWLEDGE_BASE_NOT_READY", str(exc))
-        except Exception as exc:
-            logger.warning("knowledge status unavailable: %s", exc)
-            return _error_response(
-                request,
-                503,
-                "DATABASE_NOT_READY",
-                "The knowledge database is unavailable",
-            )
-
+    application.include_router(system_router)
+    application.include_router(knowledge_router)
     return application
 
 

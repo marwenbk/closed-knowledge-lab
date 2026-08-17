@@ -97,6 +97,15 @@ class ImportResult:
     no_op: bool
 
 
+@dataclass(frozen=True)
+class ActivationResult:
+    kb_version_id: UUID
+    dataset_id: str
+    dataset_version: str
+    previous_version_id: UUID | None
+    no_op: bool
+
+
 def sha256_bytes(content: bytes) -> str:
     return hashlib.sha256(content).hexdigest()
 
@@ -248,7 +257,7 @@ def _parse_units(body: str, source_path: Path) -> tuple[SourceUnit, ...]:
 
     for line in cleaned.splitlines():
         match = HEADING_PATTERN.match(line)
-        if match and len(match.group(1)) <= 3:
+        if match:
             flush()
             current_lines = []
             level = len(match.group(1))
@@ -357,7 +366,7 @@ def _body_blocks(unit: SourceUnit) -> list[str]:
 
 
 def _split_oversized_unit(unit: SourceUnit, document_title: str) -> list[SourceUnit]:
-    prefix_level = min(max(len(unit.section_path), 1), 3)
+    prefix_level = min(max(len(unit.section_path), 1), 6)
     prefix = f"{'#' * prefix_level} {unit.section_path[-1]}"
     document_prefix_tokens = token_count(f"# {document_title}\n\n")
     body_budget = MAX_CHUNK_TOKENS - document_prefix_tokens - token_count(prefix) - 2
@@ -502,9 +511,62 @@ def prepare_dataset(manifest_path: Path) -> tuple[Manifest, tuple[PreparedDocume
     return manifest, tuple(prepared)
 
 
-def _activate_version(session: Session, version: KnowledgeBaseVersion) -> None:
+def _verify_version_is_indexed(
+    session: Session,
+    version: KnowledgeBaseVersion,
+    *,
+    expected_embedding_model: str,
+    expected_embedding_version: str,
+    expected_embedding_dimensions: int,
+) -> None:
+    chunk_count = session.scalar(
+        select(func.count()).select_from(Chunk).where(Chunk.kb_version_id == version.id)
+    )
+    indexed_count = session.scalar(
+        select(func.count())
+        .select_from(Chunk)
+        .where(
+            Chunk.kb_version_id == version.id,
+            Chunk.embedding.is_not(None),
+            Chunk.embedding_model == expected_embedding_model,
+            Chunk.embedding_version == expected_embedding_version,
+            Chunk.embedding_dimensions == expected_embedding_dimensions,
+            Chunk.embedding_content_checksum == Chunk.content_checksum,
+        )
+    )
+    if not chunk_count or indexed_count != chunk_count:
+        raise KnowledgeImportError(
+            "Knowledge-base activation requires a complete, current embedding index"
+        )
+
+
+def _activate_version(
+    session: Session,
+    version: KnowledgeBaseVersion,
+    *,
+    expected_embedding_model: str,
+    expected_embedding_version: str,
+    expected_embedding_dimensions: int,
+) -> ActivationResult:
+    _verify_version_is_indexed(
+        session,
+        version,
+        expected_embedding_model=expected_embedding_model,
+        expected_embedding_version=expected_embedding_version,
+        expected_embedding_dimensions=expected_embedding_dimensions,
+    )
     if version.status == "ACTIVE":
-        return
+        return ActivationResult(
+            kb_version_id=version.id,
+            dataset_id=version.dataset_id,
+            dataset_version=version.dataset_version,
+            previous_version_id=None,
+            no_op=True,
+        )
+    if version.status not in {"DRAFT", "RETIRED"}:
+        raise KnowledgeImportError(
+            f"Knowledge-base version in state {version.status!r} cannot be activated"
+        )
     previous = session.scalar(
         select(KnowledgeBaseVersion)
         .where(
@@ -513,15 +575,11 @@ def _activate_version(session: Session, version: KnowledgeBaseVersion) -> None:
         )
         .with_for_update()
     )
-    previous_state: dict[str, Any] | None = None
+    previous_version_id: UUID | None = None
     if previous is not None and previous.id != version.id:
-        previous_state = {
-            "id": str(previous.id),
-            "dataset_version": previous.dataset_version,
-            "status": previous.status,
-        }
+        previous_version_id = previous.id
         previous.status = "RETIRED"
-        session.flush()
+    previous_status = version.status
     version.status = "ACTIVE"
     version.activated_at = datetime.now(UTC)
     session.add(
@@ -531,22 +589,67 @@ def _activate_version(session: Session, version: KnowledgeBaseVersion) -> None:
             actor_type="SYSTEM",
             resource_type="knowledge_base_version",
             resource_id=str(version.id),
-            before_json=previous_state,
+            before_json={
+                "dataset_id": version.dataset_id,
+                "dataset_version": version.dataset_version,
+                "status": previous_status,
+            },
             after_json={
                 "dataset_id": version.dataset_id,
                 "dataset_version": version.dataset_version,
                 "status": "ACTIVE",
             },
-            metadata_json={},
+            metadata_json={
+                "previous_active_version_id": (
+                    str(previous_version_id) if previous_version_id else None
+                )
+            },
         )
     )
+    session.flush()
+    return ActivationResult(
+        kb_version_id=version.id,
+        dataset_id=version.dataset_id,
+        dataset_version=version.dataset_version,
+        previous_version_id=previous_version_id,
+        no_op=False,
+    )
+
+
+def activate_knowledge_base(
+    engine: Engine,
+    *,
+    dataset_id: str,
+    dataset_version: str,
+    expected_embedding_model: str,
+    expected_embedding_version: str,
+    expected_embedding_dimensions: int,
+) -> ActivationResult:
+    with Session(engine) as session, session.begin():
+        version = session.scalar(
+            select(KnowledgeBaseVersion)
+            .where(
+                KnowledgeBaseVersion.dataset_id == dataset_id,
+                KnowledgeBaseVersion.dataset_version == dataset_version,
+            )
+            .with_for_update()
+        )
+        if version is None:
+            raise KnowledgeImportError(
+                f"Knowledge-base version does not exist: {dataset_id}:{dataset_version}"
+            )
+        return _activate_version(
+            session,
+            version,
+            expected_embedding_model=expected_embedding_model,
+            expected_embedding_version=expected_embedding_version,
+            expected_embedding_dimensions=expected_embedding_dimensions,
+        )
 
 
 def import_knowledge_base(
     engine: Engine,
     manifest_path: Path,
-    *,
-    activate: bool = False,
 ) -> ImportResult:
     manifest, prepared_documents = prepare_dataset(manifest_path)
     with Session(engine) as session, session.begin():
@@ -564,8 +667,6 @@ def import_knowledge_base(
                     "Existing dataset/version has a different manifest checksum; "
                     "active knowledge is immutable"
                 )
-            if activate:
-                _activate_version(session, existing)
             document_count = session.scalar(
                 select(func.count())
                 .select_from(Document)
@@ -678,8 +779,6 @@ def import_knowledge_base(
                 },
             )
         )
-        if activate:
-            _activate_version(session, version)
         session.flush()
         return ImportResult(
             kb_version_id=version.id,
