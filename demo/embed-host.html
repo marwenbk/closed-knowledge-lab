@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TopMed Widget — página hospedeira</title>
+    <style>
+      * { box-sizing: border-box; }
+      body { margin: 0; min-height: 100vh; font: 16px/1.6 system-ui, sans-serif; color: #0f172a; background: #f8fafc; }
+      main { max-width: 860px; margin: auto; padding: 12vh 24px; }
+      h1 { max-width: 650px; font-size: clamp(2.3rem, 7vw, 5rem); line-height: .98; letter-spacing: -.06em; }
+      p { max-width: 600px; color: #475569; }
+      code { padding: .2rem .4rem; border-radius: .35rem; background: #e2e8f0; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p>Fixture de integração</p>
+      <h1>Uma página comum com o atendimento TopMed incorporado.</h1>
+      <p>
+        O botão no canto é injetado por <code>widget.js</code>. O chat roda em um iframe,
+        isolado dos estilos desta página.
+      </p>
+    </main>
+    <script
+      src="http://127.0.0.1:3000/widget.js"
+      data-api-url="http://127.0.0.1:8000"
+      data-assistant-key="topmed-local-demo"
+      data-position="bottom-right"
+      data-locale="pt-BR"
+    ></script>
+  </body>
+</html>

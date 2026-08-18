@@ -12,6 +12,7 @@ from uuid import UUID, uuid4
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from sqlalchemy import Engine
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -114,6 +115,15 @@ def create_app(
     application.state.embedding_provider_lock = threading.Lock()
     application.state.llm_provider = llm_provider
     application.state.llm_provider_lock = threading.Lock()
+    application.add_middleware(
+        CORSMiddleware,
+        allow_origins=sorted(configured_settings.allowed_widget_origins),
+        allow_credentials=False,
+        allow_methods=["GET", "POST", "OPTIONS"],
+        allow_headers=["Authorization", "Content-Type", "Last-Event-ID"],
+        expose_headers=["X-Request-ID"],
+        max_age=600,
+    )
 
     @application.middleware("http")
     async def request_context(

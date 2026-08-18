@@ -88,15 +88,16 @@ Conflict scenarios are disabled by default. They may be included only after thei
 
 ## PostgreSQL and Backend Knowledge Foundation
 
-Phase 1A projects the generated Markdown corpus into PostgreSQL. Phase 1B adds local embeddings and hybrid retrieval. Phase 2 adds answerability, grounded generation, exact citations, and verification. Phase 3 adds signed widget sessions, persistent conversations, RAG runs, messages, and replayable SSE. Frontend, handoff, admin authentication, and Refine remain later phases.
+Phase 1A projects the generated Markdown corpus into PostgreSQL. Phase 1B adds local embeddings and hybrid retrieval. Phase 2 adds answerability, grounded generation, exact citations, and verification. Phase 3 adds signed widget sessions, persistent conversations, RAG runs, messages, and replayable SSE. Phase 4 adds the customer widget. Handoff, admin authentication, and Refine remain later phases.
 
 ### Prerequisites
 
 - Python 3.12 or newer;
+- Node.js 20.9 or newer and pnpm 10 or newer for the customer widget;
 - either Docker with Docker Compose or Apple's `container` CLI;
 - a DeepSeek API key with available credit;
 - internet access for dependency/model installation and grounded-answer requests;
-- ports `5433` and `8000` available locally.
+- ports `3000`, `5433`, and `8000` available locally.
 
 Both Phase 0 and the backend use the root `.venv`. PostgreSQL runs from the pinned `pgvector/pgvector:0.8.6-pg17-bookworm` image and keeps its data in the `topmed-postgres-data` volume.
 
@@ -269,6 +270,47 @@ The server commits the customer message and `processing.started` before calling 
 
 The server defines the complete conversation state graph, while this phase exposes only AI-active conversation creation, messaging, retrieval, replay, and customer close. Handoff transitions and human messages remain Phase 5.
 
+## Customer chat widget
+
+Phase 4 provides a direct chat at `/chat`, an iframe application at `/widget`, and a small framework-free loader at `/widget.js`. The UI uses assistant-ui's external-store runtime: FastAPI and PostgreSQL remain authoritative, while the browser keeps only the signed session, active conversation ID, and replay cursor in session storage.
+
+Install the pinned frontend dependencies:
+
+```bash
+bash scripts/setup_local_frontend.sh
+```
+
+Run the backend in one terminal and the frontend in another:
+
+```bash
+bash scripts/run_local_backend.sh
+bash scripts/run_local_frontend.sh
+```
+
+Open `http://127.0.0.1:3000/chat` for the direct experience. To verify the embed loader on a plain host page, run:
+
+```bash
+.venv/bin/python -m http.server 3001 \
+  --bind 127.0.0.1 \
+  --directory demo
+```
+
+Then open `http://127.0.0.1:3001/embed-host.html`. The fixture loads:
+
+```html
+<script
+  src="http://127.0.0.1:3000/widget.js"
+  data-api-url="http://127.0.0.1:8000"
+  data-assistant-key="topmed-local-demo"
+  data-position="bottom-right"
+  data-locale="pt-BR"
+></script>
+```
+
+The loader injects a style-isolated launcher and iframe, validates host messages against the exact chat origin, supports an unread badge and Escape-to-close, and expands to fullscreen on small screens. The chat reconnects to authenticated SSE using its last persisted event ID and falls back to snapshot polling during transient stream failures. Only committed, verified answers are rendered, with expandable exact citations and a permanent fictional-service/privacy warning.
+
+The browser never receives the DeepSeek key or an admin credential. Add every deployed frontend origin to `WIDGET_ALLOWED_ORIGINS`; the signed widget session is bound to that exact origin. Human-message rendering is already distinct, while the customer handoff action intentionally arrives with the server-enforced handoff workflow in Phase 5.
+
 ### Tests and static checks
 
 With PostgreSQL running and `.env` loaded, run the complete suite:
@@ -284,6 +326,8 @@ TOPMED_REQUIRE_MODEL_TESTS=1 TOPMED_REQUIRE_LLM_TESTS=1 \
 .venv/bin/ruff format --check --config backend/pyproject.toml backend
 .venv/bin/mypy --config-file backend/pyproject.toml backend/app
 .venv/bin/python -m compileall -q backend/app backend/tests
+pnpm --dir frontend check
+pnpm --dir frontend build
 ```
 
 The PostgreSQL tests create uniquely named disposable databases through `TOPMED_TEST_DATABASE_URL` and remove only those databases afterward. They cover migrations, knowledge indexing, signed widget sessions, origin scoping, state transitions, idempotency, failed runs, persisted provenance, ordered replay, and append-only events. The two `TOPMED_REQUIRE_*_TESTS` flags make missing embedding artifacts or DeepSeek access fail complete verification instead of silently skipping model tests. Live DeepSeek checks consume API credit and run only when `TOPMED_REQUIRE_LLM_TESTS=1` is explicit; they cover structured output plus eight representative cases loaded from `evals/cases.yaml`.
@@ -303,7 +347,7 @@ Run every hook manually with:
 .venv/bin/pre-commit run --all-files
 ```
 
-Commits check whitespace, YAML and TOML syntax, merge markers, large files, private keys, Ruff linting and formatting, MyPy, and the unit suite. PostgreSQL, embedding-model, and live DeepSeek tests remain in the explicit complete-suite command above so ordinary commits stay local and fast.
+Commits check whitespace, YAML and TOML syntax, merge markers, large files, private keys, Ruff linting and formatting, MyPy, the backend unit suite, and frontend lint, types, and unit tests. PostgreSQL, embedding-model, live DeepSeek, and production frontend-build checks remain in the explicit complete-suite command above.
 
 ### Stop PostgreSQL
 

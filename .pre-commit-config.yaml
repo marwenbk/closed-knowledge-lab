@@ -40,3 +40,9 @@ repos:
         language: system
         files: ^(backend/|scripts/|data/|knowledge_base/|evals/|demo/)
         pass_filenames: false
+      - id: frontend-check
+        name: frontend checks
+        entry: pnpm --dir frontend check
+        language: system
+        files: ^frontend/
+        pass_filenames: false

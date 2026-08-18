@@ -80,6 +80,29 @@ def test_invalid_request_id_is_replaced(client: TestClient) -> None:
     UUID(response.headers["X-Request-ID"])
 
 
+def test_cors_allows_only_configured_widget_origins(client: TestClient) -> None:
+    allowed = client.options(
+        "/api/v1/widget/sessions",
+        headers={
+            "Origin": "http://127.0.0.1:3000",
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "content-type",
+        },
+    )
+    denied = client.options(
+        "/api/v1/widget/sessions",
+        headers={
+            "Origin": "https://untrusted.example",
+            "Access-Control-Request-Method": "POST",
+        },
+    )
+
+    assert allowed.status_code == 200
+    assert allowed.headers["Access-Control-Allow-Origin"] == "http://127.0.0.1:3000"
+    assert "POST" in allowed.headers["Access-Control-Allow-Methods"]
+    assert "Access-Control-Allow-Origin" not in denied.headers
+
+
 def test_valid_request_id_is_preserved_and_errors_use_the_common_shape(
     client: TestClient,
 ) -> None:
