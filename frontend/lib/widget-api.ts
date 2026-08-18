@@ -1,7 +1,8 @@
 import type {
   ApiErrorBody,
   Conversation,
-  MessageResponse,
+  HandoffResponse,
+  MessageSubmissionResponse,
   WidgetSession,
 } from "@/lib/widget-types";
 
@@ -109,11 +110,22 @@ export function sendConversationMessage(
   conversationId: string,
   content: string,
   clientMessageId: string,
-): Promise<MessageResponse> {
+): Promise<MessageSubmissionResponse> {
   return request(apiBaseUrl, `/api/v1/widget/conversations/${conversationId}/messages`, {
     method: "POST",
     token,
     body: { content, client_message_id: clientMessageId },
+  });
+}
+
+export function requestHumanSupport(
+  apiBaseUrl: string,
+  token: string,
+  conversationId: string,
+): Promise<HandoffResponse> {
+  return request(apiBaseUrl, `/api/v1/widget/conversations/${conversationId}/request-human`, {
+    method: "POST",
+    token,
   });
 }
 

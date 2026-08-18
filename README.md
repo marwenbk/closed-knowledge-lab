@@ -88,7 +88,7 @@ Conflict scenarios are disabled by default. They may be included only after thei
 
 ## PostgreSQL and Backend Knowledge Foundation
 
-Phase 1A projects the generated Markdown corpus into PostgreSQL. Phase 1B adds local embeddings and hybrid retrieval. Phase 2 adds answerability, grounded generation, exact citations, and verification. Phase 3 adds signed widget sessions, persistent conversations, RAG runs, messages, and replayable SSE. Phase 4 adds the customer widget. Handoff, admin authentication, and Refine remain later phases.
+Phase 1 projects the generated Markdown corpus into PostgreSQL and adds local hybrid retrieval. Phase 2 adds verified DeepSeek answers. Phase 3 adds persistent conversations and replayable SSE. Phase 4 adds the customer widget. Phase 5 adds authenticated human takeover. Refine remains the next phase.
 
 ### Prerequisites
 
@@ -105,11 +105,11 @@ Both Phase 0 and the backend use the root `.venv`. PostgreSQL runs from the pinn
 
 ```bash
 cp .env.example .env
-# Set DEEPSEEK_API_KEY in .env, then run:
+# Set DEEPSEEK_API_KEY and a private ADMIN_BOOTSTRAP_PASSWORD in .env, then run:
 bash scripts/setup_local_backend.sh
 ```
 
-The setup command creates or reuses `.venv`, installs pinned data and backend dependencies, regenerates and validates the 15-document dataset, starts PostgreSQL, applies Alembic migrations, imports and embeds `topmed-demo:2.0.0`, activates the complete version, and verifies PostgreSQL, the event store, retrieval, and DeepSeek readiness.
+The setup command creates or reuses `.venv`, installs pinned dependencies, regenerates and validates the 15-document dataset, starts PostgreSQL, applies migrations, idempotently bootstraps the configured local administrator, imports and embeds `topmed-demo:2.0.0`, activates the complete version, and verifies readiness.
 
 The command is idempotent. Running it again reuses the environment, database, and model cache; identical import and embedding operations both report `"no_op": true`.
 
@@ -268,7 +268,47 @@ curl -N \
 
 The server commits the customer message and `processing.started` before calling DeepSeek. Model inference runs without holding a database transaction. Only a verified answer is then committed with its AI message, exact citations, versioned RAG metadata, and delivery events. SSE is only a delivery channel: reconnecting clients replay the append-only PostgreSQL event log, bounded by `SSE_REPLAY_LIMIT`.
 
-The server defines the complete conversation state graph, while this phase exposes only AI-active conversation creation, messaging, retrieval, replay, and customer close. Handoff transitions and human messages remain Phase 5.
+Customer messages submitted in `HUMAN_REQUESTED`, `HUMAN_ASSIGNED`, or `HUMAN_ACTIVE` are committed to PostgreSQL and returned with `delivery_mode: "HUMAN_QUEUE"`; they never start a RAG run or load an embedding or LLM provider. Returning control to AI affects only future customer messages.
+
+### Authenticated human takeover
+
+Request a person from the widget session:
+
+```bash
+curl -fsS -X POST \
+  "http://localhost:8000/api/v1/widget/conversations/$CONVERSATION_ID/request-human" \
+  -H 'Origin: http://localhost:3000' \
+  -H "Authorization: Bearer $WIDGET_TOKEN"
+```
+
+The local setup creates `ADMIN_BOOTSTRAP_EMAIL` exactly once and never changes an existing password. To bootstrap explicitly after changing configuration:
+
+```bash
+.venv/bin/python -m app.cli admin bootstrap
+```
+
+Log in with a cookie jar. The HTTP-only session cookie is paired with a CSRF cookie that must be repeated in `X-CSRF-Token` for admin writes:
+
+```bash
+curl -fsS -c /tmp/topmed-admin.cookies -X POST \
+  http://localhost:8000/api/v1/admin/auth/login \
+  -H 'Content-Type: application/json' \
+  -H 'Origin: http://localhost:3000' \
+  -d "{\"email\":\"$ADMIN_BOOTSTRAP_EMAIL\",\
+       \"password\":\"$ADMIN_BOOTSTRAP_PASSWORD\"}"
+
+ADMIN_CSRF_TOKEN="$(awk '$6 == "topmed_admin_csrf" {print $7}' \
+  /tmp/topmed-admin.cookies)"
+curl -fsS -b /tmp/topmed-admin.cookies \
+  http://localhost:8000/api/v1/admin/handoffs \
+  -H 'Origin: http://localhost:3000'
+curl -fsS -b /tmp/topmed-admin.cookies -X POST \
+  "http://localhost:8000/api/v1/admin/conversations/$CONVERSATION_ID/claim" \
+  -H 'Origin: http://localhost:3000' \
+  -H "X-CSRF-Token: $ADMIN_CSRF_TOKEN"
+```
+
+The same authenticated API supports public human replies, private internal notes, return-to-AI, close, conversation detail, and replayable admin SSE. Claims are atomic: a competing agent receives `409 HANDOFF_ALREADY_CLAIMED`. Internal notes are excluded from the widget, public SSE, citations, and LLM context.
 
 ## Customer chat widget
 
@@ -309,7 +349,7 @@ Then open `http://127.0.0.1:3001/embed-host.html`. The fixture loads:
 
 The loader injects a style-isolated launcher and iframe, validates host messages against the exact chat origin, supports an unread badge and Escape-to-close, and expands to fullscreen on small screens. The chat reconnects to authenticated SSE using its last persisted event ID and falls back to snapshot polling during transient stream failures. Only committed, verified answers are rendered, with expandable exact citations and a permanent fictional-service/privacy warning.
 
-The browser never receives the DeepSeek key or an admin credential. Add every deployed frontend origin to `WIDGET_ALLOWED_ORIGINS`; the signed widget session is bound to that exact origin. Human-message rendering is already distinct, while the customer handoff action intentionally arrives with the server-enforced handoff workflow in Phase 5.
+The browser never receives the DeepSeek key or an admin credential. Add every deployed frontend origin to `WIDGET_ALLOWED_ORIGINS`; the signed widget session is bound to that exact origin. “Falar com uma pessoa” requests takeover, keeps the composer usable while waiting, and updates the banner as an agent claims, replies, or returns the conversation to AI.
 
 ### Evaluation gates
 
@@ -350,7 +390,7 @@ pnpm --dir frontend check
 pnpm --dir frontend build
 ```
 
-The PostgreSQL tests create uniquely named disposable databases through `TOPMED_TEST_DATABASE_URL` and remove only those databases afterward. They cover migrations, knowledge indexing, the complete 63-case retrieval gate, signed widget sessions, origin scoping, state transitions, idempotency, failed runs, persisted provenance, ordered replay, and append-only events. The two `TOPMED_REQUIRE_*_TESTS` flags make missing embedding artifacts or DeepSeek access fail complete verification instead of silently skipping model tests. Live DeepSeek checks consume API credit and run only when `TOPMED_REQUIRE_LLM_TESTS=1` is explicit; the test suite keeps those checks to eight representative cases, while the explicit `eval run --live` command runs all 100.
+The PostgreSQL tests create uniquely named disposable databases through `TOPMED_TEST_DATABASE_URL` and remove only those databases afterward. They cover migrations, knowledge indexing, the complete 63-case retrieval gate, signed widget sessions, administrator authentication and CSRF, atomic handoff claims, AI suppression, human messages, internal-note privacy, state transitions, persisted provenance, ordered replay, and append-only events. The two `TOPMED_REQUIRE_*_TESTS` flags make missing embedding artifacts or DeepSeek access fail complete verification instead of silently skipping model tests. Live DeepSeek checks consume API credit and run only when `TOPMED_REQUIRE_LLM_TESTS=1` is explicit; the test suite keeps those checks to eight representative cases, while the explicit `eval run --live` command runs all 100.
 
 ### Pre-commit hooks
 
@@ -388,6 +428,7 @@ Both commands preserve the named database volume.
 ### Troubleshooting
 
 - If `.env` is missing, copy `.env.example` to `.env` or rerun the setup command.
+- If administrator bootstrap fails, set a non-default `ADMIN_BOOTSTRAP_PASSWORD` of 12–128 characters. Repeated setup intentionally does not overwrite an existing password.
 - If PostgreSQL cannot bind port `5433`, stop the process using that port or change `POSTGRES_HOST_PORT` and the port in `DATABASE_URL` and `TOPMED_TEST_DATABASE_URL` together.
 - If `/health` succeeds but `/ready` returns `503`, inspect the individual readiness checks, then rerun the migration, import, and embedding commands above.
 - If semantic status is `pending`, import the intended version, run `kb embed --download`, then run `kb activate`. The previous active version stays available until the replacement is completely embedded.

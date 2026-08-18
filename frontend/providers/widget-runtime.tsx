@@ -24,6 +24,7 @@ import {
   createWidgetSession,
   getConversation,
   normalizeApiBaseUrl,
+  requestHumanSupport,
   sendConversationMessage,
   WidgetApiError,
 } from "@/lib/widget-api";
@@ -51,6 +52,7 @@ type WidgetRuntimeContextValue = {
   dismissError: () => void;
   error: string | null;
   isReady: boolean;
+  requestHuman: () => Promise<void>;
   restartConversation: () => Promise<void>;
   retryLastSubmission: (() => Promise<void>) | null;
 };
@@ -245,10 +247,18 @@ export function WidgetRuntimeProvider({
                   setIsRunning(false);
                 }
                 if (
-                  ["message.created", "message.delivered", "conversation.closed", "error"].includes(
-                    type,
-                  )
+                  [
+                    "message.created",
+                    "message.delivered",
+                    "handoff.requested",
+                    "handoff.assigned",
+                    "handoff.started",
+                    "handoff.returned_to_ai",
+                    "conversation.closed",
+                    "error",
+                  ].includes(type)
                 ) {
+                  if (type.startsWith("handoff.")) setIsRunning(false);
                   void refreshConversation(controller.signal);
                 }
               },
@@ -309,7 +319,7 @@ export function WidgetRuntimeProvider({
           optimisticMessage(content, clientMessageId),
         ]);
       }
-      setIsRunning(true);
+      setIsRunning(["AI_ACTIVE", "RETURNED_TO_AI"].includes(conversation.state));
       setError(null);
       try {
         await sendConversationMessage(
@@ -376,6 +386,19 @@ export function WidgetRuntimeProvider({
     }
   }, [apiBaseUrl, applyConversation]);
 
+  const requestHuman = useCallback(async () => {
+    const session = sessionRef.current;
+    const conversation = conversationRef.current;
+    if (!session || !conversation || conversation.state === "CLOSED") return;
+    try {
+      setIsRunning(false);
+      await requestHumanSupport(apiBaseUrl, session.token, conversation.conversation_id);
+      await refreshConversation();
+    } catch (caught) {
+      setError(errorMessage(caught));
+    }
+  }, [apiBaseUrl, refreshConversation]);
+
   const retryLastSubmission = useMemo(
     () =>
       failedSubmission
@@ -404,6 +427,7 @@ export function WidgetRuntimeProvider({
       dismissError,
       error,
       isReady,
+      requestHuman,
       restartConversation,
       retryLastSubmission,
     }),
@@ -414,6 +438,7 @@ export function WidgetRuntimeProvider({
       dismissError,
       error,
       isReady,
+      requestHuman,
       restartConversation,
       retryLastSubmission,
     ],

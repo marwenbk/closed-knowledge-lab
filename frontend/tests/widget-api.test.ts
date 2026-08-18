@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createWidgetSession,
   normalizeApiBaseUrl,
+  requestHumanSupport,
   WidgetApiError,
 } from "@/lib/widget-api";
 
@@ -85,5 +86,40 @@ describe("widget API", () => {
         "5d2422d8-a499-4b1f-8f6e-860483e38095",
       ),
     );
+  });
+
+  it("requests human support with the scoped widget bearer token", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          conversation_id: "0b7900b3-f3bb-49ce-a2a1-3424460aa411",
+          state: "HUMAN_REQUESTED",
+          priority: "NORMAL",
+          reason: "CUSTOMER_REQUEST",
+          requested_at: "2026-08-18T12:00:00Z",
+          assigned_agent_id: null,
+          claimed_at: null,
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await requestHumanSupport(
+      "http://127.0.0.1:8000",
+      "signed-widget-token",
+      "0b7900b3-f3bb-49ce-a2a1-3424460aa411",
+    );
+
+    expect(result.state).toBe("HUMAN_REQUESTED");
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://127.0.0.1:8000/api/v1/widget/conversations/0b7900b3-f3bb-49ce-a2a1-3424460aa411/request-human",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.any(Headers),
+      }),
+    );
+    const request = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    expect((request.headers as Headers).get("Authorization")).toBe("Bearer signed-widget-token");
   });
 });

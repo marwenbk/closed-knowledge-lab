@@ -57,6 +57,14 @@ class Settings(BaseSettings):
     widget_allowed_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
     widget_session_ttl_seconds: Annotated[int, Field(ge=60, le=86_400)] = 3_600
     widget_assistant_label: str = "TopMed Guide"
+    auto_handoff_on_conflict: bool = True
+    auto_handoff_on_not_answerable: bool = False
+    auto_handoff_on_partial: bool = False
+    admin_allowed_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
+    admin_session_ttl_seconds: Annotated[int, Field(ge=300, le=86_400)] = 28_800
+    admin_bootstrap_email: str | None = None
+    admin_bootstrap_password: SecretStr | None = None
+    admin_bootstrap_display_name: str = "TopMed Admin"
     sse_keepalive_seconds: Annotated[float, Field(gt=0, le=60)] = 15.0
     sse_poll_interval_seconds: Annotated[float, Field(gt=0, le=5)] = 0.5
     sse_replay_limit: Annotated[int, Field(gt=0, le=5_000)] = 500
@@ -111,6 +119,13 @@ class Settings(BaseSettings):
             raise ValueError("at least one widget origin is required")
         return value
 
+    @field_validator("admin_allowed_origins")
+    @classmethod
+    def require_admin_origins(cls, value: str) -> str:
+        if not [origin.strip() for origin in value.split(",") if origin.strip()]:
+            raise ValueError("at least one admin origin is required")
+        return value
+
     @model_validator(mode="after")
     def reject_local_widget_credentials_in_production(self) -> Settings:
         if self.app_env == "production" and (
@@ -119,6 +134,10 @@ class Settings(BaseSettings):
             == "topmed-local-development-token-secret"
         ):
             raise ValueError("production requires explicit widget credentials")
+        if self.app_env == "production" and any(
+            urlsplit(origin).scheme != "https" for origin in self.allowed_admin_origins
+        ):
+            raise ValueError("production requires HTTPS admin origins")
         return self
 
     @property
@@ -132,6 +151,14 @@ class Settings(BaseSettings):
         return frozenset(
             origin.strip().rstrip("/")
             for origin in self.widget_allowed_origins.split(",")
+            if origin.strip()
+        )
+
+    @property
+    def allowed_admin_origins(self) -> frozenset[str]:
+        return frozenset(
+            origin.strip().rstrip("/")
+            for origin in self.admin_allowed_origins.split(",")
             if origin.strip()
         )
 

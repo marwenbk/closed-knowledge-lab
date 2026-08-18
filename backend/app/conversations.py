@@ -4,6 +4,7 @@ import base64
 import hashlib
 import hmac
 import json
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
@@ -21,6 +22,7 @@ from app.models import (
     AuditEvent,
     Conversation,
     ConversationEvent,
+    HandoffEvent,
     KnowledgeBaseVersion,
     Message,
     RagRun,
@@ -98,6 +100,16 @@ class SubmissionResult:
     message_id: UUID
     rag_run_id: UUID
     answer: GroundedAnswer
+
+
+@dataclass(frozen=True)
+class QueuedSubmissionResult:
+    conversation_id: UUID
+    message_id: UUID
+    state: str
+
+
+MessageSubmissionResult = SubmissionResult | QueuedSubmissionResult
 
 
 @dataclass(frozen=True)
@@ -281,7 +293,7 @@ def authenticate_widget_session(
         )
 
 
-def _event(
+def record_conversation_event(
     session: Session,
     conversation_id: UUID,
     event_type: str,
@@ -289,12 +301,13 @@ def _event(
     *,
     actor_type: str,
     actor_id: str | None,
+    visibility: str = "PUBLIC",
 ) -> None:
     session.add(
         ConversationEvent(
             conversation_id=conversation_id,
             event_type=event_type,
-            visibility="PUBLIC",
+            visibility=visibility,
             payload_json=payload,
             actor_type=actor_type,
             actor_id=actor_id,
@@ -302,7 +315,7 @@ def _event(
     )
 
 
-def _audit(
+def record_audit_event(
     session: Session,
     event_type: str,
     resource_type: str,
@@ -330,7 +343,7 @@ def _audit(
     )
 
 
-def _owned_conversation(
+def owned_conversation(
     session: Session,
     principal: WidgetPrincipal,
     conversation_id: UUID,
@@ -358,8 +371,8 @@ def create_or_restore_conversation(
 ) -> tuple[ConversationSnapshot, bool]:
     with Session(engine) as session, session.begin():
         if conversation_id is not None:
-            conversation = _owned_conversation(session, principal, conversation_id)
-            return _snapshot(session, conversation), False
+            conversation = owned_conversation(session, principal, conversation_id)
+            return conversation_snapshot(session, conversation), False
         conversation = Conversation(
             id=uuid4(),
             widget_session_id=principal.session_id,
@@ -367,7 +380,7 @@ def create_or_restore_conversation(
         )
         session.add(conversation)
         session.flush()
-        _event(
+        record_conversation_event(
             session,
             conversation.id,
             "conversation.created",
@@ -375,7 +388,7 @@ def create_or_restore_conversation(
             actor_type="CUSTOMER",
             actor_id=principal.anonymous_subject,
         )
-        _audit(
+        record_audit_event(
             session,
             "conversation.created",
             "conversation",
@@ -385,10 +398,10 @@ def create_or_restore_conversation(
             request_id=request_id,
             after={"state": conversation.state},
         )
-        return _snapshot(session, conversation), True
+        return conversation_snapshot(session, conversation), True
 
 
-def _snapshot(session: Session, conversation: Conversation) -> ConversationSnapshot:
+def conversation_snapshot(session: Session, conversation: Conversation) -> ConversationSnapshot:
     rows = session.execute(
         select(Message, RagRun.id)
         .outerjoin(RagRun, RagRun.assistant_message_id == Message.id)
@@ -426,7 +439,9 @@ def get_conversation(
     conversation_id: UUID,
 ) -> ConversationSnapshot:
     with Session(engine) as session:
-        return _snapshot(session, _owned_conversation(session, principal, conversation_id))
+        return conversation_snapshot(
+            session, owned_conversation(session, principal, conversation_id)
+        )
 
 
 def _completed_submission(
@@ -463,21 +478,69 @@ def _completed_submission(
     return SubmissionResult(conversation_id, assistant_message.id, run.id, answer)
 
 
+def _persist_customer_message(
+    session: Session,
+    conversation: Conversation,
+    principal: WidgetPrincipal,
+    *,
+    client_message_id: UUID,
+    content: str,
+    request_id: UUID,
+    created_at: datetime,
+) -> Message:
+    message = Message(
+        id=uuid4(),
+        conversation_id=conversation.id,
+        client_message_id=client_message_id,
+        sender_type="CUSTOMER",
+        content=content,
+        visibility="PUBLIC",
+        status="PERSISTED",
+        citations_json=[],
+    )
+    session.add(message)
+    conversation.last_message_at = created_at
+    conversation.updated_at = created_at
+    record_conversation_event(
+        session,
+        conversation.id,
+        "message.created",
+        {
+            "message_id": str(message.id),
+            "sender": {"type": "CUSTOMER", "label": "Você"},
+            "content": content,
+            "citations": [],
+            "created_at": created_at.isoformat(),
+        },
+        actor_type="CUSTOMER",
+        actor_id=principal.anonymous_subject,
+    )
+    record_audit_event(
+        session,
+        "message.submitted",
+        "message",
+        message.id,
+        actor_type="CUSTOMER",
+        actor_id=principal.anonymous_subject,
+        request_id=request_id,
+        after={"conversation_id": str(conversation.id), "status": "PERSISTED"},
+    )
+    return message
+
+
 def _start_submission(
     engine: Engine,
     principal: WidgetPrincipal,
     settings: Settings,
-    embedding_provider: EmbeddingProvider,
-    llm_provider: LLMProvider,
     *,
     conversation_id: UUID,
     client_message_id: UUID,
     content: str,
     request_id: UUID,
-) -> tuple[UUID, UUID, tuple[str, ...]] | SubmissionResult:
+) -> tuple[UUID, UUID, tuple[str, ...]] | MessageSubmissionResult:
     now = _now()
     with Session(engine) as session, session.begin():
-        conversation = _owned_conversation(session, principal, conversation_id, for_update=True)
+        conversation = owned_conversation(session, principal, conversation_id, for_update=True)
         existing_message = session.scalar(
             select(Message).where(
                 Message.conversation_id == conversation.id,
@@ -495,16 +558,27 @@ def _start_submission(
                 select(RagRun).where(RagRun.user_message_id == existing_message.id)
             )
             if existing_run is None:
-                raise ConversationError(503, "MESSAGE_FAILED", "The message could not be restored")
+                return QueuedSubmissionResult(
+                    conversation.id,
+                    existing_message.id,
+                    conversation.state,
+                )
             return _completed_submission(session, conversation.id, existing_run)
         if conversation.state == "CLOSED":
             raise ConversationError(409, "CONVERSATION_CLOSED", "The conversation is closed")
-        if conversation.state not in {"AI_ACTIVE", "RETURNED_TO_AI"}:
-            raise ConversationError(
-                409,
-                "AI_NOT_IN_CONTROL",
-                "The conversation is not currently controlled by the assistant",
+        if conversation.state in {"HUMAN_REQUESTED", "HUMAN_ASSIGNED", "HUMAN_ACTIVE"}:
+            message = _persist_customer_message(
+                session,
+                conversation,
+                principal,
+                client_message_id=client_message_id,
+                content=content,
+                request_id=request_id,
+                created_at=now,
             )
+            return QueuedSubmissionResult(conversation.id, message.id, conversation.state)
+        if conversation.state not in {"AI_ACTIVE", "RETURNED_TO_AI"}:
+            raise ConversationError(409, "AI_NOT_AVAILABLE", "The assistant is not available")
         running = session.scalar(
             select(RagRun.id).where(
                 RagRun.conversation_id == conversation.id,
@@ -525,6 +599,29 @@ def _start_submission(
                 "KNOWLEDGE_BASE_NOT_READY",
                 "The knowledge base is not ready",
             )
+        previous_state = conversation.state
+        if previous_state == "RETURNED_TO_AI":
+            conversation.state = "AI_ACTIVE"
+            conversation.updated_at = now
+            record_conversation_event(
+                session,
+                conversation.id,
+                "conversation.ai_resumed",
+                {"from_state": previous_state, "to_state": "AI_ACTIVE"},
+                actor_type="CUSTOMER",
+                actor_id=principal.anonymous_subject,
+            )
+            record_audit_event(
+                session,
+                "conversation.ai_resumed",
+                "conversation",
+                conversation.id,
+                actor_type="CUSTOMER",
+                actor_id=principal.anonymous_subject,
+                request_id=request_id,
+                before={"state": previous_state},
+                after={"state": "AI_ACTIVE"},
+            )
         previous_messages = tuple(
             reversed(
                 session.scalars(
@@ -540,15 +637,14 @@ def _start_submission(
             )
         )
         retrieval_query = contextualize_query(content, previous_messages)
-        user_message = Message(
-            id=uuid4(),
-            conversation_id=conversation.id,
+        user_message = _persist_customer_message(
+            session,
+            conversation,
+            principal,
             client_message_id=client_message_id,
-            sender_type="CUSTOMER",
             content=content,
-            visibility="PUBLIC",
-            status="PERSISTED",
-            citations_json=[],
+            request_id=request_id,
+            created_at=now,
         )
         run = RagRun(
             id=uuid4(),
@@ -558,47 +654,21 @@ def _start_submission(
             original_query=content,
             retrieval_query=retrieval_query,
             status="RUNNING",
-            model_provider=llm_provider.provider_id,
-            model_name=llm_provider.model_id,
+            model_provider="deepseek",
+            model_name=settings.chat_model,
             model_version=None,
             prompt_version=settings.prompt_version,
-            embedding_version=embedding_provider.model_version,
+            embedding_version=settings.embedding_model_revision,
             settings_version=settings.settings_version,
         )
         session.add_all((user_message, run))
-        conversation.last_message_at = now
-        conversation.updated_at = now
-        _event(
-            session,
-            conversation.id,
-            "message.created",
-            {
-                "message_id": str(user_message.id),
-                "sender": {"type": "CUSTOMER", "label": "Você"},
-                "content": content,
-                "citations": [],
-                "created_at": now.isoformat(),
-            },
-            actor_type="CUSTOMER",
-            actor_id=principal.anonymous_subject,
-        )
-        _event(
+        record_conversation_event(
             session,
             conversation.id,
             "processing.started",
             {"message_id": str(user_message.id), "stage": "retrieval"},
             actor_type="SYSTEM",
             actor_id=None,
-        )
-        _audit(
-            session,
-            "message.submitted",
-            "message",
-            user_message.id,
-            actor_type="CUSTOMER",
-            actor_id=principal.anonymous_subject,
-            request_id=request_id,
-            after={"conversation_id": str(conversation.id), "status": "PERSISTED"},
         )
         return user_message.id, run.id, previous_messages
 
@@ -612,7 +682,7 @@ def _fail_submission(engine: Engine, run_id: UUID, error_code: str) -> None:
         run.status = "FAILED"
         run.error_code = error_code
         run.completed_at = now
-        _event(
+        record_conversation_event(
             session,
             run.conversation_id,
             "error",
@@ -631,11 +701,13 @@ def _finish_submission(
     user_message_id: UUID,
     run_id: UUID,
     answer: GroundedAnswer,
+    embedding_version: str,
+    request_id: UUID,
 ) -> SubmissionResult:
     now = _now()
     citations = [citation.model_dump(mode="json") for citation in answer.citations]
     with Session(engine) as session, session.begin():
-        conversation = _owned_conversation(session, principal, conversation_id, for_update=True)
+        conversation = owned_conversation(session, principal, conversation_id, for_update=True)
         run = session.get(RagRun, run_id, with_for_update=True)
         if run is None or run.status != "RUNNING" or run.user_message_id != user_message_id:
             raise ConversationError(409, "MESSAGE_PROCESSING", "Message state changed")
@@ -643,7 +715,7 @@ def _finish_submission(
             run.status = "FAILED"
             run.error_code = "AI_CONTROL_LOST"
             run.completed_at = now
-            _event(
+            record_conversation_event(
                 session,
                 conversation.id,
                 "error",
@@ -686,12 +758,13 @@ def _finish_submission(
         run.model_name = answer.model.name
         run.model_version = answer.model.version
         run.prompt_version = answer.model.prompt_version
+        run.embedding_version = embedding_version
         run.regenerated = answer.regenerated
         run.latency_ms = answer.duration_ms
         run.completed_at = now
         conversation.last_message_at = now
         conversation.updated_at = now
-        _event(
+        record_conversation_event(
             session,
             conversation.id,
             "message.created",
@@ -707,7 +780,7 @@ def _finish_submission(
             actor_type="AI",
             actor_id=answer.model.name,
         )
-        _event(
+        record_conversation_event(
             session,
             conversation.id,
             "message.delivered",
@@ -715,36 +788,54 @@ def _finish_submission(
             actor_type="SYSTEM",
             actor_id=None,
         )
+        automatic_handoff = (
+            (answer.status == "CONFLICTING_EVIDENCE" and settings.auto_handoff_on_conflict)
+            or (answer.status == "NOT_ANSWERABLE" and settings.auto_handoff_on_not_answerable)
+            or (answer.status == "PARTIALLY_ANSWERABLE" and settings.auto_handoff_on_partial)
+        )
+        if automatic_handoff:
+            from app.handoffs import request_handoff_in_session
+
+            request_handoff_in_session(
+                session,
+                conversation,
+                reason=answer.status,
+                priority="HIGH" if answer.status == "CONFLICTING_EVIDENCE" else "NORMAL",
+                trigger_message_id=user_message_id,
+                actor_type="SYSTEM",
+                actor_id=answer.model.name,
+                request_id=request_id,
+            )
         return SubmissionResult(conversation.id, assistant_message.id, run.id, answer)
 
 
 def submit_message(
     engine: Engine,
     principal: WidgetPrincipal,
-    embedding_provider: EmbeddingProvider,
-    llm_provider: LLMProvider,
+    get_embedding_provider: Callable[[], EmbeddingProvider],
+    get_llm_provider: Callable[[], LLMProvider],
     settings: Settings,
     *,
     conversation_id: UUID,
     client_message_id: UUID,
     content: str,
     request_id: UUID,
-) -> SubmissionResult:
+) -> MessageSubmissionResult:
     started = _start_submission(
         engine,
         principal,
         settings,
-        embedding_provider,
-        llm_provider,
         conversation_id=conversation_id,
         client_message_id=client_message_id,
         content=content,
         request_id=request_id,
     )
-    if isinstance(started, SubmissionResult):
+    if isinstance(started, (SubmissionResult, QueuedSubmissionResult)):
         return started
     user_message_id, run_id, conversation_context = started
     try:
+        embedding_provider = get_embedding_provider()
+        llm_provider = get_llm_provider()
         answer = answer_knowledge(
             engine,
             embedding_provider,
@@ -761,9 +852,14 @@ def submit_message(
             user_message_id=user_message_id,
             run_id=run_id,
             answer=answer,
+            embedding_version=embedding_provider.model_version,
+            request_id=request_id,
         )
     except Exception as exc:
-        error_code = exc.code if isinstance(exc, ConversationError) else type(exc).__name__.upper()
+        if isinstance(exc, ConversationError):
+            error_code = "AI_CONTROL_LOST" if exc.code == "AI_NOT_IN_CONTROL" else exc.code
+        else:
+            error_code = type(exc).__name__.upper()
         _fail_submission(engine, run_id, error_code)
         raise
 
@@ -790,7 +886,21 @@ def _transition(
     conversation.updated_at = now
     if target == "CLOSED":
         conversation.closed_at = now
-    _event(
+        if current in {"HUMAN_REQUESTED", "HUMAN_ASSIGNED", "HUMAN_ACTIVE"}:
+            session.add(
+                HandoffEvent(
+                    conversation_id=conversation.id,
+                    event_type="CLOSE",
+                    reason=conversation.handoff_reason,
+                    from_state=current,
+                    to_state=target,
+                    actor_type="CUSTOMER",
+                    actor_id=principal.anonymous_subject,
+                    trigger_message_id=conversation.handoff_trigger_message_id,
+                    request_id=request_id,
+                )
+            )
+    record_conversation_event(
         session,
         conversation.id,
         "conversation.closed" if target == "CLOSED" else "conversation.state_changed",
@@ -798,7 +908,7 @@ def _transition(
         actor_type="CUSTOMER",
         actor_id=principal.anonymous_subject,
     )
-    _audit(
+    record_audit_event(
         session,
         "conversation.state_changed",
         "conversation",
@@ -819,7 +929,7 @@ def close_conversation(
     request_id: UUID,
 ) -> ConversationSnapshot:
     with Session(engine) as session, session.begin():
-        conversation = _owned_conversation(session, principal, conversation_id, for_update=True)
+        conversation = owned_conversation(session, principal, conversation_id, for_update=True)
         _transition(
             session,
             conversation,
@@ -827,7 +937,7 @@ def close_conversation(
             principal=principal,
             request_id=request_id,
         )
-        return _snapshot(session, conversation)
+        return conversation_snapshot(session, conversation)
 
 
 def load_events(
@@ -839,7 +949,7 @@ def load_events(
     limit: int,
 ) -> tuple[EventRecord, ...]:
     with Session(engine) as session:
-        _owned_conversation(session, principal, conversation_id)
+        owned_conversation(session, principal, conversation_id)
         rows = session.scalars(
             select(ConversationEvent)
             .where(

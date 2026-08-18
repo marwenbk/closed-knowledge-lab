@@ -57,6 +57,7 @@ export type Conversation = {
 };
 
 export type MessageResponse = {
+  delivery_mode: "AI";
   conversation_id: string;
   message_id: string;
   rag_run_id: string;
@@ -64,6 +65,27 @@ export type MessageResponse = {
   answer: string;
   sender: Sender;
   citations: Citation[];
+};
+
+export type HumanQueueMessageResponse = {
+  delivery_mode: "HUMAN_QUEUE";
+  conversation_id: string;
+  message_id: string;
+  rag_run_id: null;
+  status: "PERSISTED";
+  state: ConversationState;
+};
+
+export type MessageSubmissionResponse = MessageResponse | HumanQueueMessageResponse;
+
+export type HandoffResponse = {
+  conversation_id: string;
+  state: ConversationState;
+  priority: "LOW" | "NORMAL" | "HIGH" | "URGENT";
+  reason: string;
+  requested_at: string;
+  assigned_agent_id: string | null;
+  claimed_at: string | null;
 };
 
 export type ConversationEvent = {

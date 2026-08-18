@@ -18,6 +18,7 @@ from sqlalchemy import Engine
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.base import RequestResponseEndpoint
 
+from app.admin_api import admin_router, auth_router
 from app.api import ApiError, knowledge_router, system_router
 from app.config import Settings, get_settings
 from app.db import get_engine
@@ -117,10 +118,17 @@ def create_app(
     application.state.llm_provider_lock = threading.Lock()
     application.add_middleware(
         CORSMiddleware,
-        allow_origins=sorted(configured_settings.allowed_widget_origins),
-        allow_credentials=False,
+        allow_origins=sorted(
+            configured_settings.allowed_widget_origins | configured_settings.allowed_admin_origins
+        ),
+        allow_credentials=True,
         allow_methods=["GET", "POST", "OPTIONS"],
-        allow_headers=["Authorization", "Content-Type", "Last-Event-ID"],
+        allow_headers=[
+            "Authorization",
+            "Content-Type",
+            "Last-Event-ID",
+            "X-CSRF-Token",
+        ],
         expose_headers=["X-Request-ID"],
         max_age=600,
     )
@@ -191,6 +199,8 @@ def create_app(
     application.include_router(system_router)
     application.include_router(knowledge_router)
     application.include_router(widget_router)
+    application.include_router(auth_router)
+    application.include_router(admin_router)
     return application
 
 

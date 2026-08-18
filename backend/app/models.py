@@ -227,6 +227,65 @@ class WidgetSession(Base):
     )
 
 
+class AdminUser(Base):
+    __tablename__ = "admin_users"
+    __table_args__ = (
+        CheckConstraint("status IN ('ACTIVE', 'DISABLED')", name="ck_admin_users_status"),
+        UniqueConstraint("email", name="uq_admin_users_email"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
+    email: Mapped[str] = mapped_column(String(320), nullable=False)
+    display_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    password_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class AdminUserRole(Base):
+    __tablename__ = "admin_user_roles"
+    __table_args__ = (
+        CheckConstraint(
+            "role IN ('ADMIN', 'SUPERVISOR', 'SUPPORT_AGENT', 'HUMAN_REVIEWER', "
+            "'KNOWLEDGE_EDITOR', 'AUDITOR')",
+            name="ck_admin_user_roles_role",
+        ),
+    )
+
+    user_id: Mapped[UUID] = mapped_column(
+        ForeignKey("admin_users.id", ondelete="RESTRICT"), primary_key=True
+    )
+    role: Mapped[str] = mapped_column(String(30), primary_key=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class AdminSession(Base):
+    __tablename__ = "admin_sessions"
+    __table_args__ = (
+        UniqueConstraint("token_hash", name="uq_admin_sessions_token_hash"),
+        Index("ix_admin_sessions_user_expires_at", "user_id", "expires_at"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
+    user_id: Mapped[UUID] = mapped_column(
+        ForeignKey("admin_users.id", ondelete="RESTRICT"), nullable=False
+    )
+    token_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    csrf_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
 class Conversation(Base):
     __tablename__ = "conversations"
     __table_args__ = (
@@ -235,8 +294,33 @@ class Conversation(Base):
             "'HUMAN_ASSIGNED', 'HUMAN_ACTIVE', 'RETURNED_TO_AI', 'CLOSED')",
             name="ck_conversations_state",
         ),
+        CheckConstraint(
+            "priority IS NULL OR priority IN ('LOW', 'NORMAL', 'HIGH', 'URGENT')",
+            name="ck_conversations_priority",
+        ),
+        CheckConstraint(
+            "state NOT IN ('HUMAN_REQUESTED', 'HUMAN_ASSIGNED', 'HUMAN_ACTIVE') OR "
+            "(priority IS NOT NULL AND handoff_reason IS NOT NULL "
+            "AND handoff_requested_at IS NOT NULL)",
+            name="ck_conversations_handoff_required",
+        ),
+        CheckConstraint(
+            "state NOT IN ('HUMAN_ASSIGNED', 'HUMAN_ACTIVE') OR "
+            "(assigned_agent_id IS NOT NULL AND claimed_at IS NOT NULL)",
+            name="ck_conversations_assignment_required",
+        ),
+        CheckConstraint(
+            "state <> 'HUMAN_REQUESTED' OR (assigned_agent_id IS NULL AND claimed_at IS NULL)",
+            name="ck_conversations_request_unassigned",
+        ),
         Index("ix_conversations_session_created_at", "widget_session_id", "created_at"),
         Index("ix_conversations_state_last_message_at", "state", "last_message_at"),
+        Index(
+            "ix_conversations_handoff_queue",
+            "state",
+            "priority",
+            "handoff_requested_at",
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
@@ -244,6 +328,21 @@ class Conversation(Base):
         ForeignKey("widget_sessions.id", ondelete="RESTRICT"), nullable=False
     )
     state: Mapped[str] = mapped_column(String(30), nullable=False)
+    priority: Mapped[str | None] = mapped_column(String(20))
+    handoff_reason: Mapped[str | None] = mapped_column(String(50))
+    handoff_trigger_message_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey(
+            "messages.id",
+            name="fk_conversations_handoff_trigger_message",
+            ondelete="RESTRICT",
+            use_alter=True,
+        )
+    )
+    handoff_requested_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    assigned_agent_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("admin_users.id", ondelete="RESTRICT")
+    )
+    claimed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_message_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(
@@ -267,9 +366,21 @@ class Message(Base):
             name="ck_messages_status",
         ),
         CheckConstraint(
-            "(sender_type = 'CUSTOMER' AND client_message_id IS NOT NULL) OR "
-            "(sender_type <> 'CUSTOMER' AND client_message_id IS NULL)",
+            "(sender_type IN ('CUSTOMER', 'HUMAN', 'INTERNAL') "
+            "AND client_message_id IS NOT NULL) OR "
+            "(sender_type IN ('AI', 'SYSTEM') AND client_message_id IS NULL)",
             name="ck_messages_client_id_owner",
+        ),
+        CheckConstraint(
+            "(sender_type = 'CUSTOMER' AND visibility = 'PUBLIC' "
+            "AND sender_user_id IS NULL) OR "
+            "(sender_type = 'AI' AND visibility = 'PUBLIC' AND sender_user_id IS NULL) OR "
+            "(sender_type = 'HUMAN' AND visibility = 'PUBLIC' "
+            "AND sender_user_id IS NOT NULL) OR "
+            "(sender_type = 'INTERNAL' AND visibility = 'INTERNAL' "
+            "AND sender_user_id IS NOT NULL) OR "
+            "(sender_type = 'SYSTEM' AND sender_user_id IS NULL)",
+            name="ck_messages_sender_visibility",
         ),
         UniqueConstraint(
             "conversation_id",
@@ -285,6 +396,9 @@ class Message(Base):
     )
     client_message_id: Mapped[UUID | None] = mapped_column(Uuid)
     sender_type: Mapped[str] = mapped_column(String(20), nullable=False)
+    sender_user_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("admin_users.id", ondelete="RESTRICT")
+    )
     content: Mapped[str] = mapped_column(Text, nullable=False)
     visibility: Mapped[str] = mapped_column(String(20), nullable=False)
     status: Mapped[str] = mapped_column(String(20), nullable=False)
@@ -366,6 +480,35 @@ class ConversationEvent(Base):
     payload_json: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
     actor_type: Mapped[str] = mapped_column(String(50), nullable=False)
     actor_id: Mapped[str | None] = mapped_column(String(200))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class HandoffEvent(Base):
+    __tablename__ = "handoff_events"
+    __table_args__ = (
+        CheckConstraint(
+            "event_type IN ('REQUEST', 'CLAIM', 'START', 'MESSAGE', 'NOTE', 'RETURN', 'CLOSE')",
+            name="ck_handoff_events_type",
+        ),
+        Index("ix_handoff_events_conversation_id", "conversation_id", "id"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
+    conversation_id: Mapped[UUID] = mapped_column(
+        ForeignKey("conversations.id", ondelete="RESTRICT"), nullable=False
+    )
+    event_type: Mapped[str] = mapped_column(String(20), nullable=False)
+    reason: Mapped[str | None] = mapped_column(String(100))
+    from_state: Mapped[str] = mapped_column(String(30), nullable=False)
+    to_state: Mapped[str] = mapped_column(String(30), nullable=False)
+    actor_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    actor_id: Mapped[str | None] = mapped_column(String(200))
+    trigger_message_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("messages.id", ondelete="RESTRICT")
+    )
+    request_id: Mapped[UUID] = mapped_column(Uuid, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

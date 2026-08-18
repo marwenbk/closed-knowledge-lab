@@ -18,6 +18,7 @@ import {
   Send,
   ShieldCheck,
   Sparkles,
+  UserRound,
   WifiOff,
   X,
 } from "lucide-react";
@@ -154,13 +155,19 @@ function Welcome() {
 }
 
 function Composer() {
+  const { conversationState } = useWidgetRuntime();
+  const humanControlled = ["HUMAN_REQUESTED", "HUMAN_ASSIGNED", "HUMAN_ACTIVE"].includes(
+    conversationState ?? "",
+  );
   return (
     <div className="mx-auto w-full max-w-3xl px-3 pb-3 sm:px-6 sm:pb-5">
       <ComposerPrimitive.Root className="flex items-end gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-[0_14px_40px_rgba(15,23,42,0.10)] focus-within:border-teal-500 focus-within:ring-2 focus-within:ring-teal-100">
         <ComposerPrimitive.Input
-          aria-label="Mensagem para o TopMed Guide"
+          aria-label={
+            humanControlled ? "Mensagem para o suporte TopMed" : "Mensagem para o TopMed Guide"
+          }
           className="max-h-32 min-h-11 flex-1 resize-none bg-transparent px-2 py-2.5 text-[0.95rem] leading-5 text-slate-900 outline-none placeholder:text-slate-400"
-          placeholder="Escreva sua pergunta…"
+          placeholder={humanControlled ? "Escreva para o suporte…" : "Escreva sua pergunta…"}
           rows={1}
         />
         <ComposerPrimitive.Send asChild>
@@ -218,6 +225,34 @@ function RuntimeNotice() {
       </div>
     );
   }
+  if (conversationState === "HUMAN_REQUESTED") {
+    return (
+      <div className="mx-auto mb-2 w-[calc(100%-1.5rem)] max-w-3xl rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+        Seu pedido foi enviado. Você pode continuar escrevendo enquanto aguarda uma pessoa.
+      </div>
+    );
+  }
+  if (conversationState === "HUMAN_ASSIGNED") {
+    return (
+      <div className="mx-auto mb-2 w-[calc(100%-1.5rem)] max-w-3xl rounded-xl border border-teal-200 bg-teal-50 px-3 py-2 text-sm text-teal-800">
+        Uma pessoa da equipe assumiu a conversa.
+      </div>
+    );
+  }
+  if (conversationState === "HUMAN_ACTIVE") {
+    return (
+      <div className="mx-auto mb-2 w-[calc(100%-1.5rem)] max-w-3xl rounded-xl border border-teal-200 bg-teal-50 px-3 py-2 text-sm text-teal-800">
+        Você está falando com o suporte TopMed.
+      </div>
+    );
+  }
+  if (conversationState === "RETURNED_TO_AI") {
+    return (
+      <div className="mx-auto mb-2 w-[calc(100%-1.5rem)] max-w-3xl px-3 text-xs text-teal-700">
+        O TopMed Guide responderá às próximas mensagens.
+      </div>
+    );
+  }
   if (isRunning) {
     return (
       <div className="mx-auto mb-2 flex w-[calc(100%-1.5rem)] max-w-3xl items-center gap-2 px-3 text-xs font-medium text-slate-500">
@@ -270,9 +305,24 @@ export function ChatThread() {
 }
 
 export function ConversationActions() {
-  const { closeCurrentConversation, conversationState, restartConversation } = useWidgetRuntime();
+  const { closeCurrentConversation, conversationState, requestHuman, restartConversation } =
+    useWidgetRuntime();
+  const handoffRequested = ["HUMAN_REQUESTED", "HUMAN_ASSIGNED", "HUMAN_ACTIVE"].includes(
+    conversationState ?? "",
+  );
   return (
     <div className="flex items-center gap-1">
+      <Button
+        aria-label="Falar com uma pessoa"
+        disabled={!conversationState || conversationState === "CLOSED" || handoffRequested}
+        onClick={() => void requestHuman()}
+        size="sm"
+        type="button"
+        variant="ghost"
+      >
+        <UserRound aria-hidden="true" className="size-3.5" />
+        <span className="hidden sm:inline">Falar com uma pessoa</span>
+      </Button>
       <Button
         aria-label="Nova conversa"
         onClick={() => void restartConversation()}

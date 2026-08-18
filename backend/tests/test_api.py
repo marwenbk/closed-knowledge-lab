@@ -86,7 +86,7 @@ def test_cors_allows_only_configured_widget_origins(client: TestClient) -> None:
         headers={
             "Origin": "http://127.0.0.1:3000",
             "Access-Control-Request-Method": "POST",
-            "Access-Control-Request-Headers": "content-type",
+            "Access-Control-Request-Headers": "content-type,x-csrf-token",
         },
     )
     denied = client.options(
@@ -99,6 +99,8 @@ def test_cors_allows_only_configured_widget_origins(client: TestClient) -> None:
 
     assert allowed.status_code == 200
     assert allowed.headers["Access-Control-Allow-Origin"] == "http://127.0.0.1:3000"
+    assert allowed.headers["Access-Control-Allow-Credentials"] == "true"
+    assert "X-CSRF-Token" in allowed.headers["Access-Control-Allow-Headers"]
     assert "POST" in allowed.headers["Access-Control-Allow-Methods"]
     assert "Access-Control-Allow-Origin" not in denied.headers
 
@@ -177,6 +179,12 @@ def test_openapi_describes_typed_success_and_error_contracts(application: FastAP
         "post"
     ]
     widget_events = schema["paths"]["/api/v1/widget/conversations/{conversation_id}/events"]["get"]
+    widget_handoff = schema["paths"][
+        "/api/v1/widget/conversations/{conversation_id}/request-human"
+    ]["post"]
+    admin_login = schema["paths"]["/api/v1/admin/auth/login"]["post"]
+    admin_queue = schema["paths"]["/api/v1/admin/handoffs"]["get"]
+    admin_events = schema["paths"]["/api/v1/admin/events"]["get"]
 
     assert retrieval["requestBody"]["content"]["application/json"]["schema"]["$ref"].endswith(
         "/RetrievalRequest"
@@ -203,11 +211,25 @@ def test_openapi_describes_typed_success_and_error_contracts(application: FastAP
     assert widget_session["responses"]["201"]["content"]["application/json"]["schema"][
         "$ref"
     ].endswith("/WidgetSessionResponse")
-    assert widget_message["responses"]["200"]["content"]["application/json"]["schema"][
-        "$ref"
-    ].endswith("/MessageResponse")
+    widget_message_schema = widget_message["responses"]["200"]["content"]["application/json"][
+        "schema"
+    ]
+    assert {option["$ref"].rsplit("/", 1)[-1] for option in widget_message_schema["anyOf"]} == {
+        "MessageResponse",
+        "HumanQueueMessageResponse",
+    }
     assert widget_events["responses"]["200"]["content"]["text/event-stream"]
     assert widget_message["security"] == [{"HTTPBearer": []}]
+    assert widget_handoff["responses"]["200"]["content"]["application/json"]["schema"][
+        "$ref"
+    ].endswith("/HandoffResponse")
+    assert admin_login["responses"]["200"]["content"]["application/json"]["schema"][
+        "$ref"
+    ].endswith("/AdminIdentityResponse")
+    assert admin_queue["responses"]["200"]["content"]["application/json"]["schema"][
+        "$ref"
+    ].endswith("/HandoffQueueResponse")
+    assert admin_events["responses"]["200"]["content"]["text/event-stream"]
 
 
 def test_answer_endpoint_returns_only_the_grounded_contract(

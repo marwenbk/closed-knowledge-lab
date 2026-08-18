@@ -9,6 +9,7 @@ from typing import Any
 
 from sqlalchemy.exc import SQLAlchemyError
 
+from app.admin_auth import AdminAuthError, bootstrap_admin
 from app.answering import AnsweringError, answer_knowledge
 from app.config import PROJECT_ROOT, get_settings
 from app.db import get_engine
@@ -64,6 +65,9 @@ def parse_args() -> argparse.Namespace:
         help="Also run all 100 answer cases through DeepSeek (uses API credit)",
     )
     run_eval_parser.add_argument("--output", type=Path, help="Write the JSON report to this path")
+    admin_parser = resources.add_parser("admin", help="Manage local administrators")
+    admin_commands = admin_parser.add_subparsers(dest="command", required=True)
+    admin_commands.add_parser("bootstrap", help="Create the configured bootstrap administrator")
     return parser.parse_args()
 
 
@@ -146,7 +150,29 @@ def main() -> int:
             print(json.dumps(report, ensure_ascii=False, indent=2))
             if not report["passed"]:
                 return 1
+        elif args.resource == "admin" and args.command == "bootstrap":
+            email = (settings.admin_bootstrap_email or "").strip()
+            password = (
+                settings.admin_bootstrap_password.get_secret_value()
+                if settings.admin_bootstrap_password is not None
+                else ""
+            )
+            if not email or not password:
+                raise AdminAuthError(
+                    400,
+                    "ADMIN_BOOTSTRAP_NOT_CONFIGURED",
+                    "Set ADMIN_BOOTSTRAP_EMAIL and ADMIN_BOOTSTRAP_PASSWORD",
+                )
+            print_result(
+                bootstrap_admin(
+                    engine,
+                    email=email,
+                    display_name=settings.admin_bootstrap_display_name,
+                    password=password,
+                )
+            )
     except (
+        AdminAuthError,
         EmbeddingError,
         AnsweringError,
         EvaluationError,

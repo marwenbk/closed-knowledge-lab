@@ -29,6 +29,7 @@ from app.conversations import (
     ConversationError,
     ConversationSnapshot,
     EventRecord,
+    QueuedSubmissionResult,
     SubmissionResult,
     WidgetPrincipal,
     authenticate_widget_session,
@@ -40,6 +41,7 @@ from app.conversations import (
     submit_message,
 )
 from app.embeddings import EmbeddingError
+from app.handoffs import HandoffState, request_customer_handoff
 from app.llm import LLMError
 from app.retrieval import RetrievalError
 
@@ -116,6 +118,7 @@ class ConversationResponse(BaseModel):
 
 
 class MessageResponse(BaseModel):
+    delivery_mode: Literal["AI"] = "AI"
     conversation_id: UUID
     message_id: UUID
     rag_run_id: UUID
@@ -123,6 +126,25 @@ class MessageResponse(BaseModel):
     answer: str
     sender: SenderResponse
     citations: tuple[Citation, ...]
+
+
+class HumanQueueMessageResponse(BaseModel):
+    delivery_mode: Literal["HUMAN_QUEUE"] = "HUMAN_QUEUE"
+    conversation_id: UUID
+    message_id: UUID
+    rag_run_id: None = None
+    status: Literal["PERSISTED"] = "PERSISTED"
+    state: str
+
+
+class HandoffResponse(BaseModel):
+    conversation_id: UUID
+    state: str
+    priority: str
+    reason: str
+    requested_at: datetime
+    assigned_agent_id: UUID | None
+    claimed_at: datetime | None
 
 
 @dataclass(frozen=True)
@@ -194,7 +216,16 @@ def _conversation_response(
     )
 
 
-def _message_response(result: SubmissionResult, assistant_label: str) -> MessageResponse:
+def _message_response(
+    result: SubmissionResult | QueuedSubmissionResult,
+    assistant_label: str,
+) -> MessageResponse | HumanQueueMessageResponse:
+    if isinstance(result, QueuedSubmissionResult):
+        return HumanQueueMessageResponse(
+            conversation_id=result.conversation_id,
+            message_id=result.message_id,
+            state=result.state,
+        )
     return MessageResponse(
         conversation_id=result.conversation_id,
         message_id=result.message_id,
@@ -203,6 +234,18 @@ def _message_response(result: SubmissionResult, assistant_label: str) -> Message
         answer=result.answer.answer,
         sender=SenderResponse(type="AI", label=assistant_label),
         citations=result.answer.citations,
+    )
+
+
+def _handoff_response(state: HandoffState) -> HandoffResponse:
+    return HandoffResponse(
+        conversation_id=state.conversation_id,
+        state=state.state,
+        priority=state.priority,
+        reason=state.reason,
+        requested_at=state.requested_at,
+        assigned_agent_id=state.assigned_agent_id,
+        claimed_at=state.claimed_at,
     )
 
 
@@ -323,13 +366,13 @@ def send_message(
     principal: WidgetPrincipalDep,
     engine: EngineDep,
     settings: SettingsDep,
-) -> MessageResponse:
+) -> MessageResponse | HumanQueueMessageResponse:
     try:
         result = submit_message(
             engine,
             principal,
-            embedding_provider(request),
-            llm_provider(request),
+            lambda: embedding_provider(request),
+            lambda: llm_provider(request),
             settings,
             conversation_id=conversation_id,
             client_message_id=payload.client_message_id,
@@ -345,6 +388,37 @@ def send_message(
     except SQLAlchemyError as exc:
         raise ApiError(503, "DATABASE_NOT_READY", "The database is unavailable") from exc
     return _message_response(result, settings.widget_assistant_label)
+
+
+@widget_router.post(
+    "/conversations/{conversation_id}/request-human",
+    responses={
+        401: ERROR_RESPONSE,
+        403: ERROR_RESPONSE,
+        404: ERROR_RESPONSE,
+        409: ERROR_RESPONSE,
+        422: ERROR_RESPONSE,
+        503: ERROR_RESPONSE,
+    },
+)
+def request_human(
+    request: Request,
+    conversation_id: Annotated[UUID, Path()],
+    principal: WidgetPrincipalDep,
+    engine: EngineDep,
+) -> HandoffResponse:
+    try:
+        _, state = request_customer_handoff(
+            engine,
+            principal,
+            conversation_id,
+            request_id=_request_id(request),
+        )
+    except ConversationError as exc:
+        raise _api_error(exc) from exc
+    except SQLAlchemyError as exc:
+        raise ApiError(503, "DATABASE_NOT_READY", "The database is unavailable") from exc
+    return _handoff_response(state)
 
 
 @widget_router.post(
