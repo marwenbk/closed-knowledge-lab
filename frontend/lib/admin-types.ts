@@ -1,0 +1,176 @@
+import type { ConversationState } from "@/lib/widget-types";
+
+export type AdminIdentity = {
+  id: string;
+  user_id: string;
+  email: string;
+  display_name: string;
+  roles: string[];
+  expires_at: string;
+};
+
+export type Handoff = {
+  id: string;
+  conversation_id: string;
+  state: ConversationState;
+  priority: "LOW" | "NORMAL" | "HIGH" | "URGENT";
+  reason: string;
+  requested_at: string;
+  assigned_agent_id: string | null;
+  claimed_at: string | null;
+  waiting_seconds: number;
+  latest_customer_message: string | null;
+  assigned_agent_name: string | null;
+  answerability_status: string | null;
+};
+
+export type AdminMessage = {
+  message_id: string;
+  client_message_id: string | null;
+  sender_type: "CUSTOMER" | "AI" | "HUMAN" | "SYSTEM";
+  sender_user_id: string | null;
+  sender_label: string;
+  content: string;
+  visibility: "PUBLIC" | "INTERNAL";
+  status: string;
+  citations: Array<Record<string, unknown>>;
+  rag_run_id: string | null;
+  created_at: string;
+  delivered_at: string | null;
+};
+
+export type RagRunSummary = {
+  rag_run_id: string;
+  status: string;
+  answerability_status: string | null;
+  verification_status: string | null;
+  error_code: string | null;
+};
+
+export type AdminConversation = {
+  id: string;
+  conversation_id: string;
+  state: ConversationState;
+  priority: string | null;
+  handoff_reason: string | null;
+  handoff_requested_at: string | null;
+  assigned_agent_id: string | null;
+  assigned_agent_name: string | null;
+  claimed_at: string | null;
+  created_at: string;
+  updated_at: string;
+  messages: AdminMessage[];
+  rag_runs: RagRunSummary[];
+};
+
+export type Dashboard = {
+  generated_at: string;
+  knowledge: {
+    dataset_id: string;
+    dataset_version: string;
+    status: string;
+    document_count: number;
+    chunk_count: number;
+  };
+  runtime: {
+    model: string;
+    model_version: string | null;
+    prompt_version: string;
+    settings_version: string;
+    embedding_version: string;
+  };
+  conversations: {
+    open: number;
+    waiting: number;
+    assigned: number;
+    human_active: number;
+    oldest_waiting_seconds: number;
+  };
+  quality: {
+    answerability: Record<string, number>;
+    refusal_rate_percent: number;
+    conflict_rate_percent: number;
+    grounding_failure_rate_percent: number;
+    average_ai_latency_ms: number;
+    average_handoff_wait_seconds: number;
+  };
+  latest_evaluation: {
+    mode: string | null;
+    passed: boolean | null;
+    dataset_version: string | null;
+    evaluated_cases: number | null;
+    updated_at: string;
+  } | null;
+};
+
+export type KnowledgeDocument = {
+  id: string;
+  document_key: string;
+  title: string;
+  source_path: string;
+  checksum: string;
+  status: string;
+  chunk_count: number;
+  sort_order: number;
+};
+
+export type KnowledgeDocumentDetail = Omit<KnowledgeDocument, "chunk_count" | "sort_order"> & {
+  dataset_version: string;
+  metadata: Record<string, unknown>;
+  revision: {
+    revision_number: number;
+    content_checksum: string;
+    front_matter: Record<string, unknown>;
+  } | null;
+  chunks: Array<{
+    id: string;
+    stable_chunk_key: string;
+    section: string;
+    section_path: string[];
+    ordinal: number;
+    content: string;
+    token_count: number;
+  }>;
+};
+
+export type RagRunDetail = {
+  id: string;
+  conversation_id: string;
+  user_message_id: string;
+  assistant_message_id: string | null;
+  original_query: string;
+  conversation_context: string[];
+  retrieval_query: string;
+  status: string;
+  answerability_status: string | null;
+  verification_status: string | null;
+  error_code: string | null;
+  model: {
+    provider: string;
+    name: string;
+    version: string | null;
+    prompt_version: string;
+    settings_version: string;
+    embedding_version: string;
+  };
+  knowledge: {
+    dataset_id: string | null;
+    dataset_version: string | null;
+  };
+  user_message: string | null;
+  assistant_message: string | null;
+  citations: Array<Record<string, unknown>>;
+  trace: Record<string, unknown> | null;
+  regenerated: boolean | null;
+  latency_ms: number | null;
+  created_at: string;
+  completed_at: string | null;
+};
+
+export type AdminStreamEvent = {
+  event_id: number;
+  conversation_id: string;
+  timestamp: string;
+  visibility: string;
+  payload: Record<string, unknown>;
+};

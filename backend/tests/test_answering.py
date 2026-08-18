@@ -17,6 +17,7 @@ from app.answering import (
     EvidenceReference,
     VerificationDecision,
     answer_knowledge,
+    answer_knowledge_with_trace,
 )
 from app.config import Settings
 from app.retrieval import RetrievalMatch, RetrievalResult
@@ -150,6 +151,36 @@ def test_answer_pipeline_returns_only_verified_exact_citations(
     assert result.citations[0].citation_id == "c1"
     assert result.citations[0].stable_chunk_key == "family-members__limits__001"
     assert provider.responses == []
+
+
+def test_answer_pipeline_exposes_only_structured_operational_trace(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    provider = StubLLMProvider(
+        [
+            AnswerabilityDecision(
+                status="ANSWERABLE",
+                selected_chunk_ids=[str(UUID(int=1))],
+                unsupported_aspects=[],
+            ),
+            _draft("O plano Família permite o cadastro de até 3 dependentes."),
+            VerificationDecision(supported=True, issues=[]),
+        ]
+    )
+    monkeypatch.setattr(answering, "retrieve_knowledge", lambda *_: _retrieval())
+
+    execution = answer_knowledge_with_trace(
+        object(),
+        object(),
+        provider,
+        Settings(_env_file=None),
+        "Quantos dependentes o plano Família permite?",
+    )
+
+    assert execution.answer.verification_status == "VERIFIED"
+    assert execution.trace["selected_chunk_ids"] == [str(UUID(int=1))]
+    assert execution.trace["attempts"][0]["citation_validation"]["valid"] is True
+    assert "reasoning" not in execution.trace
 
 
 @pytest.mark.parametrize(

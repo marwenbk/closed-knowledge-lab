@@ -26,6 +26,12 @@ from app.admin_auth import (
     revoke_admin_session,
     verify_csrf,
 )
+from app.admin_views import (
+    dashboard_snapshot,
+    get_knowledge_document,
+    get_rag_run,
+    list_knowledge_documents,
+)
 from app.api import ApiError, EngineDep, ErrorResponse, SettingsDep
 from app.config import Settings
 from app.conversations import ConversationError, normalize_origin
@@ -38,6 +44,7 @@ from app.handoffs import (
     add_admin_message,
     claim_handoff,
     get_admin_conversation,
+    latest_admin_event_id,
     list_handoffs,
     load_admin_events,
     transition_handoff,
@@ -131,6 +138,142 @@ class AdminConversationResponse(DomainResponse):
     rag_runs: tuple[RagRunSummaryResponse, ...]
 
 
+class DashboardKnowledgeResponse(BaseModel):
+    dataset_id: str
+    dataset_version: str
+    status: str
+    document_count: int
+    chunk_count: int
+
+
+class DashboardRuntimeResponse(BaseModel):
+    model: str
+    model_version: str | None
+    prompt_version: str
+    settings_version: str
+    embedding_version: str
+
+
+class DashboardConversationResponse(BaseModel):
+    open: int
+    waiting: int
+    assigned: int
+    human_active: int
+    oldest_waiting_seconds: int
+
+
+class DashboardQualityResponse(BaseModel):
+    answerability: dict[str, int]
+    refusal_rate_percent: float
+    conflict_rate_percent: float
+    grounding_failure_rate_percent: float
+    average_ai_latency_ms: float
+    average_handoff_wait_seconds: float
+
+
+class LatestEvaluationResponse(BaseModel):
+    mode: str | None
+    passed: bool | None
+    dataset_version: str | None
+    evaluated_cases: int | None
+    updated_at: datetime
+
+
+class DashboardResponse(BaseModel):
+    generated_at: datetime
+    knowledge: DashboardKnowledgeResponse
+    runtime: DashboardRuntimeResponse
+    conversations: DashboardConversationResponse
+    quality: DashboardQualityResponse
+    latest_evaluation: LatestEvaluationResponse | None
+
+
+class KnowledgeDocumentResponse(BaseModel):
+    id: UUID
+    document_key: str
+    title: str
+    source_path: str
+    checksum: str
+    status: str
+    chunk_count: int
+    sort_order: int
+
+
+class KnowledgeDocumentListResponse(BaseModel):
+    items: tuple[KnowledgeDocumentResponse, ...]
+    total: int
+    offset: int
+    limit: int
+    dataset_version: str
+
+
+class KnowledgeRevisionResponse(BaseModel):
+    revision_number: int
+    content_checksum: str
+    front_matter: dict[str, object]
+
+
+class KnowledgeChunkResponse(BaseModel):
+    id: UUID
+    stable_chunk_key: str
+    section: str
+    section_path: tuple[str, ...]
+    ordinal: int
+    content: str
+    token_count: int
+
+
+class KnowledgeDocumentDetailResponse(BaseModel):
+    id: UUID
+    document_key: str
+    title: str
+    source_path: str
+    checksum: str
+    status: str
+    dataset_version: str
+    metadata: dict[str, object]
+    revision: KnowledgeRevisionResponse | None
+    chunks: tuple[KnowledgeChunkResponse, ...]
+
+
+class RagModelResponse(BaseModel):
+    provider: str
+    name: str
+    version: str | None
+    prompt_version: str
+    settings_version: str
+    embedding_version: str
+
+
+class RagKnowledgeResponse(BaseModel):
+    dataset_id: str | None
+    dataset_version: str | None
+
+
+class RagRunDetailResponse(BaseModel):
+    id: UUID
+    conversation_id: UUID
+    user_message_id: UUID
+    assistant_message_id: UUID | None
+    original_query: str
+    conversation_context: tuple[str, ...]
+    retrieval_query: str
+    status: str
+    answerability_status: str | None
+    verification_status: str | None
+    error_code: str | None
+    model: RagModelResponse
+    knowledge: RagKnowledgeResponse
+    user_message: str | None
+    assistant_message: str | None
+    citations: tuple[dict[str, object], ...]
+    trace: dict[str, object] | None
+    regenerated: bool | None
+    latency_ms: float | None
+    created_at: datetime
+    completed_at: datetime | None
+
+
 class AdminMessageRequest(StrictRequest):
     content: str = Field(min_length=1, max_length=4000)
     client_message_id: UUID = Field(strict=False)
@@ -171,11 +314,8 @@ def _require_origin(origin: str | None, settings: Settings) -> str:
 
 def _admin_principal(
     engine: EngineDep,
-    settings: SettingsDep,
     session_token: Annotated[str | None, Cookie(alias=ADMIN_SESSION_COOKIE)] = None,
-    origin: Annotated[str | None, Header(alias="Origin")] = None,
 ) -> AdminPrincipal:
-    _require_origin(origin, settings)
     try:
         return authenticate_admin(engine, session_token)
     except AdminAuthError as exc:
@@ -200,9 +340,12 @@ OperatorPrincipalDep = Annotated[AdminPrincipal, Depends(_operator_principal)]
 
 def _csrf_principal(
     principal: AdminPrincipalDep,
+    settings: SettingsDep,
     csrf_cookie: Annotated[str | None, Cookie(alias=ADMIN_CSRF_COOKIE)] = None,
     csrf_header: Annotated[str | None, Header(alias="X-CSRF-Token")] = None,
+    origin: Annotated[str | None, Header(alias="Origin")] = None,
 ) -> AdminPrincipal:
+    _require_origin(origin, settings)
     try:
         verify_csrf(principal, csrf_cookie, csrf_header)
     except AdminAuthError as exc:
@@ -258,7 +401,9 @@ def _set_auth_cookies(
         csrf_token,
         max_age=settings.admin_session_ttl_seconds,
         expires=expires_at,
-        path="/api/v1/admin",
+        # The admin application lives at /admin and must be able to read this
+        # double-submit token. The opaque session cookie remains API-scoped.
+        path="/",
         secure=secure,
         httponly=False,
         samesite="lax",
@@ -321,7 +466,7 @@ def logout(
     except SQLAlchemyError as exc:
         raise ApiError(503, "DATABASE_NOT_READY", "The database is unavailable") from exc
     response.delete_cookie(ADMIN_SESSION_COOKIE, path="/api/v1/admin")
-    response.delete_cookie(ADMIN_CSRF_COOKIE, path="/api/v1/admin")
+    response.delete_cookie(ADMIN_CSRF_COOKIE, path="/")
 
 
 @admin_router.get(
@@ -365,6 +510,102 @@ def handoff_queue(
         offset=offset,
         limit=limit,
     )
+
+
+@admin_router.get(
+    "/dashboard",
+    responses={401: ERROR_RESPONSE, 403: ERROR_RESPONSE, 503: ERROR_RESPONSE},
+)
+def dashboard(
+    _principal: OperatorPrincipalDep,
+    engine: EngineDep,
+    settings: SettingsDep,
+) -> DashboardResponse:
+    try:
+        result = dashboard_snapshot(engine, settings)
+    except ConversationError as exc:
+        raise _conversation_error(exc) from exc
+    except SQLAlchemyError as exc:
+        raise ApiError(503, "DATABASE_NOT_READY", "The database is unavailable") from exc
+    return DashboardResponse.model_validate(result)
+
+
+@admin_router.get(
+    "/knowledge/documents",
+    responses={401: ERROR_RESPONSE, 403: ERROR_RESPONSE, 503: ERROR_RESPONSE},
+)
+def knowledge_documents(
+    _principal: OperatorPrincipalDep,
+    engine: EngineDep,
+    settings: SettingsDep,
+    query: Annotated[str | None, Query(max_length=200)] = None,
+    offset: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+) -> KnowledgeDocumentListResponse:
+    try:
+        result = list_knowledge_documents(
+            engine,
+            dataset_id=settings.expected_dataset_id,
+            query=query,
+            offset=offset,
+            limit=limit,
+        )
+    except ConversationError as exc:
+        raise _conversation_error(exc) from exc
+    except SQLAlchemyError as exc:
+        raise ApiError(503, "DATABASE_NOT_READY", "The database is unavailable") from exc
+    return KnowledgeDocumentListResponse.model_validate(result)
+
+
+@admin_router.get(
+    "/knowledge/documents/{document_id}",
+    responses={
+        401: ERROR_RESPONSE,
+        403: ERROR_RESPONSE,
+        404: ERROR_RESPONSE,
+        503: ERROR_RESPONSE,
+    },
+)
+def knowledge_document(
+    document_id: Annotated[UUID, Path()],
+    _principal: OperatorPrincipalDep,
+    engine: EngineDep,
+    settings: SettingsDep,
+) -> KnowledgeDocumentDetailResponse:
+    try:
+        result = get_knowledge_document(
+            engine,
+            dataset_id=settings.expected_dataset_id,
+            document_id=document_id,
+        )
+    except ConversationError as exc:
+        raise _conversation_error(exc) from exc
+    except SQLAlchemyError as exc:
+        raise ApiError(503, "DATABASE_NOT_READY", "The database is unavailable") from exc
+    return KnowledgeDocumentDetailResponse.model_validate(result)
+
+
+@admin_router.get(
+    "/rag-runs/{rag_run_id}",
+    responses={
+        401: ERROR_RESPONSE,
+        403: ERROR_RESPONSE,
+        404: ERROR_RESPONSE,
+        503: ERROR_RESPONSE,
+    },
+)
+def rag_run_detail(
+    rag_run_id: Annotated[UUID, Path()],
+    _principal: OperatorPrincipalDep,
+    engine: EngineDep,
+) -> RagRunDetailResponse:
+    try:
+        result = get_rag_run(engine, rag_run_id)
+    except ConversationError as exc:
+        raise _conversation_error(exc) from exc
+    except SQLAlchemyError as exc:
+        raise ApiError(503, "DATABASE_NOT_READY", "The database is unavailable") from exc
+    return RagRunDetailResponse.model_validate(result)
 
 
 @admin_router.get(
@@ -512,9 +753,23 @@ def _event_subscription(
     settings: SettingsDep,
     last_event_id: Annotated[int | None, Header(alias="Last-Event-ID", ge=0)] = None,
 ) -> AdminEventSubscription:
-    cursor = last_event_id or 0
     try:
-        initial = load_admin_events(engine, after_id=cursor, limit=settings.sse_replay_limit)
+        if last_event_id is None:
+            # The queue/detail requests provide the initial snapshot. Replaying
+            # the bounded tail closes the small snapshot-to-stream race.
+            cursor = max(0, latest_admin_event_id(engine) - settings.sse_replay_limit)
+            initial = load_admin_events(
+                engine,
+                after_id=cursor,
+                limit=settings.sse_replay_limit,
+            )
+        else:
+            cursor = last_event_id
+            initial = load_admin_events(
+                engine,
+                after_id=cursor,
+                limit=settings.sse_replay_limit,
+            )
     except ConversationError as exc:
         raise _conversation_error(exc) from exc
     except SQLAlchemyError as exc:

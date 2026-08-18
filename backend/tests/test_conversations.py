@@ -8,7 +8,13 @@ from unittest.mock import AsyncMock
 from uuid import UUID, uuid4
 
 import pytest
-from app.answering import Citation, GroundedAnswer, ModelIdentity, contextualize_query
+from app.answering import (
+    AnswerExecution,
+    Citation,
+    GroundedAnswer,
+    ModelIdentity,
+    contextualize_query,
+)
 from app.config import Settings
 from app.conversations import (
     VALID_TRANSITIONS,
@@ -201,11 +207,11 @@ def test_widget_conversation_persistence_idempotency_and_replay(
     _seed_active_version(postgres_engine)
     calls: list[str] = []
 
-    def answer_stub(*args: Any, **_kwargs: Any) -> GroundedAnswer:
+    def answer_stub(*args: Any, **_kwargs: Any) -> AnswerExecution:
         calls.append(str(args[-1]))
-        return _answer()
+        return AnswerExecution(_answer(), {"source": "test"})
 
-    monkeypatch.setattr("app.conversations.answer_knowledge", answer_stub)
+    monkeypatch.setattr("app.conversations.answer_knowledge_with_trace", answer_stub)
     application = create_app(
         postgres_engine,
         StubEmbeddingProvider(),
@@ -343,6 +349,8 @@ def test_widget_conversation_persistence_idempotency_and_replay(
         assert run.status == "COMPLETED"
         assert run.answerability_status == "ANSWERABLE"
         assert run.kb_version_id is not None
+        assert run.conversation_context_json == []
+        assert run.execution_trace_json == {"source": "test"}
         assert session.scalar(select(func.count()).select_from(AuditEvent)) == 3
         event_id = session.scalar(select(ConversationEvent.id).limit(1))
         with pytest.raises(DBAPIError, match="append-only"), session.begin_nested():
@@ -361,12 +369,12 @@ def test_failed_generation_is_persisted_and_not_retried(
     _seed_active_version(postgres_engine)
     calls = 0
 
-    def fail_answer(*_args: Any, **_kwargs: Any) -> GroundedAnswer:
+    def fail_answer(*_args: Any, **_kwargs: Any) -> AnswerExecution:
         nonlocal calls
         calls += 1
         raise LLMError("synthetic failure")
 
-    monkeypatch.setattr("app.conversations.answer_knowledge", fail_answer)
+    monkeypatch.setattr("app.conversations.answer_knowledge_with_trace", fail_answer)
     application = create_app(
         postgres_engine,
         StubEmbeddingProvider(),

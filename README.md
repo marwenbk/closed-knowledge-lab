@@ -88,7 +88,7 @@ Conflict scenarios are disabled by default. They may be included only after thei
 
 ## PostgreSQL and Backend Knowledge Foundation
 
-Phase 1 projects the generated Markdown corpus into PostgreSQL and adds local hybrid retrieval. Phase 2 adds verified DeepSeek answers. Phase 3 adds persistent conversations and replayable SSE. Phase 4 adds the customer widget. Phase 5 adds authenticated human takeover. Refine remains the next phase.
+Phase 1 projects the generated Markdown corpus into PostgreSQL and adds local hybrid retrieval. Phase 2 adds verified DeepSeek answers. Phase 3 adds persistent conversations and replayable SSE. Phase 4 adds the customer widget. Phase 5 adds authenticated human takeover. Phase 6 adds the Refine operations back office.
 
 ### Prerequisites
 
@@ -310,6 +310,45 @@ curl -fsS -b /tmp/topmed-admin.cookies -X POST \
 
 The same authenticated API supports public human replies, private internal notes, return-to-AI, close, conversation detail, and replayable admin SSE. Claims are atomic: a competing agent receives `409 HANDOFF_ALREADY_CLAIMED`. Internal notes are excluded from the widget, public SSE, citations, and LLM context.
 
+## Refine operations back office
+
+The protected Refine v5 application runs under `/admin` and consumes only the typed FastAPI admin API. FastAPI remains authoritative for sessions, roles, CSRF checks, assignment, and state transitions.
+
+Install the pinned frontend dependencies, then run the API and Next.js in separate terminals:
+
+```bash
+bash scripts/setup_local_frontend.sh
+bash scripts/run_local_backend.sh
+bash scripts/run_local_frontend.sh
+```
+
+Open `http://127.0.0.1:3000/admin/login` and use `ADMIN_BOOTSTRAP_EMAIL` and `ADMIN_BOOTSTRAP_PASSWORD` from the ignored `.env` file. The back office includes:
+
+- an operational dashboard with handoff, answerability, latency, model, prompt, embedding, and active-dataset status;
+- a live handoff queue with atomic claiming;
+- a conversation workspace for public replies, private notes, return-to-AI, and closing;
+- a structured RAG inspector with retrieval evidence, answerability, citation checks, verification, and version provenance, without model chain-of-thought;
+- a read-only browser for active Markdown documents and their runtime chunks.
+
+The dashboard and queue update from the authenticated admin SSE stream. RAG traces are persisted for new runs after migration `0005_admin_insights`; older runs correctly show no trace. Knowledge editing and activation remain CLI-only in this phase.
+
+For a populated evaluator view, start both servers and replay the canonical scenarios through the public widget API:
+
+```bash
+set -a
+source .env
+set +a
+
+.venv/bin/python scripts/bootstrap_demo.py \
+  --force \
+  --api-url http://127.0.0.1:8000 \
+  --assistant-key "$WIDGET_ASSISTANT_KEY" \
+  --origin http://127.0.0.1:3000 \
+  --seed-runtime
+```
+
+This replay uses real API calls and DeepSeek, consumes API credit, and writes only the ignored `demo/seed-report.json` report outside PostgreSQL.
+
 ## Customer chat widget
 
 Phase 4 provides a direct chat at `/chat`, an iframe application at `/widget`, and a small framework-free loader at `/widget.js`. The UI uses assistant-ui's external-store runtime: FastAPI and PostgreSQL remain authoritative, while the browser keeps only the signed session, active conversation ID, and replay cursor in session storage.
@@ -390,7 +429,7 @@ pnpm --dir frontend check
 pnpm --dir frontend build
 ```
 
-The PostgreSQL tests create uniquely named disposable databases through `TOPMED_TEST_DATABASE_URL` and remove only those databases afterward. They cover migrations, knowledge indexing, the complete 63-case retrieval gate, signed widget sessions, administrator authentication and CSRF, atomic handoff claims, AI suppression, human messages, internal-note privacy, state transitions, persisted provenance, ordered replay, and append-only events. The two `TOPMED_REQUIRE_*_TESTS` flags make missing embedding artifacts or DeepSeek access fail complete verification instead of silently skipping model tests. Live DeepSeek checks consume API credit and run only when `TOPMED_REQUIRE_LLM_TESTS=1` is explicit; the test suite keeps those checks to eight representative cases, while the explicit `eval run --live` command runs all 100.
+The PostgreSQL tests create uniquely named disposable databases through `TOPMED_TEST_DATABASE_URL` and remove only those databases afterward. They cover migrations, knowledge indexing, the complete 63-case retrieval gate, signed widget sessions, administrator authentication and CSRF, atomic handoff claims, AI suppression, human messages, internal-note privacy, state transitions, persisted RAG traces, admin dashboard and knowledge reads, ordered replay, and append-only events. The two `TOPMED_REQUIRE_*_TESTS` flags make missing embedding artifacts or DeepSeek access fail complete verification instead of silently skipping model tests. Live DeepSeek checks consume API credit and run only when `TOPMED_REQUIRE_LLM_TESTS=1` is explicit; the test suite keeps those checks to eight representative cases, while the explicit `eval run --live` command runs all 100.
 
 ### Pre-commit hooks
 
@@ -429,6 +468,7 @@ Both commands preserve the named database volume.
 
 - If `.env` is missing, copy `.env.example` to `.env` or rerun the setup command.
 - If administrator bootstrap fails, set a non-default `ADMIN_BOOTSTRAP_PASSWORD` of 12–128 characters. Repeated setup intentionally does not overwrite an existing password.
+- If `/admin` cannot log in or mutate a conversation, use the same host spelling for both local URLs (`127.0.0.1`, not a mix of `localhost` and `127.0.0.1`) and confirm it appears in `ADMIN_ALLOWED_ORIGINS`.
 - If PostgreSQL cannot bind port `5433`, stop the process using that port or change `POSTGRES_HOST_PORT` and the port in `DATABASE_URL` and `TOPMED_TEST_DATABASE_URL` together.
 - If `/health` succeeds but `/ready` returns `503`, inspect the individual readiness checks, then rerun the migration, import, and embedding commands above.
 - If semantic status is `pending`, import the intended version, run `kb embed --download`, then run `kb activate`. The previous active version stays available until the replacement is completely embedded.

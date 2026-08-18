@@ -14,7 +14,7 @@ from uuid import UUID, uuid4
 from sqlalchemy import Engine, select
 from sqlalchemy.orm import Session
 
-from app.answering import GroundedAnswer, answer_knowledge, contextualize_query
+from app.answering import GroundedAnswer, answer_knowledge_with_trace, contextualize_query
 from app.config import Settings
 from app.embeddings import EmbeddingProvider
 from app.llm import LLMProvider
@@ -653,6 +653,8 @@ def _start_submission(
             kb_version_id=version.id,
             original_query=content,
             retrieval_query=retrieval_query,
+            conversation_context_json=list(previous_messages),
+            execution_trace_json=None,
             status="RUNNING",
             model_provider="deepseek",
             model_name=settings.chat_model,
@@ -701,6 +703,7 @@ def _finish_submission(
     user_message_id: UUID,
     run_id: UUID,
     answer: GroundedAnswer,
+    execution_trace: dict[str, Any],
     embedding_version: str,
     request_id: UUID,
 ) -> SubmissionResult:
@@ -759,6 +762,7 @@ def _finish_submission(
         run.model_version = answer.model.version
         run.prompt_version = answer.model.prompt_version
         run.embedding_version = embedding_version
+        run.execution_trace_json = execution_trace
         run.regenerated = answer.regenerated
         run.latency_ms = answer.duration_ms
         run.completed_at = now
@@ -836,7 +840,7 @@ def submit_message(
     try:
         embedding_provider = get_embedding_provider()
         llm_provider = get_llm_provider()
-        answer = answer_knowledge(
+        execution = answer_knowledge_with_trace(
             engine,
             embedding_provider,
             llm_provider,
@@ -851,7 +855,8 @@ def submit_message(
             conversation_id=conversation_id,
             user_message_id=user_message_id,
             run_id=run_id,
-            answer=answer,
+            answer=execution.answer,
+            execution_trace=execution.trace,
             embedding_version=embedding_provider.model_version,
             request_id=request_id,
         )

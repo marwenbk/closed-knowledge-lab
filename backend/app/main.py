@@ -37,7 +37,14 @@ class JsonLogFormatter(logging.Formatter):
             "logger": record.name,
             "message": record.getMessage(),
         }
-        for field in ("request_id", "method", "path", "status_code", "duration_ms"):
+        for field in (
+            "request_id",
+            "method",
+            "path",
+            "status_code",
+            "error_code",
+            "duration_ms",
+        ):
             if (value := getattr(record, field, None)) is not None:
                 payload[field] = value
         if record.exc_info:
@@ -161,10 +168,17 @@ def create_app(
 
     @application.exception_handler(ApiError)
     async def api_exception(request: Request, exc: ApiError) -> JSONResponse:
-        logger.warning(
+        log = logger.warning if exc.status_code >= 500 else logger.info
+        log(
             "request_failed",
-            exc_info=(type(exc), exc, exc.__traceback__),
-            extra={"request_id": _request_id(request), "status_code": exc.status_code},
+            exc_info=(type(exc), exc, exc.__traceback__) if exc.status_code >= 500 else None,
+            extra={
+                "request_id": _request_id(request),
+                "method": request.method,
+                "path": request.url.path,
+                "status_code": exc.status_code,
+                "error_code": exc.code,
+            },
         )
         return _error_response(request, exc.status_code, exc.code, str(exc))
 

@@ -771,3 +771,8 @@ def load_admin_events(
             )
             for event in rows
         )
+
+
+def latest_admin_event_id(engine: Engine) -> int:
+    with Session(engine) as session:
+        return session.scalar(select(func.coalesce(func.max(ConversationEvent.id), 0))) or 0

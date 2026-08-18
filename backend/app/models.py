@@ -443,6 +443,10 @@ class RagRun(Base):
     )
     original_query: Mapped[str] = mapped_column(Text, nullable=False)
     retrieval_query: Mapped[str] = mapped_column(Text, nullable=False)
+    conversation_context_json: Mapped[list[str]] = mapped_column(
+        JSONB, default=list, nullable=False
+    )
+    execution_trace_json: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     status: Mapped[str] = mapped_column(String(20), nullable=False)
     answerability_status: Mapped[str | None] = mapped_column(String(30))
     verification_status: Mapped[str | None] = mapped_column(String(30))

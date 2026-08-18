@@ -4,7 +4,8 @@ import json
 import re
 import time
 from collections.abc import Sequence
-from typing import Literal
+from dataclasses import dataclass
+from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -99,6 +100,12 @@ class GroundedAnswer(_StructuredModel):
     verification_status: VerificationStatus
     regenerated: bool
     duration_ms: float
+
+
+@dataclass(frozen=True)
+class AnswerExecution:
+    answer: GroundedAnswer
+    trace: dict[str, Any]
 
 
 def _evidence_payload(matches: list[RetrievalMatch]) -> list[dict[str, str]]:
@@ -337,7 +344,7 @@ def _identity(provider: LLMProvider, settings: Settings) -> ModelIdentity:
     )
 
 
-def answer_knowledge(
+def answer_knowledge_with_trace(
     engine: Engine,
     embedding_provider: EmbeddingProvider,
     llm_provider: LLMProvider,
@@ -346,7 +353,7 @@ def answer_knowledge(
     *,
     conversation_context: Sequence[str] = (),
     retrieval_result: RetrievalResult | None = None,
-) -> GroundedAnswer:
+) -> AnswerExecution:
     started_at = time.perf_counter()
     llm_provider.ensure_ready()
     retrieval = (
@@ -369,6 +376,14 @@ def answer_knowledge(
         selected, required_document_keys = _required_multi_hop_evidence(retrieval, selected)
     else:
         required_document_keys = set()
+    trace: dict[str, Any] = {
+        "retrieval": retrieval.as_dict(),
+        "conversation_context": list(conversation_context[-2:]),
+        "answerability": decision.model_dump(mode="json"),
+        "selected_chunk_ids": [str(match.chunk_id) for match in selected],
+        "required_document_keys": sorted(required_document_keys),
+        "attempts": [],
+    }
 
     def finish(
         status: AnswerabilityStatus,
@@ -377,17 +392,20 @@ def answer_knowledge(
         citations: tuple[Citation, ...] = (),
         verification_status: VerificationStatus,
         regenerated: bool = False,
-    ) -> GroundedAnswer:
-        return GroundedAnswer(
-            status=status,
-            answer=answer,
-            citations=citations,
-            dataset_id=retrieval.dataset_id,
-            dataset_version=retrieval.dataset_version,
-            model=_identity(llm_provider, settings),
-            verification_status=verification_status,
-            regenerated=regenerated,
-            duration_ms=round((time.perf_counter() - started_at) * 1000, 2),
+    ) -> AnswerExecution:
+        return AnswerExecution(
+            answer=GroundedAnswer(
+                status=status,
+                answer=answer,
+                citations=citations,
+                dataset_id=retrieval.dataset_id,
+                dataset_version=retrieval.dataset_version,
+                model=_identity(llm_provider, settings),
+                verification_status=verification_status,
+                regenerated=regenerated,
+                duration_ms=round((time.perf_counter() - started_at) * 1000, 2),
+            ),
+            trace=trace,
         )
 
     if decision.status == "NOT_ANSWERABLE":
@@ -422,11 +440,24 @@ def answer_knowledge(
             ),
             AnswerDraft,
         )
+        attempt_trace: dict[str, Any] = {
+            "attempt": attempt + 1,
+            "draft": draft.model_dump(mode="json"),
+        }
         try:
             citations = _validate_citations(draft, selected, required_document_keys)
         except AnsweringError as exc:
             repair_issues = [str(exc)]
+            attempt_trace["citation_validation"] = {
+                "valid": False,
+                "issues": repair_issues,
+            }
+            trace["attempts"].append(attempt_trace)
             continue
+        attempt_trace["citation_validation"] = {
+            "valid": True,
+            "citations": [citation.model_dump(mode="json") for citation in citations],
+        }
         verification = llm_provider.structured_generate(
             _verification_messages(
                 query,
@@ -437,6 +468,8 @@ def answer_knowledge(
             ),
             VerificationDecision,
         )
+        attempt_trace["verification"] = verification.model_dump(mode="json")
+        trace["attempts"].append(attempt_trace)
         if verification.supported and not verification.issues:
             return finish(
                 decision.status,
@@ -453,3 +486,24 @@ def answer_knowledge(
         verification_status="FAILED_CLOSED",
         regenerated=True,
     )
+
+
+def answer_knowledge(
+    engine: Engine,
+    embedding_provider: EmbeddingProvider,
+    llm_provider: LLMProvider,
+    settings: Settings,
+    query: str,
+    *,
+    conversation_context: Sequence[str] = (),
+    retrieval_result: RetrievalResult | None = None,
+) -> GroundedAnswer:
+    return answer_knowledge_with_trace(
+        engine,
+        embedding_provider,
+        llm_provider,
+        settings,
+        query,
+        conversation_context=conversation_context,
+        retrieval_result=retrieval_result,
+    ).answer

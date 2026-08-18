@@ -10,7 +10,12 @@ from unittest.mock import AsyncMock, MagicMock
 from uuid import UUID, uuid4
 
 import pytest
-from app.admin_api import AdminEventSubscription, _set_auth_cookies, admin_event_stream
+from app.admin_api import (
+    AdminEventSubscription,
+    _event_subscription,
+    _set_auth_cookies,
+    admin_event_stream,
+)
 from app.admin_auth import (
     ADMIN_CSRF_COOKIE,
     ADMIN_SESSION_COOKIE,
@@ -20,7 +25,7 @@ from app.admin_auth import (
     bootstrap_admin,
     validate_bootstrap_password,
 )
-from app.answering import GroundedAnswer, ModelIdentity
+from app.answering import AnswerExecution, GroundedAnswer, ModelIdentity
 from app.config import Settings
 from app.conversations import authenticate_widget_session, load_events
 from app.handoffs import load_admin_events
@@ -30,7 +35,10 @@ from app.models import (
     AdminUser,
     AdminUserRole,
     AuditEvent,
+    Chunk,
     Conversation,
+    Document,
+    DocumentRevision,
     HandoffEvent,
     KnowledgeBaseVersion,
     Message,
@@ -137,11 +145,12 @@ def _widget_conversation(client: TestClient) -> tuple[str, dict[str, str]]:
     return conversation.json()["conversation_id"], headers
 
 
-def _seed_active_version(engine: Engine) -> None:
+def _seed_active_version(engine: Engine) -> UUID:
+    version_id = uuid4()
     with Session(engine) as session, session.begin():
         session.add(
             KnowledgeBaseVersion(
-                id=uuid4(),
+                id=version_id,
                 dataset_id="topmed-demo",
                 dataset_version="2.0.0",
                 generator_version="1.0.0",
@@ -153,6 +162,7 @@ def _seed_active_version(engine: Engine) -> None:
                 activated_at=datetime.now(UTC),
             )
         )
+    return version_id
 
 
 def _answer(status: str = "ANSWERABLE") -> GroundedAnswer:
@@ -219,7 +229,12 @@ def test_admin_cookie_flags_follow_the_environment() -> None:
     local_cookies = local_response.headers.getlist("set-cookie")
     production_cookies = production_response.headers.getlist("set-cookie")
     assert any("HttpOnly" in cookie and "SameSite=lax" in cookie for cookie in local_cookies)
-    assert all("Path=/api/v1/admin" in cookie for cookie in local_cookies)
+    session_cookie = next(cookie for cookie in local_cookies if ADMIN_SESSION_COOKIE in cookie)
+    csrf_cookie = next(cookie for cookie in local_cookies if ADMIN_CSRF_COOKIE in cookie)
+    assert "Path=/api/v1/admin" in session_cookie
+    assert "HttpOnly" in session_cookie
+    assert "Path=/" in csrf_cookie
+    assert "HttpOnly" not in csrf_cookie
     assert all("Secure" not in cookie for cookie in local_cookies)
     assert all("Secure" in cookie for cookie in production_cookies)
 
@@ -246,6 +261,30 @@ def test_admin_event_stream_emits_keepalive(monkeypatch: pytest.MonkeyPatch) -> 
     event = asyncio.run(next_event())
     assert event.event == "keepalive"
     assert "timestamp" in event.data
+
+
+def test_fresh_admin_event_stream_replays_only_the_bounded_tail(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    principal = AdminPrincipal(
+        user_id=uuid4(),
+        session_id=uuid4(),
+        email="admin@topmed.local",
+        display_name="TopMed Admin",
+        roles=frozenset({"ADMIN"}),
+        expires_at=datetime.now(UTC) + timedelta(minutes=1),
+        csrf_hash="a" * 64,
+    )
+    settings = _settings().model_copy(update={"sse_replay_limit": 20})
+    load = MagicMock(return_value=())
+    engine = object()
+    monkeypatch.setattr("app.admin_api.latest_admin_event_id", lambda _engine: 75)
+    monkeypatch.setattr("app.admin_api.load_admin_events", load)
+
+    subscription = _event_subscription(Response(), principal, engine, settings, None)
+
+    assert subscription.initial_cursor == 55
+    load.assert_called_once_with(engine, after_id=55, limit=20)
 
 
 @pytest.mark.postgres
@@ -359,6 +398,90 @@ def test_admin_bootstrap_login_csrf_logout_and_role_enforcement(
             )
             == 1
         )
+
+
+@pytest.mark.postgres
+def test_admin_dashboard_rag_trace_and_active_knowledge_browser(
+    postgres_engine: Engine,
+) -> None:
+    settings = _settings()
+    version_id = _seed_active_version(postgres_engine)
+    _bootstrap(postgres_engine)
+    document_id = uuid4()
+    revision_id = uuid4()
+    chunk_id = uuid4()
+    with Session(postgres_engine) as session, session.begin():
+        session.add(
+            Document(
+                id=document_id,
+                kb_version_id=version_id,
+                document_key="support-hours",
+                title="Horários de suporte",
+                language="pt-BR",
+                source_path="knowledge_base/support-hours.md",
+                checksum="d" * 64,
+                status="IMPORTED",
+                sort_order=1,
+                metadata_json={"topic": "support"},
+            )
+        )
+        session.flush()
+        session.add(
+            DocumentRevision(
+                id=revision_id,
+                document_id=document_id,
+                revision_number=1,
+                content_markdown="# Horários\n\nAtendimento de segunda a sexta.",
+                content_checksum="d" * 64,
+                front_matter={"title": "Horários de suporte"},
+            )
+        )
+        session.flush()
+        session.add(
+            Chunk(
+                id=chunk_id,
+                kb_version_id=version_id,
+                document_id=document_id,
+                revision_id=revision_id,
+                stable_chunk_key="support-hours:horarios:1",
+                section="Horários",
+                section_path=["Horários"],
+                ordinal=1,
+                content="Atendimento de segunda a sexta.",
+                content_normalized="atendimento de segunda a sexta.",
+                token_count=6,
+                metadata_json={},
+            )
+        )
+    application = create_app(
+        postgres_engine,
+        StubEmbeddingProvider(),
+        StubLLMProvider(),
+        settings,
+    )
+
+    with TestClient(application, raise_server_exceptions=False) as client:
+        _login(client)
+        # Safe reads work on same-origin deployments where browsers omit Origin for GET.
+        dashboard = client.get("/api/v1/admin/dashboard")
+        documents = client.get("/api/v1/admin/knowledge/documents", params={"query": "suporte"})
+        detail = client.get(f"/api/v1/admin/knowledge/documents/{document_id}")
+        missing_run = client.get(f"/api/v1/admin/rag-runs/{uuid4()}")
+
+    assert dashboard.status_code == 200, dashboard.text
+    assert dashboard.json()["knowledge"] == {
+        "dataset_id": "topmed-demo",
+        "dataset_version": "2.0.0",
+        "status": "ACTIVE",
+        "document_count": 1,
+        "chunk_count": 1,
+    }
+    assert documents.status_code == 200
+    assert documents.json()["items"][0]["document_key"] == "support-hours"
+    assert detail.status_code == 200
+    assert detail.json()["chunks"][0]["stable_chunk_key"] == "support-hours:horarios:1"
+    assert missing_run.status_code == 404
+    assert missing_run.json()["error"]["code"] == "RAG_RUN_NOT_FOUND"
 
 
 @pytest.mark.postgres
@@ -561,11 +684,11 @@ def test_conflict_answer_requests_handoff_and_return_resumes_future_ai(
     answers = iter((_answer("CONFLICTING_EVIDENCE"), _answer()))
     conversation_contexts: list[tuple[str, ...]] = []
 
-    def answer(*_args: Any, **kwargs: Any) -> GroundedAnswer:
+    def answer(*_args: Any, **kwargs: Any) -> AnswerExecution:
         conversation_contexts.append(kwargs["conversation_context"])
-        return next(answers)
+        return AnswerExecution(next(answers), {"source": "test"})
 
-    monkeypatch.setattr("app.conversations.answer_knowledge", answer)
+    monkeypatch.setattr("app.conversations.answer_knowledge_with_trace", answer)
     application = create_app(
         postgres_engine,
         StubEmbeddingProvider(),
@@ -583,6 +706,7 @@ def test_conflict_answer_requests_handoff_and_return_resumes_future_ai(
             f"/api/v1/widget/conversations/{conversation_id}", headers=widget_headers
         )
         csrf = _login(client)
+        rag_detail = client.get(f"/api/v1/admin/rag-runs/{first.json()['rag_run_id']}")
         claimed = client.post(f"/api/v1/admin/conversations/{conversation_id}/claim", headers=csrf)
         note = client.post(
             f"/api/v1/admin/conversations/{conversation_id}/messages",
@@ -605,6 +729,9 @@ def test_conflict_answer_requests_handoff_and_return_resumes_future_ai(
     assert first.status_code == 200
     assert first.json()["delivery_mode"] == "AI"
     assert state.json()["state"] == "HUMAN_REQUESTED"
+    assert rag_detail.status_code == 200
+    assert rag_detail.json()["trace"] == {"source": "test"}
+    assert rag_detail.json()["conversation_context"] == []
     assert claimed.status_code == note.status_code == returned.status_code == 200
     assert second.status_code == 200
     assert second.json()["status"] == "ANSWERABLE"
@@ -633,12 +760,12 @@ def test_customer_handoff_suppresses_an_in_flight_ai_delivery(
     generation_started = Event()
     release_generation = Event()
 
-    def delayed_answer(*_args: Any, **_kwargs: Any) -> GroundedAnswer:
+    def delayed_answer(*_args: Any, **_kwargs: Any) -> AnswerExecution:
         generation_started.set()
         assert release_generation.wait(timeout=5)
-        return _answer()
+        return AnswerExecution(_answer(), {"source": "test"})
 
-    monkeypatch.setattr("app.conversations.answer_knowledge", delayed_answer)
+    monkeypatch.setattr("app.conversations.answer_knowledge_with_trace", delayed_answer)
     application = create_app(
         postgres_engine,
         StubEmbeddingProvider(),

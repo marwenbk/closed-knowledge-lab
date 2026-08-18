@@ -184,6 +184,9 @@ def test_openapi_describes_typed_success_and_error_contracts(application: FastAP
     ]["post"]
     admin_login = schema["paths"]["/api/v1/admin/auth/login"]["post"]
     admin_queue = schema["paths"]["/api/v1/admin/handoffs"]["get"]
+    admin_dashboard = schema["paths"]["/api/v1/admin/dashboard"]["get"]
+    admin_documents = schema["paths"]["/api/v1/admin/knowledge/documents"]["get"]
+    admin_rag_run = schema["paths"]["/api/v1/admin/rag-runs/{rag_run_id}"]["get"]
     admin_events = schema["paths"]["/api/v1/admin/events"]["get"]
 
     assert retrieval["requestBody"]["content"]["application/json"]["schema"]["$ref"].endswith(
@@ -229,6 +232,15 @@ def test_openapi_describes_typed_success_and_error_contracts(application: FastAP
     assert admin_queue["responses"]["200"]["content"]["application/json"]["schema"][
         "$ref"
     ].endswith("/HandoffQueueResponse")
+    assert admin_dashboard["responses"]["200"]["content"]["application/json"]["schema"][
+        "$ref"
+    ].endswith("/DashboardResponse")
+    assert admin_documents["responses"]["200"]["content"]["application/json"]["schema"][
+        "$ref"
+    ].endswith("/KnowledgeDocumentListResponse")
+    assert admin_rag_run["responses"]["200"]["content"]["application/json"]["schema"][
+        "$ref"
+    ].endswith("/RagRunDetailResponse")
     assert admin_events["responses"]["200"]["content"]["text/event-stream"]
 
 
