@@ -6,7 +6,7 @@ from dataclasses import replace
 from pathlib import Path
 from statistics import mean
 from typing import Any, Literal
-from uuid import NAMESPACE_URL, uuid5
+from uuid import NAMESPACE_URL, UUID, uuid5
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, model_validator
@@ -409,6 +409,7 @@ def run_evaluation(
     data: EvaluationData,
     *,
     llm_provider: LLMProvider | None = None,
+    kb_version_id: UUID | None = None,
 ) -> dict[str, Any]:
     cases_to_retrieve = (
         data.cases
@@ -418,7 +419,13 @@ def run_evaluation(
         )
     )
     retrievals = {
-        case.id: retrieve_knowledge(engine, embedding_provider, settings, _case_query(case))
+        case.id: retrieve_knowledge(
+            engine,
+            embedding_provider,
+            settings,
+            _case_query(case),
+            kb_version_id=kb_version_id,
+        )
         for case in cases_to_retrieve
     }
     retrieval_report = evaluate_retrieval_results(data, retrievals, k=settings.final_context_k)

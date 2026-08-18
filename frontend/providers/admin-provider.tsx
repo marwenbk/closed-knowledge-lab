@@ -48,7 +48,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
         { name: "handoffs", list: "/admin/handoffs" },
         { name: "conversations", show: "/admin/conversations/:id" },
         {
-          name: "knowledge-documents",
+          name: "knowledge-versions",
           list: "/admin/knowledge",
           show: "/admin/knowledge/:id",
         },

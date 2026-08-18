@@ -44,6 +44,7 @@ class KnowledgeBaseVersion(Base):
             unique=True,
             postgresql_where=text("status = 'ACTIVE'"),
         ),
+        Index("ix_kb_versions_dataset_created_at", "dataset_id", "created_at"),
     )
 
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
@@ -55,6 +56,18 @@ class KnowledgeBaseVersion(Base):
     template_checksum: Mapped[str] = mapped_column(String(64), nullable=False)
     manifest_checksum: Mapped[str] = mapped_column(String(64), nullable=False)
     status: Mapped[str] = mapped_column(String(20), nullable=False)
+    source_version_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("knowledge_base_versions.id", ondelete="RESTRICT")
+    )
+    created_by: Mapped[UUID | None] = mapped_column(
+        ForeignKey("admin_users.id", ondelete="RESTRICT")
+    )
+    activated_by: Mapped[UUID | None] = mapped_column(
+        ForeignKey("admin_users.id", ondelete="RESTRICT")
+    )
+    validated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    validated_checksum: Mapped[str | None] = mapped_column(String(64))
+    validation_report_json: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     activated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
@@ -284,6 +297,42 @@ class AdminSession(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+
+
+class EvaluationRun(Base):
+    __tablename__ = "evaluation_runs"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('RUNNING', 'PASSED', 'FAILED')",
+            name="ck_evaluation_runs_status",
+        ),
+        Index("ix_evaluation_runs_version_started_at", "kb_version_id", "started_at"),
+        Index(
+            "uq_evaluation_runs_one_running_version",
+            "kb_version_id",
+            unique=True,
+            postgresql_where=text("status = 'RUNNING'"),
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
+    suite: Mapped[str] = mapped_column(String(100), nullable=False)
+    kb_version_id: Mapped[UUID] = mapped_column(
+        ForeignKey("knowledge_base_versions.id", ondelete="RESTRICT"), nullable=False
+    )
+    kb_manifest_checksum: Mapped[str] = mapped_column(String(64), nullable=False)
+    prompt_version: Mapped[str] = mapped_column(String(100), nullable=False)
+    settings_version: Mapped[str] = mapped_column(String(100), nullable=False)
+    model_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False)
+    metrics_json: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    started_by: Mapped[UUID] = mapped_column(
+        ForeignKey("admin_users.id", ondelete="RESTRICT"), nullable=False
+    )
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class Conversation(Base):

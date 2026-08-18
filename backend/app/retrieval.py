@@ -423,6 +423,8 @@ def retrieve_knowledge(
     provider: EmbeddingProvider,
     settings: Settings,
     query: str,
+    *,
+    kb_version_id: UUID | None = None,
 ) -> RetrievalResult:
     cleaned_query = query.strip()
     if not cleaned_query:
@@ -431,15 +433,21 @@ def retrieve_knowledge(
     query_vector = _validated_query_vector(provider, cleaned_query, label="query")
 
     with Session(engine) as session:
-        version = session.scalar(
-            select(KnowledgeBaseVersion).where(
-                KnowledgeBaseVersion.status == "ACTIVE",
-                KnowledgeBaseVersion.dataset_id == settings.expected_dataset_id,
-            )
+        version_query = select(KnowledgeBaseVersion).where(
+            KnowledgeBaseVersion.dataset_id == settings.expected_dataset_id
         )
+        version_query = (
+            version_query.where(
+                KnowledgeBaseVersion.id == kb_version_id,
+                KnowledgeBaseVersion.status != "FAILED",
+            )
+            if kb_version_id is not None
+            else version_query.where(KnowledgeBaseVersion.status == "ACTIVE")
+        )
+        version = session.scalar(version_query)
         if version is None:
             raise RetrievalError(
-                "The expected active knowledge-base dataset is not loaded: "
+                "The requested knowledge-base dataset is not loaded: "
                 f"{settings.expected_dataset_id}"
             )
         total_chunks = session.scalar(

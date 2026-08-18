@@ -129,7 +129,7 @@ def create_app(
             configured_settings.allowed_widget_origins | configured_settings.allowed_admin_origins
         ),
         allow_credentials=True,
-        allow_methods=["GET", "POST", "OPTIONS"],
+        allow_methods=["GET", "POST", "PUT", "OPTIONS"],
         allow_headers=[
             "Authorization",
             "Content-Type",

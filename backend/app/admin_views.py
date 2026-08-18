@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import Engine, func, or_, select
+from sqlalchemy import Engine, func, select
 from sqlalchemy.orm import Session
 
 from app.config import PROJECT_ROOT, Settings
@@ -14,7 +14,7 @@ from app.models import (
     Chunk,
     Conversation,
     Document,
-    DocumentRevision,
+    EvaluationRun,
     KnowledgeBaseVersion,
     Message,
     RagRun,
@@ -125,6 +125,12 @@ def dashboard_snapshot(engine: Engine, settings: Settings) -> dict[str, Any]:
             )
         )
         latest_run = session.scalar(select(RagRun).order_by(RagRun.created_at.desc()).limit(1))
+        latest_evaluation_row = session.execute(
+            select(EvaluationRun, KnowledgeBaseVersion.dataset_version)
+            .join(KnowledgeBaseVersion, KnowledgeBaseVersion.id == EvaluationRun.kb_version_id)
+            .order_by(EvaluationRun.started_at.desc())
+            .limit(1)
+        ).one_or_none()
 
     def rate(status: str) -> float:
         return (
@@ -173,127 +179,22 @@ def dashboard_snapshot(engine: Engine, settings: Settings) -> dict[str, Any]:
             "average_ai_latency_ms": round(float(average_latency or 0), 2),
             "average_handoff_wait_seconds": round(float(average_handoff_wait or 0), 2),
         },
-        "latest_evaluation": _latest_evaluation(),
+        "latest_evaluation": (
+            {
+                "mode": latest_evaluation_row[0].suite,
+                "passed": latest_evaluation_row[0].status == "PASSED",
+                "dataset_version": latest_evaluation_row[1],
+                "evaluated_cases": latest_evaluation_row[0]
+                .metrics_json.get("retrieval", {})
+                .get("evaluated_cases"),
+                "updated_at": (
+                    latest_evaluation_row[0].completed_at or latest_evaluation_row[0].started_at
+                ).isoformat(),
+            }
+            if latest_evaluation_row
+            else _latest_evaluation()
+        ),
     }
-
-
-def list_knowledge_documents(
-    engine: Engine,
-    *,
-    dataset_id: str,
-    query: str | None,
-    offset: int,
-    limit: int,
-) -> dict[str, Any]:
-    with Session(engine) as session:
-        version = session.scalar(
-            select(KnowledgeBaseVersion).where(
-                KnowledgeBaseVersion.dataset_id == dataset_id,
-                KnowledgeBaseVersion.status == "ACTIVE",
-            )
-        )
-        if version is None:
-            raise ConversationError(503, "KNOWLEDGE_BASE_NOT_READY", "Knowledge base not ready")
-        conditions = [Document.kb_version_id == version.id]
-        if query:
-            pattern = f"%{query.strip()}%"
-            conditions.append(
-                or_(
-                    Document.document_key.ilike(pattern),
-                    Document.title.ilike(pattern),
-                    Document.source_path.ilike(pattern),
-                )
-            )
-        total = session.scalar(select(func.count()).select_from(Document).where(*conditions)) or 0
-        rows = session.execute(
-            select(Document, func.count(Chunk.id).label("chunk_count"))
-            .outerjoin(Chunk, Chunk.document_id == Document.id)
-            .where(*conditions)
-            .group_by(Document.id)
-            .order_by(Document.sort_order, Document.document_key)
-            .offset(offset)
-            .limit(limit)
-        ).all()
-        return {
-            "items": [
-                {
-                    "id": document.id,
-                    "document_key": document.document_key,
-                    "title": document.title,
-                    "source_path": document.source_path,
-                    "checksum": document.checksum,
-                    "status": document.status,
-                    "chunk_count": chunk_count,
-                    "sort_order": document.sort_order,
-                }
-                for document, chunk_count in rows
-            ],
-            "total": total,
-            "offset": offset,
-            "limit": limit,
-            "dataset_version": version.dataset_version,
-        }
-
-
-def get_knowledge_document(
-    engine: Engine,
-    *,
-    dataset_id: str,
-    document_id: UUID,
-) -> dict[str, Any]:
-    with Session(engine) as session:
-        row = session.execute(
-            select(Document, KnowledgeBaseVersion)
-            .join(KnowledgeBaseVersion, KnowledgeBaseVersion.id == Document.kb_version_id)
-            .where(
-                Document.id == document_id,
-                KnowledgeBaseVersion.dataset_id == dataset_id,
-                KnowledgeBaseVersion.status == "ACTIVE",
-            )
-        ).one_or_none()
-        if row is None:
-            raise ConversationError(404, "DOCUMENT_NOT_FOUND", "Knowledge document not found")
-        document, version = row
-        revision = session.scalar(
-            select(DocumentRevision)
-            .where(DocumentRevision.document_id == document.id)
-            .order_by(DocumentRevision.revision_number.desc())
-            .limit(1)
-        )
-        chunks = session.scalars(
-            select(Chunk).where(Chunk.document_id == document.id).order_by(Chunk.ordinal)
-        ).all()
-        return {
-            "id": document.id,
-            "document_key": document.document_key,
-            "title": document.title,
-            "source_path": document.source_path,
-            "checksum": document.checksum,
-            "status": document.status,
-            "dataset_version": version.dataset_version,
-            "metadata": document.metadata_json,
-            "revision": (
-                {
-                    "revision_number": revision.revision_number,
-                    "content_checksum": revision.content_checksum,
-                    "front_matter": revision.front_matter,
-                }
-                if revision
-                else None
-            ),
-            "chunks": [
-                {
-                    "id": chunk.id,
-                    "stable_chunk_key": chunk.stable_chunk_key,
-                    "section": chunk.section,
-                    "section_path": chunk.section_path,
-                    "ordinal": chunk.ordinal,
-                    "content": chunk.content,
-                    "token_count": chunk.token_count,
-                }
-                for chunk in chunks
-            ],
-        }
 
 
 def get_rag_run(engine: Engine, rag_run_id: UUID) -> dict[str, Any]:

@@ -10,16 +10,33 @@ import { Button } from "@/components/ui/button";
 import type { AdminIdentity } from "@/lib/admin-types";
 
 const navigation = [
-  { href: "/admin", label: "Visão geral", icon: LayoutDashboard },
-  { href: "/admin/handoffs", label: "Atendimentos", icon: MessagesSquare },
-  { href: "/admin/knowledge", label: "Base de conhecimento", icon: BookOpen },
+  { href: "/admin", label: "Visão geral", icon: LayoutDashboard, roles: [] },
+  {
+    href: "/admin/handoffs",
+    label: "Atendimentos",
+    icon: MessagesSquare,
+    roles: ["ADMIN", "SUPERVISOR", "SUPPORT_AGENT"],
+  },
+  {
+    href: "/admin/knowledge",
+    label: "Base de conhecimento",
+    icon: BookOpen,
+    roles: [
+      "ADMIN",
+      "SUPERVISOR",
+      "SUPPORT_AGENT",
+      "HUMAN_REVIEWER",
+      "KNOWLEDGE_EDITOR",
+      "AUDITOR",
+    ],
+  },
 ];
 
-function Navigation({ close }: { close?: () => void }) {
+function Navigation({ roles, close }: { roles: string[]; close?: () => void }) {
   const pathname = usePathname();
   return (
     <nav className="grid gap-1" aria-label="Navegação administrativa">
-      {navigation.map(({ href, label, icon: Icon }) => {
+      {navigation.filter((item) => item.roles.length === 0 || item.roles.some((role) => roles.includes(role))).map(({ href, label, icon: Icon }) => {
         const active = href === "/admin" ? pathname === href : pathname.startsWith(href);
         return (
           <Link
@@ -43,6 +60,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const identity = useGetIdentity<AdminIdentity>();
   const logout = useLogout();
+  const roles = identity.data?.roles ?? [];
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-950">
@@ -56,7 +74,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
             <span className="text-xs text-slate-500">Operações</span>
           </span>
         </Link>
-        <Navigation />
+        <Navigation roles={roles} />
       </aside>
 
       {menuOpen ? (
@@ -74,7 +92,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
                 <X size={20} />
               </Button>
             </div>
-            <Navigation close={() => setMenuOpen(false)} />
+            <Navigation close={() => setMenuOpen(false)} roles={roles} />
           </aside>
         </div>
       ) : null}

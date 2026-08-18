@@ -11,7 +11,7 @@ from app.models import Chunk, Document, KnowledgeBaseVersion
 
 REQUIRED_EXTENSIONS = {"vector", "pg_trgm"}
 REQUIRED_LEXICAL_INDEXES = {"ix_chunks_search_vector", "ix_chunks_content_trgm"}
-MIGRATION_HEAD = "0005_admin_insights"
+MIGRATION_HEAD = "0006_knowledge_publishing"
 REQUIRED_EVENT_TABLES = {
     "admin_sessions",
     "admin_users",

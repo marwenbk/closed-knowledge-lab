@@ -88,7 +88,7 @@ Conflict scenarios are disabled by default. They may be included only after thei
 
 ## PostgreSQL and Backend Knowledge Foundation
 
-Phase 1 projects the generated Markdown corpus into PostgreSQL and adds local hybrid retrieval. Phase 2 adds verified DeepSeek answers. Phase 3 adds persistent conversations and replayable SSE. Phase 4 adds the customer widget. Phase 5 adds authenticated human takeover. Phase 6 adds the Refine operations back office.
+Phase 1 projects the generated Markdown corpus into PostgreSQL and adds local hybrid retrieval. Phase 2 adds verified DeepSeek answers. Phase 3 adds persistent conversations and replayable SSE. Phase 4 adds the customer widget. Phase 5 adds authenticated human takeover. Phase 6 adds the Refine operations back office. Phase 7A adds governed knowledge drafting and evaluation-gated publication.
 
 ### Prerequisites
 
@@ -328,9 +328,23 @@ Open `http://127.0.0.1:3000/admin/login` and use `ADMIN_BOOTSTRAP_EMAIL` and `AD
 - a live handoff queue with atomic claiming;
 - a conversation workspace for public replies, private notes, return-to-AI, and closing;
 - a structured RAG inspector with retrieval evidence, answerability, citation checks, verification, and version provenance, without model chain-of-thought;
-- a read-only browser for active Markdown documents and their runtime chunks.
+- a governed knowledge workspace for immutable history, draft Markdown revisions, safe previews, generated chunks, validation, indexing, evaluation, publication, and rollback.
 
-The dashboard and queue update from the authenticated admin SSE stream. RAG traces are persisted for new runs after migration `0005_admin_insights`; older runs correctly show no trace. Knowledge editing and activation remain CLI-only in this phase.
+The dashboard and queue update from the authenticated admin SSE stream. RAG traces are persisted for runs created after migration `0005_admin_insights`; older runs correctly show no trace.
+
+### Governed knowledge publishing
+
+Knowledge publishing is available under `/admin/knowledge` after migration `0006_knowledge_publishing`. The active and retired versions are immutable at both the API and database layers. A `KNOWLEDGE_EDITOR`, `SUPERVISOR`, or `ADMIN` can:
+
+1. create a semantic-versioned draft from the active version;
+2. edit Markdown revisions and inspect the safely rendered document, deterministic chunks, related fact IDs, and dependent evaluation cases;
+3. validate front matter, document and chunk counts, canonical evaluation facts, duplicate policy IDs, and archived conflict fixtures;
+4. generate the draft embedding index;
+5. run the deterministic 63-case retrieval publication gate.
+
+Only `ADMIN` and `SUPERVISOR` roles can publish a passing draft or reactivate a retired version. A successful gate is bound to the exact draft manifest checksum, so any later edit invalidates validation and prevents stale evaluation results from being activated. The publication gate uses the local embedding model and PostgreSQL but does not call DeepSeek or consume API credit. Full live answer evaluation remains an explicit release check.
+
+Re-running `bash scripts/setup_local_backend.sh` preserves whichever governed knowledge version is active; it activates the generated `2.0.0` baseline only when no active version exists.
 
 For a populated evaluator view, start both servers and replay the canonical scenarios through the public widget API:
 
@@ -429,7 +443,7 @@ pnpm --dir frontend check
 pnpm --dir frontend build
 ```
 
-The PostgreSQL tests create uniquely named disposable databases through `TOPMED_TEST_DATABASE_URL` and remove only those databases afterward. They cover migrations, knowledge indexing, the complete 63-case retrieval gate, signed widget sessions, administrator authentication and CSRF, atomic handoff claims, AI suppression, human messages, internal-note privacy, state transitions, persisted RAG traces, admin dashboard and knowledge reads, ordered replay, and append-only events. The two `TOPMED_REQUIRE_*_TESTS` flags make missing embedding artifacts or DeepSeek access fail complete verification instead of silently skipping model tests. Live DeepSeek checks consume API credit and run only when `TOPMED_REQUIRE_LLM_TESTS=1` is explicit; the test suite keeps those checks to eight representative cases, while the explicit `eval run --live` command runs all 100.
+The PostgreSQL tests create uniquely named disposable databases through `TOPMED_TEST_DATABASE_URL` and remove only those databases afterward. They cover migrations, immutable knowledge history, draft revision and chunk generation, checksum-bound validation and evaluation gates, the complete 63-case retrieval gate, publication and rollback, signed widget sessions, administrator authentication and CSRF, atomic handoff claims, AI suppression, human messages, internal-note privacy, state transitions, persisted RAG traces, admin dashboard and knowledge reads, ordered replay, and append-only events. The two `TOPMED_REQUIRE_*_TESTS` flags make missing embedding artifacts or DeepSeek access fail complete verification instead of silently skipping model tests. Live DeepSeek checks consume API credit and run only when `TOPMED_REQUIRE_LLM_TESTS=1` is explicit; the test suite keeps those checks to eight representative cases, while the explicit `eval run --live` command runs all 100.
 
 ### Pre-commit hooks
 
@@ -472,6 +486,7 @@ Both commands preserve the named database volume.
 - If PostgreSQL cannot bind port `5433`, stop the process using that port or change `POSTGRES_HOST_PORT` and the port in `DATABASE_URL` and `TOPMED_TEST_DATABASE_URL` together.
 - If `/health` succeeds but `/ready` returns `503`, inspect the individual readiness checks, then rerun the migration, import, and embedding commands above.
 - If semantic status is `pending`, import the intended version, run `kb embed --download`, then run `kb activate`. The previous active version stays available until the replacement is completely embedded.
+- If a draft cannot be published, open its version page and run the gates in order: validate, index, evaluate, then publish. Editing after a successful gate intentionally invalidates the prior result.
 - If model download or checksum validation fails, remove only the affected revision directory shown in the error and rerun `kb embed --download`; do not bypass checksum validation.
 - If the `llm_runtime` readiness check fails, confirm that `DEEPSEEK_API_KEY` is set in `.env`, the account has credit, and `https://api.deepseek.com` is reachable.
 - If widget session creation returns `401`, confirm that the request `Origin` exactly matches an entry in `WIDGET_ALLOWED_ORIGINS` and that the assistant key matches `WIDGET_ASSISTANT_KEY`.

@@ -14,7 +14,14 @@ import yaml
 from sqlalchemy import Engine, func, select
 from sqlalchemy.orm import Session
 
-from app.models import AuditEvent, Chunk, Document, DocumentRevision, KnowledgeBaseVersion
+from app.models import (
+    AuditEvent,
+    Chunk,
+    Document,
+    DocumentRevision,
+    EvaluationRun,
+    KnowledgeBaseVersion,
+)
 
 MIN_CHUNK_TOKENS = 150
 MAX_CHUNK_TOKENS = 350
@@ -29,7 +36,7 @@ class KnowledgeImportError(RuntimeError):
     pass
 
 
-def _lock_dataset(session: Session, dataset_id: str) -> None:
+def lock_dataset(session: Session, dataset_id: str) -> None:
     session.execute(select(func.pg_advisory_xact_lock(func.hashtextextended(dataset_id, 0))))
 
 
@@ -294,32 +301,69 @@ def parse_document(manifest: Manifest, document: ManifestDocument) -> ParsedDocu
         content = raw.decode("utf-8")
     except UnicodeDecodeError as exc:
         raise KnowledgeImportError(f"Document is not valid UTF-8: {document.path}") from exc
-
-    front_matter, body = _split_front_matter(content, source_path)
+    parsed = parse_draft_document(
+        content,
+        document_key=document.document_id,
+        dataset_id=manifest.dataset_id,
+        dataset_version=manifest.dataset_version,
+        language=manifest.language,
+        source_path=document.path,
+    )
     actual_word_count = word_count(content)
     if actual_word_count != document.word_count:
         raise KnowledgeImportError(
             f"{document.path} declares {document.word_count} words but contains {actual_word_count}"
         )
-    expected_metadata = {
-        "document_id": document.document_id,
-        "dataset_id": manifest.dataset_id,
-        "dataset_version": manifest.dataset_version,
-        "language": manifest.language,
-    }
-    for key, expected in expected_metadata.items():
-        if str(front_matter.get(key)) != expected:
-            raise KnowledgeImportError(f"{document.path} front matter {key} must be {expected!r}")
-    title = _require_string(front_matter, "title", document.path)
-    units = _parse_units(body, source_path)
-    if len(units) != document.section_count:
+    if len(parsed.units) != document.section_count:
         raise KnowledgeImportError(
-            f"{document.path} declares {document.section_count} sections but parsed {len(units)}"
+            f"{document.path} declares {document.section_count} sections "
+            f"but parsed {len(parsed.units)}"
         )
     return ParsedDocument(
         manifest_document=document,
+        title=parsed.title,
+        language=parsed.language,
+        front_matter=parsed.front_matter,
+        content_markdown=parsed.content_markdown,
+        units=parsed.units,
+    )
+
+
+def parse_draft_document(
+    content: str,
+    *,
+    document_key: str,
+    dataset_id: str,
+    dataset_version: str,
+    language: str,
+    source_path: str,
+) -> ParsedDocument:
+    try:
+        raw = content.encode("utf-8")
+    except UnicodeEncodeError as exc:
+        raise KnowledgeImportError(f"Document is not valid UTF-8: {source_path}") from exc
+    front_matter, body = _split_front_matter(content, Path(source_path))
+    expected_metadata = {
+        "document_id": document_key,
+        "dataset_id": dataset_id,
+        "dataset_version": dataset_version,
+        "language": language,
+    }
+    for key, expected in expected_metadata.items():
+        if str(front_matter.get(key)) != expected:
+            raise KnowledgeImportError(f"{source_path} front matter {key} must be {expected!r}")
+    title = _require_string(front_matter, "title", source_path)
+    units = _parse_units(body, Path(source_path))
+    return ParsedDocument(
+        manifest_document=ManifestDocument(
+            document_id=document_key,
+            path=source_path,
+            sha256=sha256_bytes(raw),
+            word_count=word_count(content),
+            section_count=len(units),
+        ),
         title=title,
-        language=manifest.language,
+        language=language,
         front_matter=front_matter,
         content_markdown=content,
         units=units,
@@ -551,6 +595,9 @@ def _activate_version(
     expected_embedding_model: str,
     expected_embedding_version: str,
     expected_embedding_dimensions: int,
+    actor_type: str = "SYSTEM",
+    actor_id: str | None = None,
+    request_id: UUID | None = None,
 ) -> ActivationResult:
     _verify_version_is_indexed(
         session,
@@ -571,6 +618,29 @@ def _activate_version(
         raise KnowledgeImportError(
             f"Knowledge-base version in state {version.status!r} cannot be activated"
         )
+    if version.status == "DRAFT" and version.source_version_id is not None:
+        validation = version.validation_report_json or {}
+        if (
+            validation.get("passed") is not True
+            or version.validated_checksum != version.manifest_checksum
+        ):
+            raise KnowledgeImportError(
+                "Knowledge-base activation requires current successful validation"
+            )
+        evaluation = session.scalar(
+            select(EvaluationRun)
+            .where(
+                EvaluationRun.kb_version_id == version.id,
+                EvaluationRun.status == "PASSED",
+                EvaluationRun.kb_manifest_checksum == version.manifest_checksum,
+            )
+            .order_by(EvaluationRun.completed_at.desc())
+            .limit(1)
+        )
+        if evaluation is None:
+            raise KnowledgeImportError(
+                "Knowledge-base activation requires a passing evaluation for this draft"
+            )
     previous = session.scalar(
         select(KnowledgeBaseVersion)
         .where(
@@ -587,13 +657,19 @@ def _activate_version(
     previous_status = version.status
     version.status = "ACTIVE"
     version.activated_at = datetime.now(UTC)
+    version.activated_by = UUID(actor_id) if actor_id else None
+    event_type = (
+        "knowledge_base.rolled_back" if previous_status == "RETIRED" else "knowledge_base.activated"
+    )
     session.add(
         AuditEvent(
             id=uuid4(),
-            event_type="knowledge_base.activated",
-            actor_type="SYSTEM",
+            event_type=event_type,
+            actor_type=actor_type,
+            actor_id=actor_id,
             resource_type="knowledge_base_version",
             resource_id=str(version.id),
+            request_id=request_id,
             before_json={
                 "dataset_id": version.dataset_id,
                 "dataset_version": version.dataset_version,
@@ -629,9 +705,12 @@ def activate_knowledge_base(
     expected_embedding_model: str,
     expected_embedding_version: str,
     expected_embedding_dimensions: int,
+    actor_type: str = "SYSTEM",
+    actor_id: str | None = None,
+    request_id: UUID | None = None,
 ) -> ActivationResult:
     with Session(engine) as session, session.begin():
-        _lock_dataset(session, dataset_id)
+        lock_dataset(session, dataset_id)
         version = session.scalar(
             select(KnowledgeBaseVersion)
             .where(
@@ -650,6 +729,9 @@ def activate_knowledge_base(
             expected_embedding_model=expected_embedding_model,
             expected_embedding_version=expected_embedding_version,
             expected_embedding_dimensions=expected_embedding_dimensions,
+            actor_type=actor_type,
+            actor_id=actor_id,
+            request_id=request_id,
         )
 
 
@@ -659,7 +741,7 @@ def import_knowledge_base(
 ) -> ImportResult:
     manifest, prepared_documents = prepare_dataset(manifest_path)
     with Session(engine) as session, session.begin():
-        _lock_dataset(session, manifest.dataset_id)
+        lock_dataset(session, manifest.dataset_id)
         existing = session.scalar(
             select(KnowledgeBaseVersion)
             .where(

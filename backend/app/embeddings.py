@@ -254,6 +254,10 @@ def embed_knowledge_base(
     batch_size: int,
     dataset_id: str,
     dataset_version: str,
+    expected_manifest_checksum: str | None = None,
+    actor_type: str = "SYSTEM",
+    actor_id: str | None = None,
+    request_id: UUID | None = None,
 ) -> EmbeddingRunResult:
     if batch_size <= 0:
         raise EmbeddingError("Embedding batch size must be positive")
@@ -273,6 +277,11 @@ def embed_knowledge_base(
             raise EmbeddingError(
                 f"Knowledge-base version is not loaded: {dataset_id}:{dataset_version}"
             )
+        if (
+            expected_manifest_checksum is not None
+            and version.manifest_checksum != expected_manifest_checksum
+        ):
+            raise EmbeddingError("The knowledge-base draft changed before indexing started")
         chunks = list(
             session.scalars(
                 select(Chunk)
@@ -317,9 +326,11 @@ def embed_knowledge_base(
             AuditEvent(
                 id=uuid4(),
                 event_type="knowledge_base.embedded",
-                actor_type="SYSTEM",
+                actor_type=actor_type,
+                actor_id=actor_id,
                 resource_type="knowledge_base_version",
                 resource_id=str(version.id),
+                request_id=request_id,
                 before_json=None,
                 after_json={
                     "embedding_model": provider.model_id,

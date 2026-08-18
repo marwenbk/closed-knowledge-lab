@@ -133,6 +133,72 @@ export type KnowledgeDocumentDetail = Omit<KnowledgeDocument, "chunk_count" | "s
   }>;
 };
 
+export type KnowledgeValidation = {
+  passed: boolean;
+  document_count: number;
+  chunk_count: number;
+  errors: Array<{ code: string; document_key: string; message: string }>;
+  duplicate_policy_ids: Record<string, string[]>;
+  conflict_fixture_ids: string[];
+};
+
+export type KnowledgeEvaluation = {
+  id: string;
+  status: "RUNNING" | "PASSED" | "FAILED";
+  suite: string;
+  manifest_checksum: string;
+  metrics: Record<string, unknown>;
+  started_at: string;
+  completed_at: string | null;
+};
+
+export type KnowledgeVersion = {
+  id: string;
+  dataset_id: string;
+  dataset_version: string;
+  status: "DRAFT" | "ACTIVE" | "RETIRED" | "FAILED";
+  source_version_id: string | null;
+  manifest_checksum: string;
+  document_count: number;
+  chunk_count: number;
+  embedded_chunk_count: number;
+  validation: KnowledgeValidation | null;
+  validated_at: string | null;
+  evaluation: KnowledgeEvaluation | null;
+  created_by: string | null;
+  activated_by: string | null;
+  created_at: string;
+  activated_at: string | null;
+};
+
+export type KnowledgeVersionDetail = KnowledgeVersion & {
+  documents: Array<Omit<KnowledgeDocument, "status">>;
+};
+
+export type KnowledgeWorkflowDocument = {
+  id: string;
+  version_id: string;
+  dataset_version: string;
+  version_status: KnowledgeVersion["status"];
+  document_key: string;
+  title: string;
+  source_path: string;
+  checksum: string;
+  revision_number: number;
+  content_markdown: string;
+  front_matter: Record<string, unknown>;
+  revisions: Array<{
+    revision_number: number;
+    content_checksum: string;
+    created_at: string;
+  }>;
+  dependencies: {
+    fact_ids: string[];
+    evaluation_case_ids: string[];
+  };
+  chunks: KnowledgeDocumentDetail["chunks"];
+};
+
 export type RagRunDetail = {
   id: string;
   conversation_id: string;

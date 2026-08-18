@@ -18,21 +18,23 @@ from sqlalchemy.exc import SQLAlchemyError
 from app.admin_auth import (
     ADMIN_CSRF_COOKIE,
     ADMIN_SESSION_COOKIE,
+    KNOWLEDGE_EDITOR_ROLES,
+    KNOWLEDGE_PUBLISHER_ROLES,
+    KNOWLEDGE_ROLES,
     AdminAuthError,
     AdminPrincipal,
     authenticate_admin,
     login_admin,
+    require_any_role,
     require_takeover_role,
     revoke_admin_session,
     verify_csrf,
 )
 from app.admin_views import (
     dashboard_snapshot,
-    get_knowledge_document,
     get_rag_run,
-    list_knowledge_documents,
 )
-from app.api import ApiError, EngineDep, ErrorResponse, SettingsDep
+from app.api import ApiError, EngineDep, ErrorResponse, SettingsDep, embedding_provider
 from app.config import Settings
 from app.conversations import ConversationError, normalize_origin
 from app.handoffs import (
@@ -48,6 +50,24 @@ from app.handoffs import (
     list_handoffs,
     load_admin_events,
     transition_handoff,
+)
+from app.knowledge_workflow import (
+    KnowledgeWorkflowError,
+    create_draft,
+    evaluate_version,
+    index_version,
+    list_versions,
+    publish_version,
+    validate_version,
+)
+from app.knowledge_workflow import (
+    get_document as get_workflow_document,
+)
+from app.knowledge_workflow import (
+    get_version as get_workflow_version,
+)
+from app.knowledge_workflow import (
+    update_document as update_workflow_document,
 )
 
 ERROR_RESPONSE = {"model": ErrorResponse}
@@ -188,31 +208,6 @@ class DashboardResponse(BaseModel):
     latest_evaluation: LatestEvaluationResponse | None
 
 
-class KnowledgeDocumentResponse(BaseModel):
-    id: UUID
-    document_key: str
-    title: str
-    source_path: str
-    checksum: str
-    status: str
-    chunk_count: int
-    sort_order: int
-
-
-class KnowledgeDocumentListResponse(BaseModel):
-    items: tuple[KnowledgeDocumentResponse, ...]
-    total: int
-    offset: int
-    limit: int
-    dataset_version: str
-
-
-class KnowledgeRevisionResponse(BaseModel):
-    revision_number: int
-    content_checksum: str
-    front_matter: dict[str, object]
-
-
 class KnowledgeChunkResponse(BaseModel):
     id: UUID
     stable_chunk_key: str
@@ -223,17 +218,112 @@ class KnowledgeChunkResponse(BaseModel):
     token_count: int
 
 
-class KnowledgeDocumentDetailResponse(BaseModel):
+class KnowledgeValidationIssueResponse(BaseModel):
+    code: str
+    document_key: str
+    message: str
+
+
+class KnowledgeValidationResponse(BaseModel):
+    passed: bool
+    document_count: int
+    chunk_count: int
+    errors: tuple[KnowledgeValidationIssueResponse, ...]
+    duplicate_policy_ids: dict[str, list[str]]
+    conflict_fixture_ids: tuple[str, ...]
+
+
+class KnowledgeEvaluationResponse(BaseModel):
+    id: UUID
+    status: str
+    suite: str
+    manifest_checksum: str
+    metrics: dict[str, object]
+    started_at: datetime
+    completed_at: datetime | None
+
+
+class KnowledgeVersionResponse(BaseModel):
+    id: UUID
+    dataset_id: str
+    dataset_version: str
+    status: str
+    source_version_id: UUID | None
+    manifest_checksum: str
+    document_count: int
+    chunk_count: int
+    embedded_chunk_count: int
+    validation: KnowledgeValidationResponse | None
+    validated_at: datetime | None
+    evaluation: KnowledgeEvaluationResponse | None
+    created_by: UUID | None
+    activated_by: UUID | None
+    created_at: datetime
+    activated_at: datetime | None
+
+
+class KnowledgeVersionListResponse(BaseModel):
+    items: tuple[KnowledgeVersionResponse, ...]
+
+
+class KnowledgeVersionDocumentResponse(BaseModel):
     id: UUID
     document_key: str
     title: str
     source_path: str
     checksum: str
-    status: str
+    chunk_count: int
+    sort_order: int
+
+
+class KnowledgeVersionDetailResponse(KnowledgeVersionResponse):
+    documents: tuple[KnowledgeVersionDocumentResponse, ...]
+
+
+class KnowledgeDependenciesResponse(BaseModel):
+    fact_ids: tuple[str, ...]
+    evaluation_case_ids: tuple[str, ...]
+
+
+class KnowledgeRevisionHistoryResponse(BaseModel):
+    revision_number: int
+    content_checksum: str
+    created_at: datetime
+
+
+class KnowledgeWorkflowDocumentResponse(BaseModel):
+    id: UUID
+    version_id: UUID
     dataset_version: str
-    metadata: dict[str, object]
-    revision: KnowledgeRevisionResponse | None
+    version_status: str
+    document_key: str
+    title: str
+    source_path: str
+    checksum: str
+    revision_number: int
+    content_markdown: str
+    front_matter: dict[str, object]
+    revisions: tuple[KnowledgeRevisionHistoryResponse, ...]
+    dependencies: KnowledgeDependenciesResponse
     chunks: tuple[KnowledgeChunkResponse, ...]
+
+
+class CreateKnowledgeDraftRequest(StrictRequest):
+    dataset_version: str = Field(
+        min_length=5,
+        max_length=50,
+        pattern=r"^[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?$",
+    )
+
+
+class UpdateKnowledgeDocumentRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    content_markdown: str = Field(min_length=1, max_length=250_000)
+
+
+class KnowledgeActionRequest(StrictRequest):
+    action: Literal["VALIDATE", "INDEX", "EVALUATE", "ACTIVATE", "ROLLBACK"]
 
 
 class RagModelResponse(BaseModel):
@@ -296,6 +386,10 @@ def _auth_error(exc: AdminAuthError) -> ApiError:
 
 
 def _conversation_error(exc: ConversationError) -> ApiError:
+    return ApiError(exc.status_code, exc.code, str(exc))
+
+
+def _knowledge_error(exc: KnowledgeWorkflowError) -> ApiError:
     return ApiError(exc.status_code, exc.code, str(exc))
 
 
@@ -365,6 +459,26 @@ def _operator_csrf_principal(principal: CsrfPrincipalDep) -> AdminPrincipal:
 
 
 OperatorCsrfPrincipalDep = Annotated[AdminPrincipal, Depends(_operator_csrf_principal)]
+
+
+def _knowledge_principal(principal: AdminPrincipalDep) -> AdminPrincipal:
+    try:
+        require_any_role(principal, KNOWLEDGE_ROLES)
+    except AdminAuthError as exc:
+        raise _auth_error(exc) from exc
+    return principal
+
+
+def _knowledge_editor_principal(principal: CsrfPrincipalDep) -> AdminPrincipal:
+    try:
+        require_any_role(principal, KNOWLEDGE_EDITOR_ROLES)
+    except AdminAuthError as exc:
+        raise _auth_error(exc) from exc
+    return principal
+
+
+KnowledgePrincipalDep = Annotated[AdminPrincipal, Depends(_knowledge_principal)]
+KnowledgeEditorPrincipalDep = Annotated[AdminPrincipal, Depends(_knowledge_editor_principal)]
 
 
 def _identity(principal: AdminPrincipal) -> AdminIdentityResponse:
@@ -517,7 +631,7 @@ def handoff_queue(
     responses={401: ERROR_RESPONSE, 403: ERROR_RESPONSE, 503: ERROR_RESPONSE},
 )
 def dashboard(
-    _principal: OperatorPrincipalDep,
+    _principal: AdminPrincipalDep,
     engine: EngineDep,
     settings: SettingsDep,
 ) -> DashboardResponse:
@@ -531,34 +645,58 @@ def dashboard(
 
 
 @admin_router.get(
-    "/knowledge/documents",
+    "/knowledge/versions",
     responses={401: ERROR_RESPONSE, 403: ERROR_RESPONSE, 503: ERROR_RESPONSE},
 )
-def knowledge_documents(
-    _principal: OperatorPrincipalDep,
+def knowledge_versions(
+    _principal: KnowledgePrincipalDep,
     engine: EngineDep,
     settings: SettingsDep,
-    query: Annotated[str | None, Query(max_length=200)] = None,
-    offset: Annotated[int, Query(ge=0)] = 0,
-    limit: Annotated[int, Query(ge=1, le=100)] = 50,
-) -> KnowledgeDocumentListResponse:
+) -> KnowledgeVersionListResponse:
     try:
-        result = list_knowledge_documents(
-            engine,
-            dataset_id=settings.expected_dataset_id,
-            query=query,
-            offset=offset,
-            limit=limit,
-        )
-    except ConversationError as exc:
-        raise _conversation_error(exc) from exc
+        items = list_versions(engine, dataset_id=settings.expected_dataset_id)
     except SQLAlchemyError as exc:
         raise ApiError(503, "DATABASE_NOT_READY", "The database is unavailable") from exc
-    return KnowledgeDocumentListResponse.model_validate(result)
+    return KnowledgeVersionListResponse(
+        items=tuple(KnowledgeVersionResponse.model_validate(item) for item in items)
+    )
+
+
+@admin_router.post(
+    "/knowledge/versions",
+    status_code=201,
+    responses={
+        401: ERROR_RESPONSE,
+        403: ERROR_RESPONSE,
+        409: ERROR_RESPONSE,
+        422: ERROR_RESPONSE,
+        503: ERROR_RESPONSE,
+    },
+)
+def create_knowledge_version(
+    request: Request,
+    payload: CreateKnowledgeDraftRequest,
+    principal: KnowledgeEditorPrincipalDep,
+    engine: EngineDep,
+    settings: SettingsDep,
+) -> KnowledgeVersionResponse:
+    try:
+        result = create_draft(
+            engine,
+            dataset_id=settings.expected_dataset_id,
+            dataset_version=payload.dataset_version,
+            actor_id=principal.user_id,
+            request_id=_request_id(request),
+        )
+    except KnowledgeWorkflowError as exc:
+        raise _knowledge_error(exc) from exc
+    except SQLAlchemyError as exc:
+        raise ApiError(503, "DATABASE_NOT_READY", "The database is unavailable") from exc
+    return KnowledgeVersionResponse.model_validate(result)
 
 
 @admin_router.get(
-    "/knowledge/documents/{document_id}",
+    "/knowledge/versions/{version_id}",
     responses={
         401: ERROR_RESPONSE,
         403: ERROR_RESPONSE,
@@ -566,23 +704,170 @@ def knowledge_documents(
         503: ERROR_RESPONSE,
     },
 )
-def knowledge_document(
-    document_id: Annotated[UUID, Path()],
-    _principal: OperatorPrincipalDep,
+def knowledge_version(
+    version_id: Annotated[UUID, Path()],
+    _principal: KnowledgePrincipalDep,
     engine: EngineDep,
     settings: SettingsDep,
-) -> KnowledgeDocumentDetailResponse:
+) -> KnowledgeVersionDetailResponse:
     try:
-        result = get_knowledge_document(
+        result = get_workflow_version(
             engine,
             dataset_id=settings.expected_dataset_id,
-            document_id=document_id,
+            version_id=version_id,
         )
-    except ConversationError as exc:
-        raise _conversation_error(exc) from exc
+    except KnowledgeWorkflowError as exc:
+        raise _knowledge_error(exc) from exc
     except SQLAlchemyError as exc:
         raise ApiError(503, "DATABASE_NOT_READY", "The database is unavailable") from exc
-    return KnowledgeDocumentDetailResponse.model_validate(result)
+    return KnowledgeVersionDetailResponse.model_validate(result)
+
+
+@admin_router.get(
+    "/knowledge/versions/{version_id}/documents/{document_id}",
+    responses={
+        401: ERROR_RESPONSE,
+        403: ERROR_RESPONSE,
+        404: ERROR_RESPONSE,
+        503: ERROR_RESPONSE,
+    },
+)
+def knowledge_version_document(
+    version_id: Annotated[UUID, Path()],
+    document_id: Annotated[UUID, Path()],
+    _principal: KnowledgePrincipalDep,
+    engine: EngineDep,
+    settings: SettingsDep,
+) -> KnowledgeWorkflowDocumentResponse:
+    try:
+        result = get_workflow_document(
+            engine,
+            dataset_id=settings.expected_dataset_id,
+            version_id=version_id,
+            document_id=document_id,
+        )
+    except KnowledgeWorkflowError as exc:
+        raise _knowledge_error(exc) from exc
+    except SQLAlchemyError as exc:
+        raise ApiError(503, "DATABASE_NOT_READY", "The database is unavailable") from exc
+    return KnowledgeWorkflowDocumentResponse.model_validate(result)
+
+
+@admin_router.put(
+    "/knowledge/versions/{version_id}/documents/{document_id}",
+    responses={
+        401: ERROR_RESPONSE,
+        403: ERROR_RESPONSE,
+        404: ERROR_RESPONSE,
+        409: ERROR_RESPONSE,
+        422: ERROR_RESPONSE,
+        503: ERROR_RESPONSE,
+    },
+)
+def revise_knowledge_document(
+    request: Request,
+    version_id: Annotated[UUID, Path()],
+    document_id: Annotated[UUID, Path()],
+    payload: UpdateKnowledgeDocumentRequest,
+    principal: KnowledgeEditorPrincipalDep,
+    engine: EngineDep,
+    settings: SettingsDep,
+) -> KnowledgeWorkflowDocumentResponse:
+    try:
+        result = update_workflow_document(
+            engine,
+            dataset_id=settings.expected_dataset_id,
+            version_id=version_id,
+            document_id=document_id,
+            content=payload.content_markdown,
+            actor_id=principal.user_id,
+            request_id=_request_id(request),
+        )
+    except KnowledgeWorkflowError as exc:
+        raise _knowledge_error(exc) from exc
+    except SQLAlchemyError as exc:
+        raise ApiError(503, "DATABASE_NOT_READY", "The database is unavailable") from exc
+    return KnowledgeWorkflowDocumentResponse.model_validate(result)
+
+
+@admin_router.post(
+    "/knowledge/versions/{version_id}/actions",
+    responses={
+        401: ERROR_RESPONSE,
+        403: ERROR_RESPONSE,
+        404: ERROR_RESPONSE,
+        409: ERROR_RESPONSE,
+        422: ERROR_RESPONSE,
+        503: ERROR_RESPONSE,
+    },
+)
+def run_knowledge_action(
+    request: Request,
+    version_id: Annotated[UUID, Path()],
+    payload: KnowledgeActionRequest,
+    principal: CsrfPrincipalDep,
+    engine: EngineDep,
+    settings: SettingsDep,
+) -> KnowledgeVersionDetailResponse:
+    publishing = payload.action in {"ACTIVATE", "ROLLBACK"}
+    try:
+        require_any_role(
+            principal,
+            KNOWLEDGE_PUBLISHER_ROLES if publishing else KNOWLEDGE_EDITOR_ROLES,
+        )
+        request_id = _request_id(request)
+        if payload.action == "VALIDATE":
+            validate_version(
+                engine,
+                dataset_id=settings.expected_dataset_id,
+                version_id=version_id,
+                actor_id=principal.user_id,
+                request_id=request_id,
+            )
+        elif payload.action in {"INDEX", "EVALUATE"}:
+            provider = embedding_provider(request)
+            if payload.action == "INDEX":
+                index_version(
+                    engine,
+                    provider,
+                    settings,
+                    dataset_id=settings.expected_dataset_id,
+                    version_id=version_id,
+                    actor_id=principal.user_id,
+                    request_id=request_id,
+                )
+            else:
+                evaluate_version(
+                    engine,
+                    provider,
+                    settings,
+                    dataset_id=settings.expected_dataset_id,
+                    version_id=version_id,
+                    actor_id=principal.user_id,
+                    request_id=request_id,
+                )
+        else:
+            publish_version(
+                engine,
+                settings,
+                dataset_id=settings.expected_dataset_id,
+                version_id=version_id,
+                actor_id=principal.user_id,
+                request_id=request_id,
+                rollback=payload.action == "ROLLBACK",
+            )
+        result = get_workflow_version(
+            engine,
+            dataset_id=settings.expected_dataset_id,
+            version_id=version_id,
+        )
+    except AdminAuthError as exc:
+        raise _auth_error(exc) from exc
+    except KnowledgeWorkflowError as exc:
+        raise _knowledge_error(exc) from exc
+    except SQLAlchemyError as exc:
+        raise ApiError(503, "DATABASE_NOT_READY", "The database is unavailable") from exc
+    return KnowledgeVersionDetailResponse.model_validate(result)
 
 
 @admin_router.get(

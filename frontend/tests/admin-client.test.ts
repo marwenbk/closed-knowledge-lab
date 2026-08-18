@@ -75,6 +75,33 @@ describe("admin client", () => {
     expect(fetchMock.mock.calls[0]?.[0]).toContain("limit=25");
   });
 
+  it("maps governed knowledge versions to a Refine list", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          items: [
+            {
+              id: "version-id",
+              dataset_id: "topmed-demo",
+              dataset_version: "2.0.1",
+              status: "DRAFT",
+            },
+          ],
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await adminDataProvider.getList({
+      resource: "knowledge-versions",
+      pagination: { mode: "off" },
+    });
+
+    expect(result.total).toBe(1);
+    expect(result.data[0]).toMatchObject({ id: "version-id", status: "DRAFT" });
+  });
+
   it("parses operational events and ignores protocol events", () => {
     expect(
       mapAdminEvent(

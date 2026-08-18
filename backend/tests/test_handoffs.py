@@ -145,7 +145,7 @@ def _widget_conversation(client: TestClient) -> tuple[str, dict[str, str]]:
     return conversation.json()["conversation_id"], headers
 
 
-def _seed_active_version(engine: Engine) -> UUID:
+def _seed_active_version(engine: Engine, *, active: bool = True) -> UUID:
     version_id = uuid4()
     with Session(engine) as session, session.begin():
         session.add(
@@ -158,8 +158,8 @@ def _seed_active_version(engine: Engine) -> UUID:
                 seed_checksum="a" * 64,
                 template_checksum="b" * 64,
                 manifest_checksum="c" * 64,
-                status="ACTIVE",
-                activated_at=datetime.now(UTC),
+                status="ACTIVE" if active else "DRAFT",
+                activated_at=datetime.now(UTC) if active else None,
             )
         )
     return version_id
@@ -405,7 +405,7 @@ def test_admin_dashboard_rag_trace_and_active_knowledge_browser(
     postgres_engine: Engine,
 ) -> None:
     settings = _settings()
-    version_id = _seed_active_version(postgres_engine)
+    version_id = _seed_active_version(postgres_engine, active=False)
     _bootstrap(postgres_engine)
     document_id = uuid4()
     revision_id = uuid4()
@@ -453,6 +453,11 @@ def test_admin_dashboard_rag_trace_and_active_knowledge_browser(
                 metadata_json={},
             )
         )
+        session.flush()
+        version = session.get(KnowledgeBaseVersion, version_id)
+        assert version is not None
+        version.status = "ACTIVE"
+        version.activated_at = datetime.now(UTC)
     application = create_app(
         postgres_engine,
         StubEmbeddingProvider(),
@@ -464,8 +469,11 @@ def test_admin_dashboard_rag_trace_and_active_knowledge_browser(
         _login(client)
         # Safe reads work on same-origin deployments where browsers omit Origin for GET.
         dashboard = client.get("/api/v1/admin/dashboard")
-        documents = client.get("/api/v1/admin/knowledge/documents", params={"query": "suporte"})
-        detail = client.get(f"/api/v1/admin/knowledge/documents/{document_id}")
+        versions = client.get("/api/v1/admin/knowledge/versions")
+        version_detail = client.get(f"/api/v1/admin/knowledge/versions/{version_id}")
+        detail = client.get(
+            f"/api/v1/admin/knowledge/versions/{version_id}/documents/{document_id}"
+        )
         missing_run = client.get(f"/api/v1/admin/rag-runs/{uuid4()}")
 
     assert dashboard.status_code == 200, dashboard.text
@@ -476,8 +484,9 @@ def test_admin_dashboard_rag_trace_and_active_knowledge_browser(
         "document_count": 1,
         "chunk_count": 1,
     }
-    assert documents.status_code == 200
-    assert documents.json()["items"][0]["document_key"] == "support-hours"
+    assert versions.status_code == 200
+    assert versions.json()["items"][0]["dataset_version"] == "2.0.0"
+    assert version_detail.json()["documents"][0]["document_key"] == "support-hours"
     assert detail.status_code == 200
     assert detail.json()["chunks"][0]["stable_chunk_key"] == "support-hours:horarios:1"
     assert missing_run.status_code == 404

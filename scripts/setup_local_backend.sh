@@ -31,7 +31,9 @@ bash "${TOPMED_PROJECT_ROOT}/scripts/start_local_postgres.sh"
 "${TOPMED_VENV}/bin/python" -m app.cli kb import \
   --manifest "${TOPMED_PROJECT_ROOT}/knowledge_base/manifest.json"
 "${TOPMED_VENV}/bin/python" -m app.cli kb embed --download
-"${TOPMED_VENV}/bin/python" -m app.cli kb activate
+if ! "${TOPMED_VENV}/bin/python" -m app.cli kb status >/dev/null 2>&1; then
+  "${TOPMED_VENV}/bin/python" -m app.cli kb activate
+fi
 "${TOPMED_VENV}/bin/python" -m app.cli system ready
 
-echo "✓ PostgreSQL, grounded answering, and human takeover are ready"
+echo "✓ PostgreSQL, grounded answering, takeover, and knowledge publishing are ready"

@@ -18,6 +18,11 @@ from app.models import AdminSession, AdminUser, AdminUserRole
 ADMIN_SESSION_COOKIE = "topmed_admin_session"
 ADMIN_CSRF_COOKIE = "topmed_admin_csrf"
 TAKEOVER_ROLES = frozenset({"ADMIN", "SUPERVISOR", "SUPPORT_AGENT"})
+KNOWLEDGE_ROLES = frozenset(
+    {"ADMIN", "SUPERVISOR", "SUPPORT_AGENT", "HUMAN_REVIEWER", "KNOWLEDGE_EDITOR", "AUDITOR"}
+)
+KNOWLEDGE_EDITOR_ROLES = frozenset({"ADMIN", "SUPERVISOR", "KNOWLEDGE_EDITOR"})
+KNOWLEDGE_PUBLISHER_ROLES = frozenset({"ADMIN", "SUPERVISOR"})
 
 PASSWORD_HASHER = PasswordHasher(
     time_cost=2,
@@ -204,7 +209,11 @@ def authenticate_admin(engine: Engine, token: str | None) -> AdminPrincipal:
 
 
 def require_takeover_role(principal: AdminPrincipal) -> None:
-    if principal.roles.isdisjoint(TAKEOVER_ROLES):
+    require_any_role(principal, TAKEOVER_ROLES)
+
+
+def require_any_role(principal: AdminPrincipal, roles: frozenset[str]) -> None:
+    if principal.roles.isdisjoint(roles):
         raise AdminAuthError(403, "ADMIN_PERMISSION_DENIED", "Permission denied")
 
 

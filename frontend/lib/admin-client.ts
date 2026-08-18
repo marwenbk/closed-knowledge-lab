@@ -21,12 +21,20 @@ import type {
   AdminIdentity,
   AdminStreamEvent,
   Handoff,
-  KnowledgeDocument,
 } from "@/lib/admin-types";
 import { normalizeApiBaseUrl } from "@/lib/widget-api";
 
 const CSRF_COOKIE = "topmed_admin_csrf";
 const OPERATOR_ROLES = new Set(["ADMIN", "SUPERVISOR", "SUPPORT_AGENT"]);
+const KNOWLEDGE_ROLES = new Set([
+  "ADMIN",
+  "SUPERVISOR",
+  "SUPPORT_AGENT",
+  "HUMAN_REVIEWER",
+  "KNOWLEDGE_EDITOR",
+  "AUDITOR",
+]);
+const KNOWLEDGE_EDITOR_ROLES = new Set(["ADMIN", "SUPERVISOR", "KNOWLEDGE_EDITOR"]);
 const ADMIN_EVENTS = [
   "conversation.ai_resumed",
   "conversation.closed",
@@ -190,10 +198,19 @@ export const adminAuthProvider: AuthProvider = {
 };
 
 export const adminAccessControlProvider: AccessControlProvider = {
-  async can() {
+  async can({ resource, action }) {
     try {
       const identity = await getIdentity();
-      const can = identity.roles.some((role) => OPERATOR_ROLES.has(role));
+      const knowledge = resource?.startsWith("knowledge-") ?? false;
+      const allowedRoles =
+        resource === "dashboard"
+          ? new Set(identity.roles)
+          : knowledge && ["create", "edit", "delete"].includes(action)
+          ? KNOWLEDGE_EDITOR_ROLES
+          : knowledge
+            ? KNOWLEDGE_ROLES
+            : OPERATOR_ROLES;
+      const can = identity.roles.some((role) => allowedRoles.has(role));
       return { can, reason: can ? undefined : "Função sem acesso operacional." };
     } catch {
       return { can: false, reason: "Sessão administrativa inválida." };
@@ -238,18 +255,11 @@ async function getList<TData extends BaseRecord = BaseRecord>({
         total: result.total,
       };
     }
-    if (resource === "knowledge-documents") {
-      const result = await adminRequest<{ items: KnowledgeDocument[]; total: number }>(
-        "/api/v1/admin/knowledge/documents",
-        {
-          query: {
-            offset: (page - 1) * limit,
-            limit,
-            query: logicalFilter(filters, "query"),
-          },
-        },
+    if (resource === "knowledge-versions") {
+      const result = await adminRequest<{ items: TData[] }>(
+        "/api/v1/admin/knowledge/versions",
       );
-      return { data: result.items as unknown as TData[], total: result.total };
+      return { data: result.items, total: result.items.length };
     }
     return unsupported();
 }
@@ -264,8 +274,10 @@ async function getOne<TData extends BaseRecord = BaseRecord>({
       );
       return { data: { ...result, id: result.conversation_id } as unknown as TData };
     }
-    if (resource === "knowledge-documents") {
-      return { data: await adminRequest<TData>(`/api/v1/admin/knowledge/documents/${id}`) };
+    if (resource === "knowledge-versions") {
+      return {
+        data: await adminRequest<TData>(`/api/v1/admin/knowledge/versions/${id}`),
+      };
     }
     if (resource === "rag-runs") {
       return { data: await adminRequest<TData>(`/api/v1/admin/rag-runs/${id}`) };

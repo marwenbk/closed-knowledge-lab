@@ -102,6 +102,7 @@ def test_cors_allows_only_configured_widget_origins(client: TestClient) -> None:
     assert allowed.headers["Access-Control-Allow-Credentials"] == "true"
     assert "X-CSRF-Token" in allowed.headers["Access-Control-Allow-Headers"]
     assert "POST" in allowed.headers["Access-Control-Allow-Methods"]
+    assert "PUT" in allowed.headers["Access-Control-Allow-Methods"]
     assert "Access-Control-Allow-Origin" not in denied.headers
 
 
@@ -185,7 +186,12 @@ def test_openapi_describes_typed_success_and_error_contracts(application: FastAP
     admin_login = schema["paths"]["/api/v1/admin/auth/login"]["post"]
     admin_queue = schema["paths"]["/api/v1/admin/handoffs"]["get"]
     admin_dashboard = schema["paths"]["/api/v1/admin/dashboard"]["get"]
-    admin_documents = schema["paths"]["/api/v1/admin/knowledge/documents"]["get"]
+    admin_versions = schema["paths"]["/api/v1/admin/knowledge/versions"]["get"]
+    admin_create_version = schema["paths"]["/api/v1/admin/knowledge/versions"]["post"]
+    admin_revision = schema["paths"][
+        "/api/v1/admin/knowledge/versions/{version_id}/documents/{document_id}"
+    ]["put"]
+    admin_action = schema["paths"]["/api/v1/admin/knowledge/versions/{version_id}/actions"]["post"]
     admin_rag_run = schema["paths"]["/api/v1/admin/rag-runs/{rag_run_id}"]["get"]
     admin_events = schema["paths"]["/api/v1/admin/events"]["get"]
 
@@ -235,9 +241,21 @@ def test_openapi_describes_typed_success_and_error_contracts(application: FastAP
     assert admin_dashboard["responses"]["200"]["content"]["application/json"]["schema"][
         "$ref"
     ].endswith("/DashboardResponse")
-    assert admin_documents["responses"]["200"]["content"]["application/json"]["schema"][
+    assert admin_versions["responses"]["200"]["content"]["application/json"]["schema"][
         "$ref"
-    ].endswith("/KnowledgeDocumentListResponse")
+    ].endswith("/KnowledgeVersionListResponse")
+    assert admin_create_version["requestBody"]["content"]["application/json"]["schema"][
+        "$ref"
+    ].endswith("/CreateKnowledgeDraftRequest")
+    assert admin_revision["requestBody"]["content"]["application/json"]["schema"]["$ref"].endswith(
+        "/UpdateKnowledgeDocumentRequest"
+    )
+    assert admin_action["requestBody"]["content"]["application/json"]["schema"]["$ref"].endswith(
+        "/KnowledgeActionRequest"
+    )
+    assert admin_action["responses"]["200"]["content"]["application/json"]["schema"][
+        "$ref"
+    ].endswith("/KnowledgeVersionDetailResponse")
     assert admin_rag_run["responses"]["200"]["content"]["application/json"]["schema"][
         "$ref"
     ].endswith("/RagRunDetailResponse")
