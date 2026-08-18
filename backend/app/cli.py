@@ -13,6 +13,7 @@ from app.answering import AnsweringError, answer_knowledge
 from app.config import PROJECT_ROOT, get_settings
 from app.db import get_engine
 from app.embeddings import EmbeddingError, OnnxE5EmbeddingProvider, embed_knowledge_base
+from app.evaluation import EvaluationError, load_evaluation_data, run_evaluation, write_report
 from app.kb import KnowledgeImportError, activate_knowledge_base, import_knowledge_base
 from app.llm import DeepSeekProvider, LLMError
 from app.retrieval import RetrievalError, retrieve_knowledge
@@ -54,6 +55,15 @@ def parse_args() -> argparse.Namespace:
     system_parser = resources.add_parser("system", help="Inspect backend system state")
     system_commands = system_parser.add_subparsers(dest="command", required=True)
     system_commands.add_parser("ready", help="Verify backend readiness")
+    eval_parser = resources.add_parser("eval", help="Run versioned evaluation gates")
+    eval_commands = eval_parser.add_subparsers(dest="command", required=True)
+    run_eval_parser = eval_commands.add_parser("run", help="Evaluate the active knowledge base")
+    run_eval_parser.add_argument(
+        "--live",
+        action="store_true",
+        help="Also run all 100 answer cases through DeepSeek (uses API credit)",
+    )
+    run_eval_parser.add_argument("--output", type=Path, help="Write the JSON report to this path")
     return parser.parse_args()
 
 
@@ -120,9 +130,26 @@ def main() -> int:
             print(json.dumps(readiness_result, indent=2))
             if readiness_result["status"] != "ready":
                 return 1
+        elif args.resource == "eval" and args.command == "run":
+            provider = OnnxE5EmbeddingProvider(settings)
+            if args.live:
+                llm_provider = DeepSeekProvider(settings)
+            report = run_evaluation(
+                engine,
+                provider,
+                settings,
+                load_evaluation_data(),
+                llm_provider=llm_provider,
+            )
+            if args.output:
+                write_report(report, args.output)
+            print(json.dumps(report, ensure_ascii=False, indent=2))
+            if not report["passed"]:
+                return 1
     except (
         EmbeddingError,
         AnsweringError,
+        EvaluationError,
         KnowledgeImportError,
         KnowledgeBaseUnavailable,
         LLMError,

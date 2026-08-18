@@ -311,6 +311,26 @@ The loader injects a style-isolated launcher and iframe, validates host messages
 
 The browser never receives the DeepSeek key or an admin credential. Add every deployed frontend origin to `WIDGET_ALLOWED_ORIGINS`; the signed widget session is bound to that exact origin. Human-message rendering is already distinct, while the customer handoff action intentionally arrives with the server-enforced handoff workflow in Phase 5.
 
+### Evaluation gates
+
+Run the local, generation-free gate against the active PostgreSQL knowledge base:
+
+```bash
+.venv/bin/python -m app.cli eval run \
+  --output evals/retrieval.report.json
+```
+
+The command validates the complete 100-case contract, then evaluates all 63 non-fixture cases with required facts. It fails unless source Recall@6, fact Recall@6, and required second-hop coverage are all 100%. The JSON report also includes reciprocal-rank, latency, typo-fallback, per-case, and per-category results.
+
+Run the complete pipeline and adversarial suites explicitly:
+
+```bash
+.venv/bin/python -m app.cli eval run --live \
+  --output evals/full.report.json
+```
+
+`--live` executes all 100 cases through DeepSeek and consumes API credit. It checks expected answerability status, verified citations, required source coverage, forbidden-fact citations, ambiguity and fail-closed behavior. The five contradiction fixtures are added only to their individual in-memory evaluation evidence; they are never written to the canonical PostgreSQL knowledge base. Generated `*.report.json` files are local artifacts ignored by Git.
+
 ### Tests and static checks
 
 With PostgreSQL running and `.env` loaded, run the complete suite:
@@ -330,7 +350,7 @@ pnpm --dir frontend check
 pnpm --dir frontend build
 ```
 
-The PostgreSQL tests create uniquely named disposable databases through `TOPMED_TEST_DATABASE_URL` and remove only those databases afterward. They cover migrations, knowledge indexing, signed widget sessions, origin scoping, state transitions, idempotency, failed runs, persisted provenance, ordered replay, and append-only events. The two `TOPMED_REQUIRE_*_TESTS` flags make missing embedding artifacts or DeepSeek access fail complete verification instead of silently skipping model tests. Live DeepSeek checks consume API credit and run only when `TOPMED_REQUIRE_LLM_TESTS=1` is explicit; they cover structured output plus eight representative cases loaded from `evals/cases.yaml`.
+The PostgreSQL tests create uniquely named disposable databases through `TOPMED_TEST_DATABASE_URL` and remove only those databases afterward. They cover migrations, knowledge indexing, the complete 63-case retrieval gate, signed widget sessions, origin scoping, state transitions, idempotency, failed runs, persisted provenance, ordered replay, and append-only events. The two `TOPMED_REQUIRE_*_TESTS` flags make missing embedding artifacts or DeepSeek access fail complete verification instead of silently skipping model tests. Live DeepSeek checks consume API credit and run only when `TOPMED_REQUIRE_LLM_TESTS=1` is explicit; the test suite keeps those checks to eight representative cases, while the explicit `eval run --live` command runs all 100.
 
 ### Pre-commit hooks
 

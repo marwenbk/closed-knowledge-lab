@@ -188,7 +188,9 @@ def test_platinum_psychology_mapping_produces_one_plan_focused_second_hop() -> N
         evidence,
     )
 
-    assert query == "limite mensal de consultas do plano Premium"
+    assert query == (
+        "limite mensal de consultas e especialidades incluídas e horários do plano Premium"
+    )
     assert _second_hop_query("Tenho Platinum, mas qual é o meu benefício?", evidence) is None
 
 

@@ -338,20 +338,20 @@ MAPPING_PATTERN = re.compile(
     re.IGNORECASE,
 )
 SECOND_HOP_TOPICS: tuple[tuple[re.Pattern[str], str], ...] = (
-    (re.compile(r"dependen", re.IGNORECASE), "limite de dependentes do plano"),
+    (re.compile(r"dependen", re.IGNORECASE), "limite de dependentes"),
     (
         re.compile(r"quant(?:as|idade)?\s+(?:de\s+)?consult|consultas?.*mens", re.IGNORECASE),
-        "limite mensal de consultas do plano",
+        "limite mensal de consultas",
     ),
     (
         re.compile(
             r"especial|cobertura|dermat|psicolog|pediatr|nutri|cardio|gineco",
             re.IGNORECASE,
         ),
-        "especialidades incluídas no plano",
+        "especialidades incluídas",
     ),
-    (re.compile(r"preç|valor|custa|custo|mensalidade", re.IGNORECASE), "preço mensal do plano"),
-    (re.compile(r"horár|disponib|quando|sábado|domingo", re.IGNORECASE), "horários do plano"),
+    (re.compile(r"preç|valor|custa|custo|mensalidade", re.IGNORECASE), "preço mensal"),
+    (re.compile(r"horár|disponib|quando|sábado|domingo", re.IGNORECASE), "horários"),
 )
 
 
@@ -391,17 +391,14 @@ def _second_hop_query(query: str, evidence: list[RetrievalMatch]) -> str | None:
     mentioned_tier = _mentioned_employer_tier(query)
     if mentioned_tier is None:
         return None
-    topic = next(
-        (description for pattern, description in SECOND_HOP_TOPICS if pattern.search(query)),
-        None,
-    )
-    if topic is None:
+    topics = [description for pattern, description in SECOND_HOP_TOPICS if pattern.search(query)]
+    if not topics:
         return None
     for match in evidence:
         for mapping in MAPPING_PATTERN.finditer(match.content):
             if normalize_content(mapping.group(1)) == mentioned_tier:
                 consumer_plan = mapping.group(2)
-                return f"{topic} {consumer_plan}"
+                return f"{' e '.join(topics)} do plano {consumer_plan}"
     return None
 
 

@@ -345,14 +345,19 @@ def answer_knowledge(
     query: str,
     *,
     conversation_context: Sequence[str] = (),
+    retrieval_result: RetrievalResult | None = None,
 ) -> GroundedAnswer:
     started_at = time.perf_counter()
     llm_provider.ensure_ready()
-    retrieval = retrieve_knowledge(
-        engine,
-        embedding_provider,
-        settings,
-        contextualize_query(query, conversation_context),
+    retrieval = (
+        retrieval_result
+        if retrieval_result is not None
+        else retrieve_knowledge(
+            engine,
+            embedding_provider,
+            settings,
+            contextualize_query(query, conversation_context),
+        )
     )
     matches = list(retrieval.matches)
     decision = llm_provider.structured_generate(

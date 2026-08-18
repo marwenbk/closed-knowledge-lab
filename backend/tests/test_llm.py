@@ -6,11 +6,11 @@ from typing import Literal
 
 import httpx
 import pytest
-import yaml
 from app.answering import answer_knowledge
-from app.config import PROJECT_ROOT, Settings
+from app.config import Settings
 from app.db import get_engine
 from app.embeddings import OnnxE5EmbeddingProvider
+from app.evaluation import load_evaluation_data
 from app.llm import DeepSeekProvider, LLMError
 from pydantic import BaseModel, SecretStr
 
@@ -197,8 +197,7 @@ def test_representative_deepseek_pipeline_cases() -> None:
     if os.environ.get("TOPMED_REQUIRE_LLM_TESTS") != "1":
         pytest.skip("Live DeepSeek verification was not requested")
     settings = Settings()
-    case_data = yaml.safe_load((PROJECT_ROOT / "evals/cases.yaml").read_text(encoding="utf-8"))
-    cases = {case["id"]: case for case in case_data if case["id"] in PIPELINE_CASE_IDS}
+    cases = {case.id: case for case in load_evaluation_data().cases if case.id in PIPELINE_CASE_IDS}
     assert set(cases) == set(PIPELINE_CASE_IDS)
 
     engine = get_engine()
@@ -212,10 +211,11 @@ def test_representative_deepseek_pipeline_cases() -> None:
                 embedding,
                 provider,
                 settings,
-                case["messages"][0],
+                case.messages[-1],
+                conversation_context=case.messages[:-1],
             )
-            assert result.status == case["expected_status"], case_id
-            expected_documents = set(case["expected_documents"]["canonical"])
+            assert result.status == case.expected_status, case_id
+            expected_documents = set(case.expected_documents.canonical)
             cited_documents = {citation.document_key for citation in result.citations}
             assert expected_documents.issubset(cited_documents), case_id
             if result.status in {"ANSWERABLE", "PARTIALLY_ANSWERABLE"}:

@@ -12,6 +12,7 @@ htmlcov/
 backend/*.egg-info/
 .cache/models/
 demo/seed-report.json
+evals/*.report.json
 frontend/node_modules/
 frontend/.next/
 frontend/coverage/
