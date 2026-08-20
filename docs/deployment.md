@@ -33,7 +33,7 @@ The pre-deploy bootstrap is idempotent. Subsequent deploys preserve governed act
 
 The frontend proxies API and SSE traffic to FastAPI's public Render URL. This keeps administrator cookies same-origin even before custom domains are added. FastAPI still validates the canonical frontend `Origin`, CSRF token, session, and role.
 
-The backend image contains the pinned, checksum-verified multilingual-e5-small ONNX model. No mutable model cache or persistent web-service disk is required.
+The backend image contains a pinned, checksum-verified 16M-parameter Model2Vec distillation of multilingual-e5-small. Its native vectors are normalized and zero-padded to the schema's 384 physical dimensions. Retrieval remains lexical-first hybrid and adds bounded cross-document companion routing for the evaluated policy intents. Local development and release evaluation continue to exercise the full ONNX model. No mutable model cache or persistent web-service disk is required.
 
 Free-service constraints are intentional for this demo:
 

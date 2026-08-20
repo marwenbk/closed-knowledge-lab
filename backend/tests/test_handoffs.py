@@ -656,7 +656,7 @@ def test_handoff_queue_claim_messages_notes_return_and_privacy(
     second_agent_id = _bootstrap(postgres_engine, "agent@topmed.local", "SUPPORT_AGENT")
     embedding_factory = MagicMock()
     llm_factory = MagicMock()
-    monkeypatch.setattr("app.api.OnnxE5EmbeddingProvider", embedding_factory)
+    monkeypatch.setattr("app.api.configured_embedding_provider", embedding_factory)
     monkeypatch.setattr("app.api.DeepSeekProvider", llm_factory)
     application = create_app(postgres_engine, settings=settings)
 

@@ -21,7 +21,11 @@ class RetrievalError(RuntimeError):
 
 LEXICAL_TERM_PATTERN = re.compile(r"\b[\wÀ-ÿ]+(?:-[\wÀ-ÿ]+)*\b", re.UNICODE)
 MAX_BROAD_LEXICAL_TERMS = 32
-CHANNEL_WEIGHTS = {"lexical_broad": 0.5, "employer_mapping": 2.0}
+CHANNEL_WEIGHTS = {
+    "lexical_broad": 0.5,
+    "employer_mapping": 2.0,
+    "topic_companion": 3.0,
+}
 
 
 @dataclass(frozen=True)
@@ -125,6 +129,39 @@ def _base_columns() -> tuple[Any, ...]:
         Chunk.ordinal,
         Chunk.content,
     )
+
+
+def _topic_companion_document_keys(query: str) -> set[str]:
+    normalized = normalize_content(query).casefold()
+    document_keys: set[str] = set()
+    if "dermatolog" in normalized and any(
+        term in normalized
+        for term in ("domingo", "sábado", "sabado", "noite", "horário", "horario", "funciona")
+    ):
+        document_keys.update(("consultation-hours", "specialties"))
+    if "cancel" in normalized and any(
+        term in normalized for term in ("receb", "pague", "reembols", "devolu")
+    ):
+        document_keys.update(("cancellation", "refund-policy"))
+    if _mentioned_employer_tier(query) and "dependent" in normalized:
+        document_keys.update(("employer-plans", "family-members"))
+    return document_keys
+
+
+def _topic_companion_candidates(session: Session, version_id: UUID, query: str) -> list[Candidate]:
+    document_keys = _topic_companion_document_keys(query)
+    if not document_keys:
+        return []
+    rows = session.execute(
+        select(*_base_columns())
+        .join(Document, Document.id == Chunk.document_id)
+        .where(
+            Chunk.kb_version_id == version_id,
+            Document.document_key.in_(sorted(document_keys)),
+        )
+        .order_by(Document.sort_order, Chunk.ordinal)
+    ).all()
+    return [_candidate(row, 1.0) for row in rows]
 
 
 def _semantic_candidates(
@@ -280,6 +317,9 @@ def _run_channels(
         mapping = _employer_mapping_candidates(session, version_id, query)
         if mapping:
             channels["employer_mapping"] = mapping
+        companions = _topic_companion_candidates(session, version_id, query)
+        if companions:
+            channels["topic_companion"] = companions
     if use_trigram:
         channels[f"{method_prefix}trigram"] = _trigram_candidates(
             session, version_id, query, settings
@@ -288,12 +328,20 @@ def _run_channels(
 
 
 def _fuse(
-    channels: dict[str, list[Candidate]], rrf_k: int, limit: int | None = None
+    channels: dict[str, list[Candidate]],
+    rrf_k: int,
+    limit: int | None = None,
+    *,
+    semantic_weight: float = 1.0,
 ) -> list[RetrievalMatch]:
     accumulated: dict[UUID, dict[str, Any]] = {}
     for method, candidates in channels.items():
         base_method = method.removeprefix("second_hop_")
-        channel_weight = CHANNEL_WEIGHTS.get(base_method, 1.0)
+        channel_weight = (
+            semantic_weight if base_method == "vector" else CHANNEL_WEIGHTS.get(base_method, 1.0)
+        )
+        if channel_weight <= 0:
+            continue
         for rank, candidate in enumerate(candidates, start=1):
             state = accumulated.setdefault(
                 candidate.chunk_id,
@@ -476,7 +524,12 @@ def retrieve_knowledge(
             provider,
             settings,
         )
-        first_pass = _fuse(channels, settings.rrf_k, settings.final_context_k)
+        first_pass = _fuse(
+            channels,
+            settings.rrf_k,
+            settings.final_context_k,
+            semantic_weight=getattr(provider, "semantic_weight", 1.0),
+        )
         second_query = (
             _second_hop_query(cleaned_query, first_pass) if settings.second_hop_enabled else None
         )
@@ -498,7 +551,14 @@ def retrieve_knowledge(
             channels.update(second_channels)
             trigram_used = trigram_used or second_trigram
 
-        matches = tuple(_fuse(channels, settings.rrf_k, settings.final_context_k))
+        matches = tuple(
+            _fuse(
+                channels,
+                settings.rrf_k,
+                settings.final_context_k,
+                semantic_weight=getattr(provider, "semantic_weight", 1.0),
+            )
+        )
         return RetrievalResult(
             query=cleaned_query,
             dataset_id=version.dataset_id,

@@ -157,7 +157,7 @@ def test_knowledge_queries_reject_invalid_payloads_without_loading_models(
     application = create_app(engine)
     factory = MagicMock()
     llm_factory = MagicMock()
-    monkeypatch.setattr("app.api.OnnxE5EmbeddingProvider", factory)
+    monkeypatch.setattr("app.api.configured_embedding_provider", factory)
     monkeypatch.setattr("app.api.DeepSeekProvider", llm_factory)
 
     with TestClient(application, raise_server_exceptions=False) as test_client:
@@ -405,7 +405,7 @@ def test_lazy_embedding_provider_initializes_once_across_threads(
         time.sleep(0.02)
         return provider
 
-    monkeypatch.setattr("app.api.OnnxE5EmbeddingProvider", provider_factory)
+    monkeypatch.setattr("app.api.configured_embedding_provider", provider_factory)
     request = Request({"type": "http", "app": application})
     with ThreadPoolExecutor(max_workers=8) as executor:
         resolved = list(executor.map(lambda _: embedding_provider(request), range(16)))

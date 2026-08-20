@@ -9,6 +9,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     OMP_NUM_THREADS=1 \
     OPENBLAS_NUM_THREADS=1 \
     MKL_NUM_THREADS=1 \
+    EMBEDDING_PROVIDER=static \
     EMBEDDING_CACHE_DIR=/opt/topmed-models
 
 WORKDIR /app
@@ -27,7 +28,7 @@ COPY requirements-data.txt /app/requirements-data.txt
 RUN python -m pip install --requirement requirements-data.txt \
     && python -m pip install ./backend \
     && python -m compileall -q backend/app \
-    && python -c "from app.config import Settings; from app.embeddings import ensure_model_artifacts; ensure_model_artifacts(Settings(_env_file=None), download=True)" \
+    && python -c "from app.config import Settings; from app.embeddings import ensure_configured_model_artifacts; ensure_configured_model_artifacts(Settings(_env_file=None))" \
     && chown -R topmed:topmed /app /opt/topmed-models
 
 USER topmed

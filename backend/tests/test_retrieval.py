@@ -16,6 +16,7 @@ from app.retrieval import (
     _fuse,
     _mentioned_employer_tier,
     _second_hop_query,
+    _topic_companion_document_keys,
     _validated_query_vector,
 )
 from sqlalchemy.dialects import postgresql
@@ -197,6 +198,30 @@ def test_platinum_psychology_mapping_produces_one_plan_focused_second_hop() -> N
 def test_employer_tier_detection_requires_a_complete_word() -> None:
     assert _mentioned_employer_tier("Tenho Gold pela empresa") == "gold"
     assert _mentioned_employer_tier("O produto Golden serve?") is None
+
+
+@pytest.mark.parametrize(
+    ("query", "expected"),
+    [
+        (
+            "Dermatologia do plano Família funciona sábado à noite?",
+            {"consultation-hours", "specialties"},
+        ),
+        (
+            "Se eu cancelar hoje, recebo automaticamente o que paguei?",
+            {"cancellation", "refund-policy"},
+        ),
+        (
+            "O benefício empresarial Gold dá direito a quantos dependentes?",
+            {"employer-plans", "family-members"},
+        ),
+        ("Quanto custa o plano Essencial?", set()),
+    ],
+)
+def test_topic_companions_are_bounded_to_explicit_cross_document_intents(
+    query: str, expected: set[str]
+) -> None:
+    assert _topic_companion_document_keys(query) == expected
 
 
 @pytest.mark.parametrize(

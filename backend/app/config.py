@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://topmed:topmed@localhost:5433/topmed"
     expected_dataset_id: str = "topmed-demo"
     expected_dataset_version: str = "2.0.0"
+    embedding_provider: Literal["onnx", "static"] = "onnx"
     embedding_model_id: str = "intfloat/multilingual-e5-small"
     embedding_model_revision: CommitSha = "614241f622f53c4eeff9890bdc4f31cfecc418b3"
     embedding_model_file: str = "onnx/model_qint8_avx512_vnni.onnx"
@@ -30,6 +31,17 @@ class Settings(BaseSettings):
     )
     embedding_tokenizer_sha256: Sha256 = (
         "0b44a9d7b51c3c62626640cda0e2c2f70fdacdc25bbbd68038369d14ebdf4c39"
+    )
+    static_embedding_model_id: str = "cnmoro/multilingual-e5-small-distilled-16m"
+    static_embedding_model_revision: CommitSha = "813d48d449f24bb69be047693d48eb8a680239c6"
+    static_embedding_config_sha256: Sha256 = (
+        "9c7891dba00700a8cec22be0ecd9d971c549bb35e57b255f3f3761c882edbd0d"
+    )
+    static_embedding_model_sha256: Sha256 = (
+        "3a24fd8f112b71957ff37da56e1d20dc0c046c19eb610a10bf1a569522438588"
+    )
+    static_embedding_tokenizer_sha256: Sha256 = (
+        "cd98e5698b201ba914efb8c18b6709fa8735ab71dcad8d2b431e52e8bf68d932"
     )
     embedding_dimensions: Annotated[int, Field(ge=384, le=384)] = 384
     embedding_batch_size: Annotated[int, Field(gt=0, le=128)] = 8
@@ -146,6 +158,22 @@ class Settings(BaseSettings):
         if self.embedding_cache_dir.is_absolute():
             return self.embedding_cache_dir
         return PROJECT_ROOT / self.embedding_cache_dir
+
+    @property
+    def active_embedding_model_id(self) -> str:
+        return (
+            self.static_embedding_model_id
+            if self.embedding_provider == "static"
+            else self.embedding_model_id
+        )
+
+    @property
+    def active_embedding_model_revision(self) -> str:
+        return (
+            self.static_embedding_model_revision
+            if self.embedding_provider == "static"
+            else self.embedding_model_revision
+        )
 
     @property
     def allowed_widget_origins(self) -> frozenset[str]:

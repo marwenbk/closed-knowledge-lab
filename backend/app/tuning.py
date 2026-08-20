@@ -927,9 +927,9 @@ def _activation_evaluation(
             EvaluationRun.mode == mode,
             EvaluationRun.status == "PASSED",
             EvaluationRun.model_name
-            == (base.chat_model if kind == "PROMPT" else base.embedding_model_id),
-            EvaluationRun.embedding_model == base.embedding_model_id,
-            EvaluationRun.embedding_version == base.embedding_model_revision,
+            == (base.chat_model if kind == "PROMPT" else base.active_embedding_model_id),
+            EvaluationRun.embedding_model == base.active_embedding_model_id,
+            EvaluationRun.embedding_version == base.active_embedding_model_revision,
             EvaluationRun.baseline_run_id.is_not(None),
         )
         .order_by(EvaluationRun.completed_at.desc())

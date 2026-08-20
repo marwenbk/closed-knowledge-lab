@@ -4,6 +4,7 @@ import os
 from collections import defaultdict
 from dataclasses import replace
 from pathlib import Path
+from typing import Literal
 from uuid import UUID
 
 import pytest
@@ -12,8 +13,9 @@ from app.answering import AnswerabilityStatus, Citation, GroundedAnswer, ModelId
 from app.config import Settings
 from app.embeddings import (
     EmbeddingError,
-    OnnxE5EmbeddingProvider,
+    configured_embedding_provider,
     embed_knowledge_base,
+    ensure_configured_model_artifacts,
     ensure_model_artifacts,
 )
 from app.evaluation import (
@@ -187,12 +189,17 @@ def test_conflict_overlay_preserves_canonical_and_fixture_evidence() -> None:
 
 @pytest.mark.model
 @pytest.mark.postgres
+@pytest.mark.parametrize("embedding_provider", ["onnx", "static"])
 def test_generated_retrieval_gate_with_postgres_and_pinned_model(
     postgres_engine: Engine,
+    embedding_provider: Literal["onnx", "static"],
 ) -> None:
-    settings = Settings()
+    settings = Settings(embedding_provider=embedding_provider)
     try:
-        ensure_model_artifacts(settings)
+        if embedding_provider == "onnx":
+            ensure_model_artifacts(settings)
+        else:
+            ensure_configured_model_artifacts(settings)
     except EmbeddingError as exc:
         if "is missing" in str(exc):
             if os.environ.get("TOPMED_REQUIRE_MODEL_TESTS") == "1":
@@ -200,7 +207,7 @@ def test_generated_retrieval_gate_with_postgres_and_pinned_model(
             pytest.skip("Pinned embedding model has not been downloaded by backend setup")
         raise
 
-    provider = OnnxE5EmbeddingProvider(settings)
+    provider = configured_embedding_provider(settings)
     import_knowledge_base(postgres_engine, MANIFEST_PATH)
     embed_knowledge_base(
         postgres_engine,
@@ -227,7 +234,8 @@ def test_generated_retrieval_gate_with_postgres_and_pinned_model(
         load_evaluation_data(),
     )
 
-    assert report["passed"] is True
+    failed_cases = [case["id"] for case in report["retrieval"]["cases"] if not case["passed"]]
+    assert report["passed"] is True, failed_cases
     assert report["retrieval"]["evaluated_cases"] == 63
     assert report["retrieval"]["source_recall_at_k"] == 1.0
     assert report["retrieval"]["fact_recall_at_k"] == 1.0

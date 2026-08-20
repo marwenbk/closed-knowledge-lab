@@ -13,7 +13,11 @@ from app.admin_auth import AdminAuthError, bootstrap_admin
 from app.answering import AnsweringError, answer_knowledge
 from app.config import PROJECT_ROOT, get_settings
 from app.db import get_engine
-from app.embeddings import EmbeddingError, OnnxE5EmbeddingProvider, embed_knowledge_base
+from app.embeddings import (
+    EmbeddingError,
+    configured_embedding_provider,
+    embed_knowledge_base,
+)
 from app.evaluation import EvaluationError, load_evaluation_data, run_evaluation, write_report
 from app.kb import KnowledgeImportError, activate_knowledge_base, import_knowledge_base
 from app.llm import DeepSeekProvider, LLMError
@@ -87,7 +91,7 @@ def main() -> int:
                     "Preparing the pinned checksum-verified embedding model...",
                     file=sys.stderr,
                 )
-            provider = OnnxE5EmbeddingProvider(settings, download=args.download)
+            provider = configured_embedding_provider(settings, download=args.download)
             embedding_result = embed_knowledge_base(
                 engine,
                 provider,
@@ -101,20 +105,20 @@ def main() -> int:
                 engine,
                 dataset_id=args.dataset_id or settings.expected_dataset_id,
                 dataset_version=args.dataset_version or settings.expected_dataset_version,
-                expected_embedding_model=settings.embedding_model_id,
-                expected_embedding_version=settings.embedding_model_revision,
+                expected_embedding_model=settings.active_embedding_model_id,
+                expected_embedding_version=settings.active_embedding_model_revision,
                 expected_embedding_dimensions=settings.embedding_dimensions,
             )
             print_result(activation_result)
         elif args.resource == "kb" and args.command == "retrieve":
-            provider = OnnxE5EmbeddingProvider(settings)
+            provider = configured_embedding_provider(settings)
             runtime = load_runtime_snapshot(engine, settings)
             retrieval_result = retrieve_knowledge(
                 engine, provider, runtime.effective_settings, args.query
             )
             print(json.dumps(retrieval_result.as_dict(), ensure_ascii=False, indent=2))
         elif args.resource == "kb" and args.command == "answer":
-            provider = OnnxE5EmbeddingProvider(settings)
+            provider = configured_embedding_provider(settings)
             llm_provider = DeepSeekProvider(settings)
             runtime = load_runtime_snapshot(engine, settings)
             result = answer_knowledge(
@@ -129,14 +133,14 @@ def main() -> int:
         elif args.resource == "kb" and args.command == "status":
             print(json.dumps(kb_status(engine, dataset_id=settings.expected_dataset_id), indent=2))
         elif args.resource == "system" and args.command == "ready":
-            OnnxE5EmbeddingProvider(settings)
+            configured_embedding_provider(settings)
             llm_provider = DeepSeekProvider(settings)
             llm_version = llm_provider.ensure_ready()
             readiness_result = readiness(
                 engine,
                 expected_dataset_id=settings.expected_dataset_id,
-                expected_embedding_model=settings.embedding_model_id,
-                expected_embedding_version=settings.embedding_model_revision,
+                expected_embedding_model=settings.active_embedding_model_id,
+                expected_embedding_version=settings.active_embedding_model_revision,
                 expected_embedding_dimensions=settings.embedding_dimensions,
                 embedding_runtime_ready=True,
                 llm_runtime_ready=True,
@@ -147,7 +151,7 @@ def main() -> int:
             if readiness_result["status"] != "ready":
                 return 1
         elif args.resource == "eval" and args.command == "run":
-            provider = OnnxE5EmbeddingProvider(settings)
+            provider = configured_embedding_provider(settings)
             runtime = load_runtime_snapshot(engine, settings)
             if args.live:
                 llm_provider = DeepSeekProvider(settings)

@@ -7,11 +7,11 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
+from time import sleep
 from typing import Protocol
 from uuid import UUID, uuid4
 
 import numpy as np
-import onnxruntime as ort  # type: ignore[import-untyped]
 from huggingface_hub import hf_hub_download
 from huggingface_hub.errors import HfHubHTTPError
 from sqlalchemy import Engine, select
@@ -32,6 +32,7 @@ class EmbeddingProvider(Protocol):
     model_id: str
     model_version: str
     dimensions: int
+    semantic_weight: float
 
     def embed_documents(self, texts: Sequence[str]) -> list[list[float]]: ...
 
@@ -41,6 +42,14 @@ class EmbeddingProvider(Protocol):
 @dataclass(frozen=True)
 class ModelArtifacts:
     directory: Path
+    model_path: Path
+    tokenizer_path: Path
+
+
+@dataclass(frozen=True)
+class StaticModelArtifacts:
+    directory: Path
+    config_path: Path
     model_path: Path
     tokenizer_path: Path
 
@@ -94,22 +103,30 @@ def _validate_artifact(path: Path, expected_checksum: str, label: str) -> None:
 
 
 def _download_artifact(
-    settings: Settings,
+    *,
+    repo_id: str,
+    revision: str,
     filename: str,
     directory: Path,
 ) -> Path:
-    try:
-        downloaded = hf_hub_download(
-            repo_id=settings.embedding_model_id,
-            filename=filename,
-            revision=settings.embedding_model_revision,
-            local_dir=directory,
-            token=os.environ.get("HF_TOKEN"),
-            force_download=True,
-        )
-    except (HfHubHTTPError, OSError, ValueError) as exc:
-        raise EmbeddingError(f"Could not download pinned model artifact: {filename}") from exc
-    return Path(downloaded)
+    error: Exception | None = None
+    for attempt in range(3):
+        try:
+            return Path(
+                hf_hub_download(
+                    repo_id=repo_id,
+                    filename=filename,
+                    revision=revision,
+                    local_dir=directory,
+                    token=os.environ.get("HF_TOKEN"),
+                    force_download=True,
+                )
+            )
+        except (HfHubHTTPError, OSError, ValueError) as exc:
+            error = exc
+            if attempt < 2:
+                sleep(2**attempt)
+    raise EmbeddingError(f"Could not download pinned model artifact: {filename}") from error
 
 
 def ensure_model_artifacts(settings: Settings, *, download: bool = False) -> ModelArtifacts:
@@ -130,7 +147,12 @@ def ensure_model_artifacts(settings: Settings, *, download: bool = False) -> Mod
             if not download:
                 raise
         try:
-            _download_artifact(settings, filename, directory)
+            _download_artifact(
+                repo_id=settings.embedding_model_id,
+                revision=settings.embedding_model_revision,
+                filename=filename,
+                directory=directory,
+            )
         except EmbeddingError as exc:
             raise EmbeddingError(
                 f"Could not download {label} for {settings.embedding_model_id} "
@@ -153,6 +175,42 @@ def ensure_model_artifacts(settings: Settings, *, download: bool = False) -> Mod
     return ModelArtifacts(directory, model_path, tokenizer_path)
 
 
+def ensure_static_model_artifacts(
+    settings: Settings, *, download: bool = False
+) -> StaticModelArtifacts:
+    directory = (
+        settings.embedding_cache_path
+        / settings.static_embedding_model_id.replace("/", "--")
+        / settings.static_embedding_model_revision
+    )
+    files = (
+        ("config.json", settings.static_embedding_config_sha256, "static model config"),
+        ("model.safetensors", settings.static_embedding_model_sha256, "static model"),
+        ("tokenizer.json", settings.static_embedding_tokenizer_sha256, "static tokenizer"),
+    )
+    for filename, checksum, label in files:
+        path = directory / filename
+        try:
+            _validate_artifact(path, checksum, label)
+            continue
+        except EmbeddingError:
+            if not download:
+                raise
+        _download_artifact(
+            repo_id=settings.static_embedding_model_id,
+            revision=settings.static_embedding_model_revision,
+            filename=filename,
+            directory=directory,
+        )
+        _validate_artifact(path, checksum, label)
+    return StaticModelArtifacts(
+        directory=directory,
+        config_path=directory / "config.json",
+        model_path=directory / "model.safetensors",
+        tokenizer_path=directory / "tokenizer.json",
+    )
+
+
 def mean_pool(last_hidden_state: np.ndarray, attention_mask: np.ndarray) -> np.ndarray:
     if last_hidden_state.ndim != 3 or attention_mask.ndim != 2:
         raise EmbeddingError("Unexpected embedding model output shape")
@@ -165,6 +223,8 @@ def mean_pool(last_hidden_state: np.ndarray, attention_mask: np.ndarray) -> np.n
 
 
 class OnnxE5EmbeddingProvider:
+    semantic_weight = 1.0
+
     def __init__(self, settings: Settings, *, download: bool = False) -> None:
         artifacts = ensure_model_artifacts(settings, download=download)
         self.model_id = settings.embedding_model_id
@@ -172,6 +232,8 @@ class OnnxE5EmbeddingProvider:
         self.dimensions = settings.embedding_dimensions
         self.max_length = settings.embedding_max_length
         try:
+            import onnxruntime as ort  # type: ignore[import-untyped]
+
             self.tokenizer = Tokenizer.from_file(str(artifacts.tokenizer_path))
             self.tokenizer.enable_truncation(max_length=self.max_length)
             session_options = ort.SessionOptions()
@@ -243,6 +305,81 @@ class OnnxE5EmbeddingProvider:
 
     def embed_queries(self, texts: Sequence[str]) -> list[list[float]]:
         return self._embed(texts, "query")
+
+
+class StaticE5EmbeddingProvider:
+    semantic_weight = 0.001
+
+    def __init__(self, settings: Settings, *, download: bool = False) -> None:
+        from safetensors.numpy import load_file
+
+        artifacts = ensure_static_model_artifacts(settings, download=download)
+        self.model_id = settings.static_embedding_model_id
+        self.model_version = settings.static_embedding_model_revision
+        self.dimensions = settings.embedding_dimensions
+        self.max_length = settings.embedding_max_length
+        try:
+            self.tokenizer = Tokenizer.from_file(str(artifacts.tokenizer_path))
+            self.tokenizer.enable_truncation(max_length=self.max_length)
+            self.embeddings = load_file(artifacts.model_path)["embeddings"]
+        except Exception as exc:
+            raise EmbeddingError(
+                f"Could not load static embedding model from {artifacts.directory}"
+            ) from exc
+        if (
+            self.embeddings.ndim != 2
+            or self.embeddings.shape[0] != self.tokenizer.get_vocab_size()
+            or self.embeddings.shape[1] > self.dimensions
+        ):
+            raise EmbeddingError("Static embedding model returned an invalid shape")
+        unknown_token = getattr(self.tokenizer.model, "unk_token", None)
+        self.unknown_token_id = (
+            self.tokenizer.token_to_id(unknown_token) if unknown_token is not None else None
+        )
+
+    def _embed(self, texts: Sequence[str], prefix: str) -> list[list[float]]:
+        if not texts:
+            return []
+        if any(not text.strip() for text in texts):
+            raise EmbeddingError("Embedding inputs must be non-empty")
+        encodings = self.tokenizer.encode_batch(
+            [f"{prefix}: {text.strip()}" for text in texts], add_special_tokens=False
+        )
+        pooled = []
+        for encoding in encodings:
+            token_ids = [token_id for token_id in encoding.ids if token_id != self.unknown_token_id]
+            pooled.append(
+                self.embeddings[token_ids].mean(axis=0)
+                if token_ids
+                else np.zeros(self.embeddings.shape[1], dtype=np.float32)
+            )
+        vectors = np.stack(pooled).astype(np.float32)
+        norms = np.linalg.norm(vectors, axis=1, keepdims=True)
+        vectors = vectors / np.clip(norms, 1e-12, None)
+        if vectors.shape[1] < self.dimensions:
+            vectors = np.pad(vectors, ((0, 0), (0, self.dimensions - vectors.shape[1])))
+        return vectors.astype(np.float32).tolist()
+
+    def embed_documents(self, texts: Sequence[str]) -> list[list[float]]:
+        return self._embed(texts, "passage")
+
+    def embed_queries(self, texts: Sequence[str]) -> list[list[float]]:
+        return self._embed(texts, "query")
+
+
+def configured_embedding_provider(
+    settings: Settings, *, download: bool = False
+) -> EmbeddingProvider:
+    if settings.embedding_provider == "static":
+        return StaticE5EmbeddingProvider(settings, download=download)
+    return OnnxE5EmbeddingProvider(settings, download=download)
+
+
+def ensure_configured_model_artifacts(settings: Settings) -> None:
+    if settings.embedding_provider == "static":
+        ensure_static_model_artifacts(settings, download=True)
+    else:
+        ensure_model_artifacts(settings, download=True)
 
 
 def _embedding_is_current(chunk: Chunk, provider: EmbeddingProvider) -> bool:

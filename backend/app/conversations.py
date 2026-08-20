@@ -680,7 +680,7 @@ def _start_submission(
             model_name=settings.chat_model,
             model_version=None,
             prompt_version=runtime.prompt_version,
-            embedding_version=settings.embedding_model_revision,
+            embedding_version=settings.active_embedding_model_revision,
             settings_version=runtime.settings_version,
         )
         session.add_all((user_message, run))

@@ -13,7 +13,11 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app.answering import AnsweringError, GroundedAnswer, answer_knowledge
 from app.config import Settings
-from app.embeddings import EmbeddingError, EmbeddingProvider, OnnxE5EmbeddingProvider
+from app.embeddings import (
+    EmbeddingError,
+    EmbeddingProvider,
+    configured_embedding_provider,
+)
 from app.llm import DeepSeekProvider, LLMError, LLMProvider
 from app.retrieval import RetrievalError, retrieve_knowledge
 from app.services import KnowledgeBaseUnavailable, kb_status, readiness
@@ -144,7 +148,7 @@ def embedding_provider(request: Request) -> EmbeddingProvider:
             provider = cast(EmbeddingProvider | None, request.app.state.embedding_provider)
             if provider is None:
                 try:
-                    provider = OnnxE5EmbeddingProvider(request.app.state.settings)
+                    provider = configured_embedding_provider(request.app.state.settings)
                 except EmbeddingError as exc:
                     raise ApiError(
                         503,
@@ -205,8 +209,8 @@ def ready(
         readiness(
             engine,
             expected_dataset_id=settings.expected_dataset_id,
-            expected_embedding_model=settings.embedding_model_id,
-            expected_embedding_version=settings.embedding_model_revision,
+            expected_embedding_model=settings.active_embedding_model_id,
+            expected_embedding_version=settings.active_embedding_model_revision,
             expected_embedding_dimensions=settings.embedding_dimensions,
             embedding_runtime_ready=runtime_ready,
             llm_runtime_ready=llm_runtime_ready,

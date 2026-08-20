@@ -156,7 +156,9 @@ def dashboard_snapshot(engine: Engine, settings: Settings) -> dict[str, Any]:
             "prompt_version": runtime["prompt_version"],
             "settings_version": runtime["settings_version"],
             "embedding_version": (
-                latest_run.embedding_version if latest_run else settings.embedding_model_revision
+                latest_run.embedding_version
+                if latest_run
+                else settings.active_embedding_model_revision
             ),
         },
         "conversations": {

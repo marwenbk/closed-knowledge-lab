@@ -41,7 +41,7 @@ jobs:
       - run: python -m venv .venv
       - run: .venv/bin/pip install --requirement requirements-data.txt --editable './backend[dev]'
       - run: .venv/bin/python scripts/bootstrap_demo.py
-      - run: .venv/bin/python -c "from app.config import Settings; from app.embeddings import ensure_model_artifacts; ensure_model_artifacts(Settings(_env_file=None), download=True)"
+      - run: .venv/bin/python -c "from app.config import Settings; from app.embeddings import ensure_model_artifacts, ensure_static_model_artifacts; s=Settings(_env_file=None); ensure_model_artifacts(s, download=True); ensure_static_model_artifacts(s, download=True)"
       - run: .venv/bin/alembic -c backend/alembic.ini upgrade head
       - run: .venv/bin/alembic -c backend/alembic.ini check
       - run: .venv/bin/ruff check --config backend/pyproject.toml backend

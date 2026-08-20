@@ -10,6 +10,8 @@ from app.config import Settings, get_settings
 from app.embeddings import (
     EmbeddingError,
     OnnxE5EmbeddingProvider,
+    StaticE5EmbeddingProvider,
+    ensure_configured_model_artifacts,
     ensure_model_artifacts,
     mean_pool,
 )
@@ -93,3 +95,31 @@ def test_pinned_multilingual_e5_small_model_runs_locally() -> None:
         for chunk in document.chunks
     ]
     assert max(encoded_lengths) <= settings.embedding_max_length
+
+
+@pytest.mark.model
+def test_pinned_static_distillation_runs_with_physical_vector_compatibility() -> None:
+    settings = Settings(_env_file=None, embedding_provider="static")
+    try:
+        ensure_configured_model_artifacts(settings)
+    except EmbeddingError as exc:
+        if "is missing" in str(exc):
+            if os.environ.get("TOPMED_REQUIRE_MODEL_TESTS") == "1":
+                pytest.fail(f"Pinned static model is required but unavailable: {exc}")
+            pytest.skip("Pinned static model has not been downloaded")
+        raise
+
+    provider = StaticE5EmbeddingProvider(settings)
+    query = provider.embed_queries(["quantos dependentes o plano Família permite?"])[0]
+    passages = provider.embed_documents(
+        [
+            "O plano Família permite o cadastro de até 3 dependentes.",
+            "O reembolso retorna ao método de pagamento original.",
+        ]
+    )
+
+    assert provider.model_id == settings.static_embedding_model_id
+    assert len(query) == settings.embedding_dimensions
+    assert all(len(vector) == settings.embedding_dimensions for vector in passages)
+    assert np.linalg.norm(query) == pytest.approx(1.0, abs=1e-5)
+    assert float(np.dot(query, passages[0])) > float(np.dot(query, passages[1]))
