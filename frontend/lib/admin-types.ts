@@ -27,12 +27,14 @@ export type Handoff = {
 export type AdminMessage = {
   message_id: string;
   client_message_id: string | null;
-  sender_type: "CUSTOMER" | "AI" | "HUMAN" | "SYSTEM";
+  sender_type: "CUSTOMER" | "AI" | "HUMAN" | "SYSTEM" | "INTERNAL";
   sender_user_id: string | null;
   sender_label: string;
   content: string;
   visibility: "PUBLIC" | "INTERNAL";
   status: string;
+  review_status: "NONE" | "PENDING" | "REGENERATING" | "APPROVED" | "EDITED" | "REJECTED";
+  review_regeneration_count: number;
   citations: Array<Record<string, unknown>>;
   rag_run_id: string | null;
   created_at: string;

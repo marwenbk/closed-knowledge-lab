@@ -76,7 +76,19 @@ export type HumanQueueMessageResponse = {
   state: ConversationState;
 };
 
-export type MessageSubmissionResponse = MessageResponse | HumanQueueMessageResponse;
+export type ReviewPendingMessageResponse = {
+  delivery_mode: "REVIEW_PENDING";
+  conversation_id: string;
+  message_id: string;
+  rag_run_id: string;
+  status: "PENDING_REVIEW";
+  state: "AI_REVIEW_PENDING";
+};
+
+export type MessageSubmissionResponse =
+  | MessageResponse
+  | HumanQueueMessageResponse
+  | ReviewPendingMessageResponse;
 
 export type HandoffResponse = {
   conversation_id: string;

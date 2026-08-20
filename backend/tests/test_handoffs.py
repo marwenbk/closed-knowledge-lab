@@ -25,7 +25,7 @@ from app.admin_auth import (
     bootstrap_admin,
     validate_bootstrap_password,
 )
-from app.answering import AnswerExecution, GroundedAnswer, ModelIdentity
+from app.answering import AnswerExecution, GroundedAnswer, ModelIdentity, VerificationDecision
 from app.config import Settings
 from app.conversations import authenticate_widget_session, load_events
 from app.handoffs import load_admin_events
@@ -42,6 +42,7 @@ from app.models import (
     HandoffEvent,
     KnowledgeBaseVersion,
     Message,
+    MessageReview,
     RagRun,
 )
 from fastapi import Response
@@ -84,6 +85,16 @@ class StubLLMProvider:
 
     def close(self) -> None:
         pass
+
+
+class RejectingReviewProvider(StubLLMProvider):
+    def structured_generate(
+        self,
+        _messages: Sequence[Mapping[str, str]],
+        response_model: type[Any],
+    ) -> Any:
+        assert response_model is VerificationDecision
+        return VerificationDecision(supported=False, issues=["unsupported edit"])
 
 
 def _settings() -> Settings:
@@ -187,6 +198,148 @@ def _answer(status: str = "ANSWERABLE") -> GroundedAnswer:
         regenerated=False,
         duration_ms=5.0,
     )
+
+
+@pytest.mark.postgres
+def test_reviewed_ai_proposal_is_hidden_until_approved(
+    postgres_engine: Engine,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    settings = _settings().model_copy(update={"review_before_send_enabled": True})
+    _seed_active_version(postgres_engine)
+    _bootstrap(postgres_engine)
+    monkeypatch.setattr(
+        "app.conversations.answer_knowledge_with_trace",
+        lambda *_args, **_kwargs: AnswerExecution(_answer(), {"retrieval": {}}),
+    )
+    application = create_app(
+        postgres_engine,
+        StubEmbeddingProvider(),
+        StubLLMProvider(),
+        settings,
+    )
+
+    with TestClient(application, raise_server_exceptions=False) as client:
+        conversation_id, widget_headers = _widget_conversation(client)
+        submitted = client.post(
+            f"/api/v1/widget/conversations/{conversation_id}/messages",
+            headers=widget_headers,
+            json={"content": "Pergunta revisada", "client_message_id": str(uuid4())},
+        )
+        hidden = client.get(
+            f"/api/v1/widget/conversations/{conversation_id}", headers=widget_headers
+        )
+        admin_headers = _login(client)
+        admin_view = client.get(f"/api/v1/admin/conversations/{conversation_id}")
+        proposal = next(
+            message
+            for message in admin_view.json()["messages"]
+            if message["review_status"] == "PENDING"
+        )
+        approved = client.post(
+            f"/api/v1/admin/messages/{proposal['message_id']}/review",
+            headers=admin_headers,
+            json={"action": "APPROVE", "content": None, "note": None},
+        )
+        delivered = client.get(
+            f"/api/v1/widget/conversations/{conversation_id}", headers=widget_headers
+        )
+
+    assert submitted.status_code == 200, submitted.text
+    assert submitted.json()["delivery_mode"] == "REVIEW_PENDING"
+    assert hidden.json()["state"] == "AI_REVIEW_PENDING"
+    assert all(message["sender"]["type"] != "AI" for message in hidden.json()["messages"])
+    assert proposal["visibility"] == "INTERNAL"
+    assert approved.status_code == 200, approved.text
+    assert delivered.json()["state"] == "AI_ACTIVE"
+    assert any(message["sender"]["type"] == "AI" for message in delivered.json()["messages"])
+    with Session(postgres_engine) as session:
+        message = session.get(Message, UUID(proposal["message_id"]))
+        assert message is not None
+        assert message.review_status == "APPROVED"
+        assert message.visibility == "PUBLIC"
+        audit = session.scalar(
+            select(AuditEvent).where(AuditEvent.event_type == "message.reviewed")
+        )
+        assert audit is not None and audit.actor_type == "ADMIN"
+        review = session.scalar(select(MessageReview).where(MessageReview.message_id == message.id))
+        assert review is not None and review.action == "APPROVE"
+    with Session(postgres_engine) as session, session.begin():
+        review = session.scalar(select(MessageReview).limit(1))
+        assert review is not None
+        review.note = "mutated"
+        with pytest.raises(DBAPIError, match="append-only"):
+            session.flush()
+
+
+@pytest.mark.postgres
+def test_review_edit_fails_closed_and_regeneration_is_limited_to_once(
+    postgres_engine: Engine,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    settings = _settings().model_copy(update={"review_before_send_enabled": True})
+    _seed_active_version(postgres_engine)
+    _bootstrap(postgres_engine)
+    first_answer = _answer()
+    regenerated_answer = first_answer.model_copy(
+        update={"answer": "Resposta regenerada e verificada."}
+    )
+    monkeypatch.setattr(
+        "app.conversations.answer_knowledge_with_trace",
+        lambda *_args, **_kwargs: AnswerExecution(first_answer, {"retrieval": {}}),
+    )
+    monkeypatch.setattr("app.reviews._retrieval", lambda _trace: MagicMock())
+    monkeypatch.setattr(
+        "app.reviews.answer_knowledge_with_trace",
+        lambda *_args, **_kwargs: AnswerExecution(regenerated_answer, {"retrieval": {}}),
+    )
+    application = create_app(
+        postgres_engine,
+        StubEmbeddingProvider(),
+        RejectingReviewProvider(),
+        settings,
+    )
+
+    with TestClient(application, raise_server_exceptions=False) as client:
+        conversation_id, widget_headers = _widget_conversation(client)
+        client.post(
+            f"/api/v1/widget/conversations/{conversation_id}/messages",
+            headers=widget_headers,
+            json={"content": "Pergunta revisada", "client_message_id": str(uuid4())},
+        )
+        headers = _login(client)
+        admin_view = client.get(f"/api/v1/admin/conversations/{conversation_id}").json()
+        proposal = next(
+            message for message in admin_view["messages"] if message["review_status"] == "PENDING"
+        )
+        path = f"/api/v1/admin/messages/{proposal['message_id']}/review"
+        invalid_edit = client.post(
+            path,
+            headers=headers,
+            json={"action": "EDIT_AND_SEND", "content": "Afirmação inventada.", "note": None},
+        )
+        regenerated = client.post(
+            path,
+            headers=headers,
+            json={"action": "REJECT_AND_REGENERATE", "content": None, "note": "Tente novamente"},
+        )
+        repeated = client.post(
+            path,
+            headers=headers,
+            json={"action": "REJECT_AND_REGENERATE", "content": None, "note": None},
+        )
+
+    assert invalid_edit.status_code == 409
+    assert invalid_edit.json()["error"]["code"] == "REVIEW_EDIT_NOT_GROUNDED"
+    assert regenerated.status_code == 200, regenerated.text
+    assert repeated.status_code == 409
+    assert repeated.json()["error"]["code"] == "REVIEW_REGENERATION_LIMIT"
+    with Session(postgres_engine) as session:
+        proposal_row = session.get(Message, UUID(proposal["message_id"]))
+        assert proposal_row is not None
+        assert proposal_row.content == "Resposta regenerada e verificada."
+        assert proposal_row.review_regeneration_count == 1
+        assert proposal_row.review_status == "PENDING"
 
 
 def test_admin_password_policy_uses_argon2id() -> None:

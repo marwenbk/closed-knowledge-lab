@@ -246,6 +246,7 @@ export function WidgetRuntimeProvider({
                 if (["message.delivered", "conversation.closed"].includes(type)) {
                   setIsRunning(false);
                 }
+                if (type === "review.pending") setIsRunning(false);
                 if (
                   [
                     "message.created",
@@ -254,6 +255,7 @@ export function WidgetRuntimeProvider({
                     "handoff.assigned",
                     "handoff.started",
                     "handoff.returned_to_ai",
+                    "review.pending",
                     "conversation.closed",
                     "error",
                   ].includes(type)

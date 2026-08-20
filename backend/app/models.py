@@ -462,6 +462,11 @@ class Conversation(Base):
         Index("ix_conversations_session_created_at", "widget_session_id", "created_at"),
         Index("ix_conversations_state_last_message_at", "state", "last_message_at"),
         Index(
+            "ix_conversations_review_pending",
+            "updated_at",
+            postgresql_where=text("state = 'AI_REVIEW_PENDING'"),
+        ),
+        Index(
             "ix_conversations_handoff_queue",
             "state",
             "priority",
@@ -512,6 +517,15 @@ class Message(Base):
             name="ck_messages_status",
         ),
         CheckConstraint(
+            "review_status IN ('NONE', 'PENDING', 'REGENERATING', "
+            "'APPROVED', 'EDITED', 'REJECTED')",
+            name="ck_messages_review_status",
+        ),
+        CheckConstraint(
+            "review_regeneration_count BETWEEN 0 AND 1",
+            name="ck_messages_review_regeneration_count",
+        ),
+        CheckConstraint(
             "(sender_type IN ('CUSTOMER', 'HUMAN', 'INTERNAL') "
             "AND client_message_id IS NOT NULL) OR "
             "(sender_type IN ('AI', 'SYSTEM') AND client_message_id IS NULL)",
@@ -520,7 +534,8 @@ class Message(Base):
         CheckConstraint(
             "(sender_type = 'CUSTOMER' AND visibility = 'PUBLIC' "
             "AND sender_user_id IS NULL) OR "
-            "(sender_type = 'AI' AND visibility = 'PUBLIC' AND sender_user_id IS NULL) OR "
+            "(sender_type = 'AI' AND visibility IN ('PUBLIC', 'INTERNAL') "
+            "AND sender_user_id IS NULL) OR "
             "(sender_type = 'HUMAN' AND visibility = 'PUBLIC' "
             "AND sender_user_id IS NOT NULL) OR "
             "(sender_type = 'INTERNAL' AND visibility = 'INTERNAL' "
@@ -528,12 +543,21 @@ class Message(Base):
             "(sender_type = 'SYSTEM' AND sender_user_id IS NULL)",
             name="ck_messages_sender_visibility",
         ),
+        CheckConstraint(
+            "(sender_type = 'AI') OR (review_status = 'NONE' AND review_regeneration_count = 0)",
+            name="ck_messages_review_owner",
+        ),
         UniqueConstraint(
             "conversation_id",
             "client_message_id",
             name="uq_messages_conversation_client_id",
         ),
         Index("ix_messages_conversation_created_at", "conversation_id", "created_at"),
+        Index(
+            "ix_messages_pending_review",
+            "created_at",
+            postgresql_where=text("review_status IN ('PENDING', 'REGENERATING')"),
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
@@ -548,11 +572,41 @@ class Message(Base):
     content: Mapped[str] = mapped_column(Text, nullable=False)
     visibility: Mapped[str] = mapped_column(String(20), nullable=False)
     status: Mapped[str] = mapped_column(String(20), nullable=False)
+    review_status: Mapped[str] = mapped_column(String(20), nullable=False, default="NONE")
+    review_regeneration_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     reply_to_message_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("messages.id", ondelete="RESTRICT")
     )
     citations_json: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, nullable=False)
     delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class MessageReview(Base):
+    __tablename__ = "message_reviews"
+    __table_args__ = (
+        CheckConstraint(
+            "action IN ('APPROVE', 'EDIT_AND_SEND', 'REJECT_AND_REGENERATE', "
+            "'REJECT_AND_TAKEOVER', 'CLOSE')",
+            name="ck_message_reviews_action",
+        ),
+        Index("ix_message_reviews_message_created_at", "message_id", "created_at"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
+    message_id: Mapped[UUID] = mapped_column(
+        ForeignKey("messages.id", ondelete="RESTRICT"), nullable=False
+    )
+    reviewer_id: Mapped[UUID] = mapped_column(
+        ForeignKey("admin_users.id", ondelete="RESTRICT"), nullable=False
+    )
+    action: Mapped[str] = mapped_column(String(40), nullable=False)
+    original_content: Mapped[str] = mapped_column(Text, nullable=False)
+    final_content: Mapped[str | None] = mapped_column(Text)
+    diff_json: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    note: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

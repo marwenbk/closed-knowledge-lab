@@ -110,7 +110,15 @@ class QueuedSubmissionResult:
     state: str
 
 
-MessageSubmissionResult = SubmissionResult | QueuedSubmissionResult
+@dataclass(frozen=True)
+class ReviewPendingResult:
+    conversation_id: UUID
+    message_id: UUID
+    rag_run_id: UUID
+    state: str = "AI_REVIEW_PENDING"
+
+
+MessageSubmissionResult = SubmissionResult | QueuedSubmissionResult | ReviewPendingResult
 
 
 @dataclass(frozen=True)
@@ -327,6 +335,7 @@ def record_audit_event(
     request_id: UUID,
     before: dict[str, Any] | None = None,
     after: dict[str, Any] | None = None,
+    metadata: dict[str, Any] | None = None,
 ) -> None:
     session.add(
         AuditEvent(
@@ -339,7 +348,7 @@ def record_audit_event(
             request_id=request_id,
             before_json=before,
             after_json=after,
-            metadata_json={},
+            metadata_json=metadata or {},
         )
     )
 
@@ -449,7 +458,7 @@ def _completed_submission(
     session: Session,
     conversation_id: UUID,
     run: RagRun,
-) -> SubmissionResult:
+) -> SubmissionResult | ReviewPendingResult:
     if run.assistant_message_id is None:
         if run.status == "RUNNING":
             raise ConversationError(409, "MESSAGE_PROCESSING", "The message is still processing")
@@ -458,6 +467,12 @@ def _completed_submission(
     version = session.get(KnowledgeBaseVersion, run.kb_version_id)
     if assistant_message is None or version is None:
         raise ConversationError(503, "MESSAGE_FAILED", "The message could not be restored")
+    if assistant_message.review_status in {"PENDING", "REGENERATING"}:
+        return ReviewPendingResult(
+            conversation_id,
+            assistant_message.id,
+            run.id,
+        )
     answer = GroundedAnswer.model_validate(
         {
             "status": run.answerability_status,
@@ -711,7 +726,7 @@ def _finish_submission(
     execution_trace: dict[str, Any],
     embedding_version: str,
     request_id: UUID,
-) -> SubmissionResult:
+) -> SubmissionResult | ReviewPendingResult:
     now = _now()
     citations = [citation.model_dump(mode="json") for citation in answer.citations]
     with Session(engine) as session, session.begin():
@@ -744,16 +759,22 @@ def _finish_submission(
         )
         if version is None:
             raise ConversationError(503, "MESSAGE_FAILED", "Answer provenance is unavailable")
+        review_required = settings.review_before_send_enabled and answer.status in {
+            "ANSWERABLE",
+            "PARTIALLY_ANSWERABLE",
+        }
         assistant_message = Message(
             id=uuid4(),
             conversation_id=conversation.id,
             sender_type="AI",
             content=answer.answer,
-            visibility="PUBLIC",
-            status="DELIVERED",
+            visibility="INTERNAL" if review_required else "PUBLIC",
+            status="PENDING" if review_required else "DELIVERED",
+            review_status="PENDING" if review_required else "NONE",
+            review_regeneration_count=0,
             reply_to_message_id=user_message_id,
             citations_json=citations,
-            delivered_at=now,
+            delivered_at=None if review_required else now,
         )
         session.add(assistant_message)
         session.flush()
@@ -773,6 +794,47 @@ def _finish_submission(
         run.completed_at = now
         conversation.last_message_at = now
         conversation.updated_at = now
+        if review_required:
+            previous_state = conversation.state
+            conversation.state = "AI_REVIEW_PENDING"
+            record_conversation_event(
+                session,
+                conversation.id,
+                "review.requested",
+                {
+                    "message_id": str(assistant_message.id),
+                    "rag_run_id": str(run.id),
+                    "from_state": previous_state,
+                    "to_state": conversation.state,
+                },
+                actor_type="SYSTEM",
+                actor_id=answer.model.name,
+                visibility="INTERNAL",
+            )
+            record_conversation_event(
+                session,
+                conversation.id,
+                "review.pending",
+                {"from_state": previous_state, "to_state": conversation.state},
+                actor_type="SYSTEM",
+                actor_id=None,
+            )
+            record_audit_event(
+                session,
+                "review.requested",
+                "message",
+                assistant_message.id,
+                actor_type="SYSTEM",
+                actor_id=answer.model.name,
+                request_id=request_id,
+                before={"conversation_state": previous_state},
+                after={
+                    "conversation_state": conversation.state,
+                    "review_status": "PENDING",
+                    "rag_run_id": str(run.id),
+                },
+            )
+            return ReviewPendingResult(conversation.id, assistant_message.id, run.id)
         record_conversation_event(
             session,
             conversation.id,
@@ -839,7 +901,7 @@ def submit_message(
         content=content,
         request_id=request_id,
     )
-    if isinstance(started, (SubmissionResult, QueuedSubmissionResult)):
+    if isinstance(started, (SubmissionResult, QueuedSubmissionResult, ReviewPendingResult)):
         return started
     user_message_id, run_id, conversation_context, runtime = started
     try:

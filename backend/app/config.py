@@ -60,6 +60,7 @@ class Settings(BaseSettings):
     auto_handoff_on_conflict: bool = True
     auto_handoff_on_not_answerable: bool = False
     auto_handoff_on_partial: bool = False
+    review_before_send_enabled: bool = False
     admin_allowed_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
     admin_session_ttl_seconds: Annotated[int, Field(ge=300, le=86_400)] = 28_800
     admin_bootstrap_email: str | None = None

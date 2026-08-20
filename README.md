@@ -354,6 +354,12 @@ Retrieval settings run the complete 63-case local gate without API cost. Prompt 
 
 Every new RAG run snapshots the active KB, prompt, and settings versions before inference. Active and retired runtime versions are database-protected, and the public/widget APIs fail closed if either active configuration is missing or its checksum is invalid.
 
+### Review before send
+
+Set `REVIEW_BEFORE_SEND_ENABLED=true` to hold verified `ANSWERABLE` and `PARTIALLY_ANSWERABLE` proposals for a reviewer after migration `0008_review_before_send`. The widget receives `delivery_mode: "REVIEW_PENDING"`, never receives the proposal text, and shows a waiting banner while the conversation is `AI_REVIEW_PENDING`.
+
+An `ADMIN`, `SUPERVISOR`, or `HUMAN_REVIEWER` can approve unchanged, edit and send, regenerate once, send the conversation to the human queue, or close without sending. Edited text is checked again against the stored citation evidence before publication. Proposals, original and final text, diffs, reviewers, decisions, and timestamps remain append-only and auditable. A customer handoff requested during review rejects the hidden proposal before entering the queue.
+
 For a populated evaluator view, start both servers and replay the canonical scenarios through the public widget API:
 
 ```bash

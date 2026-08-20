@@ -57,6 +57,10 @@ const ADMIN_EVENTS = [
   "message.delivered",
   "note.created",
   "processing.started",
+  "review.cancelled",
+  "review.completed",
+  "review.regenerated",
+  "review.requested",
 ] as const;
 
 export const adminApiUrl = normalizeApiBaseUrl(

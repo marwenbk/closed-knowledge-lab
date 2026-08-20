@@ -159,6 +159,7 @@ function Composer() {
   const humanControlled = ["HUMAN_REQUESTED", "HUMAN_ASSIGNED", "HUMAN_ACTIVE"].includes(
     conversationState ?? "",
   );
+  const reviewPending = conversationState === "AI_REVIEW_PENDING";
   return (
     <div className="mx-auto w-full max-w-3xl px-3 pb-3 sm:px-6 sm:pb-5">
       <ComposerPrimitive.Root className="flex items-end gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-[0_14px_40px_rgba(15,23,42,0.10)] focus-within:border-teal-500 focus-within:ring-2 focus-within:ring-teal-100">
@@ -167,11 +168,18 @@ function Composer() {
             humanControlled ? "Mensagem para o suporte TopMed" : "Mensagem para o TopMed Guide"
           }
           className="max-h-32 min-h-11 flex-1 resize-none bg-transparent px-2 py-2.5 text-[0.95rem] leading-5 text-slate-900 outline-none placeholder:text-slate-400"
-          placeholder={humanControlled ? "Escreva para o suporte…" : "Escreva sua pergunta…"}
+          disabled={reviewPending}
+          placeholder={
+            reviewPending
+              ? "Aguarde a revisão da resposta…"
+              : humanControlled
+                ? "Escreva para o suporte…"
+                : "Escreva sua pergunta…"
+          }
           rows={1}
         />
         <ComposerPrimitive.Send asChild>
-          <Button aria-label="Enviar mensagem" className="size-11 rounded-xl p-0" type="submit">
+          <Button aria-label="Enviar mensagem" className="size-11 rounded-xl p-0" disabled={reviewPending} type="submit">
             <Send aria-hidden="true" className="size-4" />
           </Button>
         </ComposerPrimitive.Send>
@@ -222,6 +230,13 @@ function RuntimeNotice() {
     return (
       <div className="mx-auto mb-2 flex w-[calc(100%-1.5rem)] max-w-3xl items-center gap-2 rounded-xl bg-slate-100 px-3 py-2 text-sm text-slate-600">
         <CheckCircle2 className="size-4 text-teal-700" /> Conversa encerrada.
+      </div>
+    );
+  }
+  if (conversationState === "AI_REVIEW_PENDING") {
+    return (
+      <div className="mx-auto mb-2 w-[calc(100%-1.5rem)] max-w-3xl rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-800">
+        A resposta foi verificada automaticamente e está aguardando revisão humana antes do envio.
       </div>
     );
   }

@@ -67,6 +67,8 @@ class AdminMessageRecord:
     content: str
     visibility: str
     status: str
+    review_status: str
+    review_regeneration_count: int
     citations: tuple[dict[str, Any], ...]
     rag_run_id: UUID | None
     created_at: datetime
@@ -175,6 +177,29 @@ def request_handoff_in_session(
         raise ConversationError(409, code, "A handoff cannot be requested in the current state")
     previous = conversation.state
     now = _now()
+    if previous == "AI_REVIEW_PENDING":
+        proposal = session.scalar(
+            select(Message)
+            .where(
+                Message.conversation_id == conversation.id,
+                Message.review_status.in_(("PENDING", "REGENERATING")),
+            )
+            .order_by(Message.created_at.desc())
+            .limit(1)
+            .with_for_update()
+        )
+        if proposal is not None:
+            proposal.review_status = "REJECTED"
+            proposal.status = "FAILED"
+            record_conversation_event(
+                session,
+                conversation.id,
+                "review.cancelled",
+                {"message_id": str(proposal.id), "reason": "HANDOFF_REQUESTED"},
+                actor_type=actor_type,
+                actor_id=actor_id,
+                visibility="INTERNAL",
+            )
     conversation.state = "HUMAN_REQUESTED"
     conversation.priority = priority
     conversation.handoff_reason = reason
@@ -600,6 +625,8 @@ def _admin_message(
         content=message.content,
         visibility=message.visibility,
         status=message.status,
+        review_status=message.review_status,
+        review_regeneration_count=message.review_regeneration_count,
         citations=tuple(message.citations_json),
         rag_run_id=rag_run_id,
         created_at=message.created_at,

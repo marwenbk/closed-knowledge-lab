@@ -21,6 +21,7 @@ from app.admin_auth import (
     KNOWLEDGE_EDITOR_ROLES,
     KNOWLEDGE_PUBLISHER_ROLES,
     KNOWLEDGE_ROLES,
+    REVIEW_ROLES,
     TUNING_EDITOR_ROLES,
     TUNING_PUBLISHER_ROLES,
     TUNING_ROLES,
@@ -37,6 +38,7 @@ from app.admin_views import (
     dashboard_snapshot,
     get_rag_run,
 )
+from app.answering import AnsweringError
 from app.api import (
     ApiError,
     EngineDep,
@@ -47,6 +49,7 @@ from app.api import (
 )
 from app.config import Settings
 from app.conversations import ConversationError, normalize_origin
+from app.embeddings import EmbeddingError
 from app.handoffs import (
     AdminConversation,
     AdminEventRecord,
@@ -79,6 +82,9 @@ from app.knowledge_workflow import (
 from app.knowledge_workflow import (
     update_document as update_workflow_document,
 )
+from app.llm import LLMError
+from app.retrieval import RetrievalError
+from app.reviews import ReviewAction, review_message
 from app.tuning import (
     PromptBundle,
     RetrievalTuning,
@@ -174,6 +180,8 @@ class AdminMessageResponse(DomainResponse):
     content: str
     visibility: str
     status: str
+    review_status: str
+    review_regeneration_count: int
     citations: tuple[dict[str, object], ...]
     rag_run_id: UUID | None
     created_at: datetime
@@ -508,6 +516,12 @@ class AdminMessageRequest(StrictRequest):
         if any(unicodedata.category(character) == "Cc" for character in value):
             raise ValueError("content must not contain control characters")
         return value
+
+
+class ReviewMessageRequest(StrictRequest):
+    action: ReviewAction
+    content: str | None = Field(default=None, max_length=4000)
+    note: str | None = Field(default=None, max_length=1000)
 
 
 def _request_id(request: Request) -> UUID:
@@ -1326,6 +1340,45 @@ def evaluation(
         raise _tuning_error(exc) from exc
     except SQLAlchemyError as exc:
         raise ApiError(503, "DATABASE_NOT_READY", "The database is unavailable") from exc
+
+
+@admin_router.post(
+    "/messages/{message_id}/review",
+    responses=ADMIN_MUTATION_RESPONSES,
+)
+def review_pending_message(
+    request: Request,
+    message_id: Annotated[UUID, Path()],
+    payload: ReviewMessageRequest,
+    principal: CsrfPrincipalDep,
+    engine: EngineDep,
+    settings: SettingsDep,
+) -> AdminConversationResponse:
+    try:
+        require_any_role(principal, REVIEW_ROLES)
+        needs_llm = payload.action in {"EDIT_AND_SEND", "REJECT_AND_REGENERATE"}
+        conversation_id = review_message(
+            engine,
+            embedding_provider(request) if payload.action == "REJECT_AND_REGENERATE" else None,
+            llm_provider(request) if needs_llm else None,
+            settings,
+            principal,
+            message_id,
+            action=payload.action,
+            content=payload.content,
+            note=payload.note,
+            request_id=_request_id(request),
+        )
+        result = get_admin_conversation(engine, conversation_id)
+    except AdminAuthError as exc:
+        raise _auth_error(exc) from exc
+    except ConversationError as exc:
+        raise _conversation_error(exc) from exc
+    except (AnsweringError, EmbeddingError, LLMError, RetrievalError) as exc:
+        raise ApiError(503, "REVIEW_EXECUTION_FAILED", "The review action failed closed") from exc
+    except SQLAlchemyError as exc:
+        raise ApiError(503, "DATABASE_NOT_READY", "The database is unavailable") from exc
+    return AdminConversationResponse.model_validate(result)
 
 
 @admin_router.get(

@@ -1,7 +1,7 @@
 "use client";
 
-import { useCustomMutation, useInvalidate, useOne } from "@refinedev/core";
-import { Bot, CircleUserRound, FileSearch, LockKeyhole, MessageSquareText } from "lucide-react";
+import { useCustomMutation, useGetIdentity, useInvalidate, useOne } from "@refinedev/core";
+import { Bot, Check, CircleUserRound, FileSearch, LockKeyhole, MessageSquareText, RefreshCw, UserRoundX } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
@@ -14,7 +14,9 @@ import {
   StatusBadge,
 } from "@/components/admin-ui";
 import { Button } from "@/components/ui/button";
-import type { AdminConversation, RagRunDetail } from "@/lib/admin-types";
+import type { AdminConversation, AdminIdentity, RagRunDetail } from "@/lib/admin-types";
+
+const REVIEW_ROLES = new Set(["ADMIN", "SUPERVISOR", "HUMAN_REVIEWER"]);
 
 function RagInspector({ runId }: { runId: string }) {
   const { result, query } = useOne<RagRunDetail>({ resource: "rag-runs", id: runId });
@@ -90,6 +92,8 @@ export default function AdminConversationPage() {
   const [content, setContent] = useState("");
   const [visibility, setVisibility] = useState<"PUBLIC" | "INTERNAL">("PUBLIC");
   const [selectedRun, setSelectedRun] = useState<string | null>(null);
+  const [reviewContent, setReviewContent] = useState("");
+  const identity = useGetIdentity<AdminIdentity>();
   const { result: conversation, query } = useOne<AdminConversation>({
     resource: "conversations",
     id,
@@ -131,10 +135,24 @@ export default function AdminConversationPage() {
     setContent("");
   }
 
+  async function review(messageId: string, reviewAction: string, edited?: string) {
+    await action.mutateAsync({
+      url: `/api/v1/admin/messages/${messageId}/review`,
+      method: "post",
+      values: { action: reviewAction, content: edited || null, note: null },
+      successNotification: { message: "Decisão de revisão registada.", type: "success" },
+      errorNotification: (error) => ({ message: "A revisão não foi concluída.", description: error?.message, type: "error" }),
+    });
+    setReviewContent("");
+    await refresh();
+  }
+
   if (query.isLoading) return <LoadingState />;
   if (query.error) return <ErrorState error={query.error} />;
   if (!conversation) return null;
   const activeRun = selectedRun ?? conversation.rag_runs.at(-1)?.rag_run_id ?? null;
+  const proposal = conversation.messages.find((message) => ["PENDING", "REGENERATING"].includes(message.review_status));
+  const canReview = identity.data?.roles.some((role) => REVIEW_ROLES.has(role)) ?? false;
 
   return (
     <>
@@ -151,6 +169,30 @@ export default function AdminConversationPage() {
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(22rem,.65fr)]">
         <div className="grid content-start gap-5">
+          {proposal ? (
+            <Panel className="border-sky-200 bg-sky-50/40">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 className="font-semibold">Resposta aguardando revisão</h2>
+                <StatusBadge value={proposal.review_status} />
+              </div>
+              <textarea
+                className="mt-4 min-h-36 w-full rounded-xl border border-sky-200 bg-white p-3 text-sm leading-6"
+                disabled={!canReview || proposal.review_status === "REGENERATING"}
+                onChange={(event) => setReviewContent(event.target.value)}
+                value={reviewContent || proposal.content}
+              />
+              <p className="mt-2 text-xs text-slate-500">Qualquer edição é verificada novamente contra as citações antes da entrega.</p>
+              {canReview ? (
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Button disabled={action.mutation.isPending} onClick={() => void review(proposal.message_id, "APPROVE")} type="button"><Check size={16} /> Aprovar</Button>
+                  <Button disabled={action.mutation.isPending} onClick={() => void review(proposal.message_id, "EDIT_AND_SEND", reviewContent || proposal.content)} type="button" variant="outline">Editar e enviar</Button>
+                  <Button disabled={action.mutation.isPending || proposal.review_regeneration_count >= 1} onClick={() => void review(proposal.message_id, "REJECT_AND_REGENERATE")} type="button" variant="outline"><RefreshCw size={16} /> Regenerar uma vez</Button>
+                  <Button disabled={action.mutation.isPending} onClick={() => void review(proposal.message_id, "REJECT_AND_TAKEOVER")} type="button" variant="outline"><UserRoundX size={16} /> Enviar ao suporte</Button>
+                  <Button disabled={action.mutation.isPending} onClick={() => void review(proposal.message_id, "CLOSE")} type="button" variant="danger">Fechar sem enviar</Button>
+                </div>
+              ) : null}
+            </Panel>
+          ) : null}
           <Panel>
             <div className="mb-4 flex items-center justify-between gap-3">
               <h2 className="font-semibold">Histórico público</h2>
@@ -284,12 +326,12 @@ export default function AdminConversationPage() {
               <h2 className="font-semibold">Notas internas</h2>
             </div>
             <div className="grid gap-3">
-              {conversation.messages.filter((message) => message.visibility === "INTERNAL").length ===
+              {conversation.messages.filter((message) => message.sender_type === "INTERNAL").length ===
               0 ? (
                 <p className="text-sm text-slate-500">Sem notas internas.</p>
               ) : (
                 conversation.messages
-                  .filter((message) => message.visibility === "INTERNAL")
+                  .filter((message) => message.sender_type === "INTERNAL")
                   .map((message) => (
                     <article className="rounded-xl bg-amber-50 p-3 text-sm" key={message.message_id}>
                       <p className="font-medium">{message.sender_label}</p>

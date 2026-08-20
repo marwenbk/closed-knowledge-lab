@@ -30,6 +30,7 @@ from app.conversations import (
     ConversationSnapshot,
     EventRecord,
     QueuedSubmissionResult,
+    ReviewPendingResult,
     SubmissionResult,
     WidgetPrincipal,
     authenticate_widget_session,
@@ -137,6 +138,15 @@ class HumanQueueMessageResponse(BaseModel):
     state: str
 
 
+class ReviewPendingMessageResponse(BaseModel):
+    delivery_mode: Literal["REVIEW_PENDING"] = "REVIEW_PENDING"
+    conversation_id: UUID
+    message_id: UUID
+    rag_run_id: UUID
+    status: Literal["PENDING_REVIEW"] = "PENDING_REVIEW"
+    state: Literal["AI_REVIEW_PENDING"] = "AI_REVIEW_PENDING"
+
+
 class HandoffResponse(BaseModel):
     conversation_id: UUID
     state: str
@@ -217,14 +227,20 @@ def _conversation_response(
 
 
 def _message_response(
-    result: SubmissionResult | QueuedSubmissionResult,
+    result: SubmissionResult | QueuedSubmissionResult | ReviewPendingResult,
     assistant_label: str,
-) -> MessageResponse | HumanQueueMessageResponse:
+) -> MessageResponse | HumanQueueMessageResponse | ReviewPendingMessageResponse:
     if isinstance(result, QueuedSubmissionResult):
         return HumanQueueMessageResponse(
             conversation_id=result.conversation_id,
             message_id=result.message_id,
             state=result.state,
+        )
+    if isinstance(result, ReviewPendingResult):
+        return ReviewPendingMessageResponse(
+            conversation_id=result.conversation_id,
+            message_id=result.message_id,
+            rag_run_id=result.rag_run_id,
         )
     return MessageResponse(
         conversation_id=result.conversation_id,
@@ -366,7 +382,7 @@ def send_message(
     principal: WidgetPrincipalDep,
     engine: EngineDep,
     settings: SettingsDep,
-) -> MessageResponse | HumanQueueMessageResponse:
+) -> MessageResponse | HumanQueueMessageResponse | ReviewPendingMessageResponse:
     try:
         result = submit_message(
             engine,
