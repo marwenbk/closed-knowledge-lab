@@ -43,6 +43,8 @@ const TUNING_ROLES = new Set([
   "AUDITOR",
 ]);
 const TUNING_EDITOR_ROLES = new Set(["ADMIN", "SUPERVISOR", "KNOWLEDGE_EDITOR"]);
+const AUDIT_ROLES = new Set(["ADMIN", "SUPERVISOR", "AUDITOR"]);
+const FEEDBACK_ROLES = new Set(["ADMIN", "SUPERVISOR", "SUPPORT_AGENT", "HUMAN_REVIEWER"]);
 const ADMIN_EVENTS = [
   "conversation.ai_resumed",
   "conversation.closed",
@@ -218,6 +220,7 @@ export const adminAccessControlProvider: AccessControlProvider = {
         resource === "prompt-versions" ||
         resource === "settings-versions" ||
         resource === "evaluation-runs";
+      const oversight = resource === "audit-events" || resource === "feedback";
       const allowedRoles =
         resource === "dashboard"
           ? new Set(identity.roles)
@@ -229,6 +232,10 @@ export const adminAccessControlProvider: AccessControlProvider = {
               ? TUNING_EDITOR_ROLES
               : tuning
                 ? TUNING_ROLES
+                : oversight && resource === "feedback" && action === "create"
+                  ? FEEDBACK_ROLES
+                  : oversight
+                    ? AUDIT_ROLES
             : OPERATOR_ROLES;
       const can = identity.roles.some((role) => allowedRoles.has(role));
       return { can, reason: can ? undefined : "Função sem acesso operacional." };
@@ -295,6 +302,22 @@ async function getList<TData extends BaseRecord = BaseRecord>({
             limit,
             status: logicalFilter(filters, "status"),
             mode: logicalFilter(filters, "mode"),
+          },
+        },
+      );
+      return { data: result.items, total: result.total };
+    }
+    if (resource === "audit-events" || resource === "feedback") {
+      const result = await adminRequest<{ items: TData[]; total: number }>(
+        `/api/v1/admin/${resource}`,
+        {
+          query: {
+            offset: (page - 1) * limit,
+            limit,
+            event_type: logicalFilter(filters, "event_type"),
+            actor_type: logicalFilter(filters, "actor_type"),
+            resource_type: logicalFilter(filters, "resource_type"),
+            category: logicalFilter(filters, "category"),
           },
         },
       );

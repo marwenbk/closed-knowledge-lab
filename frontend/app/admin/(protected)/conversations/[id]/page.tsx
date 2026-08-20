@@ -14,9 +14,19 @@ import {
   StatusBadge,
 } from "@/components/admin-ui";
 import { Button } from "@/components/ui/button";
-import type { AdminConversation, AdminIdentity, RagRunDetail } from "@/lib/admin-types";
+import type { AdminConversation, AdminIdentity, FeedbackCategory, RagRunDetail } from "@/lib/admin-types";
 
 const REVIEW_ROLES = new Set(["ADMIN", "SUPERVISOR", "HUMAN_REVIEWER"]);
+const FEEDBACK_CATEGORIES: FeedbackCategory[] = [
+  "CORRECT",
+  "INCORRECT",
+  "MISSING_KB_INFORMATION",
+  "CONFLICTING_KB_INFORMATION",
+  "RETRIEVAL_FAILURE",
+  "GROUNDING_FAILURE",
+  "ESCALATION_APPROPRIATE",
+  "ESCALATION_UNNECESSARY",
+];
 
 function RagInspector({ runId }: { runId: string }) {
   const { result, query } = useOne<RagRunDetail>({ resource: "rag-runs", id: runId });
@@ -93,6 +103,8 @@ export default function AdminConversationPage() {
   const [visibility, setVisibility] = useState<"PUBLIC" | "INTERNAL">("PUBLIC");
   const [selectedRun, setSelectedRun] = useState<string | null>(null);
   const [reviewContent, setReviewContent] = useState("");
+  const [feedbackCategory, setFeedbackCategory] = useState<FeedbackCategory>("CORRECT");
+  const [feedbackNote, setFeedbackNote] = useState("");
   const identity = useGetIdentity<AdminIdentity>();
   const { result: conversation, query } = useOne<AdminConversation>({
     resource: "conversations",
@@ -145,6 +157,20 @@ export default function AdminConversationPage() {
     });
     setReviewContent("");
     await refresh();
+  }
+
+  async function submitFeedback(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!activeRun) return;
+    await action.mutateAsync({
+      url: "/api/v1/admin/feedback",
+      method: "post",
+      values: { rag_run_id: activeRun, category: feedbackCategory, note: feedbackNote || null },
+      successNotification: { message: "Feedback registado sem alterar o sistema automaticamente.", type: "success" },
+      errorNotification: (error) => ({ message: "O feedback não foi registado.", description: error?.message, type: "error" }),
+    });
+    setFeedbackNote("");
+    await invalidate({ resource: "feedback", invalidates: ["list"] });
   }
 
   if (query.isLoading) return <LoadingState />;
@@ -365,7 +391,20 @@ export default function AdminConversationPage() {
           ) : null}
         </div>
         {activeRun ? (
-          <RagInspector runId={activeRun} />
+          <div className="grid gap-5">
+            <RagInspector runId={activeRun} />
+            <form className="grid gap-3 rounded-xl border border-slate-200 p-4" onSubmit={(event) => void submitFeedback(event)}>
+              <h3 className="font-semibold">Classificar esta resposta</h3>
+              <div className="grid gap-3 md:grid-cols-[minmax(14rem,.45fr)_1fr_auto]">
+                <select className="rounded-xl border border-slate-300 px-3 py-2 text-sm" onChange={(event) => setFeedbackCategory(event.target.value as FeedbackCategory)} value={feedbackCategory}>
+                  {FEEDBACK_CATEGORIES.map((category) => <option key={category} value={category}>{category}</option>)}
+                </select>
+                <input className="rounded-xl border border-slate-300 px-3 py-2 text-sm" maxLength={2000} onChange={(event) => setFeedbackNote(event.target.value)} placeholder="Nota opcional" value={feedbackNote} />
+                <Button disabled={action.mutation.isPending} type="submit">Registar feedback</Button>
+              </div>
+              <p className="text-xs text-slate-500">O feedback é append-only e nunca modifica automaticamente a base, os prompts ou o modelo.</p>
+            </form>
+          </div>
         ) : (
           <p className="text-sm text-slate-500">Esta conversa ainda não possui execução RAG.</p>
         )}

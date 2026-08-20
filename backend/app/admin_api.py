@@ -18,6 +18,8 @@ from sqlalchemy.exc import SQLAlchemyError
 from app.admin_auth import (
     ADMIN_CSRF_COOKIE,
     ADMIN_SESSION_COOKIE,
+    AUDIT_ROLES,
+    FEEDBACK_ROLES,
     KNOWLEDGE_EDITOR_ROLES,
     KNOWLEDGE_PUBLISHER_ROLES,
     KNOWLEDGE_ROLES,
@@ -83,6 +85,12 @@ from app.knowledge_workflow import (
     update_document as update_workflow_document,
 )
 from app.llm import LLMError
+from app.oversight import (
+    FeedbackCategory,
+    create_feedback,
+    list_audit_events,
+    list_feedback,
+)
 from app.retrieval import RetrievalError
 from app.reviews import ReviewAction, review_message
 from app.tuning import (
@@ -524,6 +532,51 @@ class ReviewMessageRequest(StrictRequest):
     note: str | None = Field(default=None, max_length=1000)
 
 
+class FeedbackRequest(StrictRequest):
+    rag_run_id: UUID = Field(strict=False)
+    category: FeedbackCategory
+    note: str | None = Field(default=None, max_length=2000)
+
+
+class FeedbackResponse(BaseModel):
+    id: UUID
+    rag_run_id: UUID
+    conversation_id: UUID
+    category: str
+    note: str | None
+    created_by: UUID
+    created_by_name: str | None
+    created_at: datetime
+
+
+class FeedbackListResponse(BaseModel):
+    items: tuple[FeedbackResponse, ...]
+    total: int
+    offset: int
+    limit: int
+
+
+class AuditEventResponse(BaseModel):
+    id: UUID
+    event_type: str
+    actor_type: str
+    actor_id: str | None
+    resource_type: str
+    resource_id: str
+    request_id: UUID | None
+    before: dict[str, object] | None
+    after: dict[str, object] | None
+    metadata: dict[str, object]
+    created_at: datetime
+
+
+class AuditEventListResponse(BaseModel):
+    items: tuple[AuditEventResponse, ...]
+    total: int
+    offset: int
+    limit: int
+
+
 def _request_id(request: Request) -> UUID:
     return UUID(str(request.state.request_id))
 
@@ -650,6 +703,26 @@ def _tuning_editor_principal(principal: CsrfPrincipalDep) -> AdminPrincipal:
 
 TuningPrincipalDep = Annotated[AdminPrincipal, Depends(_tuning_principal)]
 TuningEditorPrincipalDep = Annotated[AdminPrincipal, Depends(_tuning_editor_principal)]
+
+
+def _audit_principal(principal: AdminPrincipalDep) -> AdminPrincipal:
+    try:
+        require_any_role(principal, AUDIT_ROLES)
+    except AdminAuthError as exc:
+        raise _auth_error(exc) from exc
+    return principal
+
+
+def _feedback_principal(principal: CsrfPrincipalDep) -> AdminPrincipal:
+    try:
+        require_any_role(principal, FEEDBACK_ROLES)
+    except AdminAuthError as exc:
+        raise _auth_error(exc) from exc
+    return principal
+
+
+AuditPrincipalDep = Annotated[AdminPrincipal, Depends(_audit_principal)]
+FeedbackPrincipalDep = Annotated[AdminPrincipal, Depends(_feedback_principal)]
 
 
 def _identity(principal: AdminPrincipal) -> AdminIdentityResponse:
@@ -1379,6 +1452,95 @@ def review_pending_message(
     except SQLAlchemyError as exc:
         raise ApiError(503, "DATABASE_NOT_READY", "The database is unavailable") from exc
     return AdminConversationResponse.model_validate(result)
+
+
+@admin_router.post(
+    "/feedback",
+    status_code=201,
+    responses=ADMIN_MUTATION_RESPONSES,
+)
+def add_feedback(
+    request: Request,
+    payload: FeedbackRequest,
+    principal: FeedbackPrincipalDep,
+    engine: EngineDep,
+) -> FeedbackResponse:
+    try:
+        result = create_feedback(
+            engine,
+            rag_run_id=payload.rag_run_id,
+            category=payload.category,
+            note=payload.note,
+            actor_id=principal.user_id,
+            request_id=_request_id(request),
+        )
+    except ConversationError as exc:
+        raise _conversation_error(exc) from exc
+    except SQLAlchemyError as exc:
+        raise ApiError(503, "DATABASE_NOT_READY", "The database is unavailable") from exc
+    return FeedbackResponse.model_validate(result)
+
+
+@admin_router.get("/feedback", responses=ADMIN_READ_RESPONSES)
+def feedback_history(
+    _principal: AuditPrincipalDep,
+    engine: EngineDep,
+    rag_run_id: Annotated[UUID | None, Query()] = None,
+    category: Annotated[FeedbackCategory | None, Query()] = None,
+    offset: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+) -> FeedbackListResponse:
+    try:
+        items, total = list_feedback(
+            engine,
+            rag_run_id=rag_run_id,
+            category=category,
+            offset=offset,
+            limit=limit,
+        )
+    except SQLAlchemyError as exc:
+        raise ApiError(503, "DATABASE_NOT_READY", "The database is unavailable") from exc
+    return FeedbackListResponse(
+        items=tuple(FeedbackResponse.model_validate(item) for item in items),
+        total=total,
+        offset=offset,
+        limit=limit,
+    )
+
+
+@admin_router.get("/audit-events", responses=ADMIN_READ_RESPONSES)
+def audit_events(
+    _principal: AuditPrincipalDep,
+    engine: EngineDep,
+    event_type: Annotated[str | None, Query(max_length=100)] = None,
+    actor_type: Annotated[str | None, Query(max_length=50)] = None,
+    resource_type: Annotated[str | None, Query(max_length=100)] = None,
+    resource_id: Annotated[str | None, Query(max_length=200)] = None,
+    created_from: Annotated[datetime | None, Query()] = None,
+    created_to: Annotated[datetime | None, Query()] = None,
+    offset: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+) -> AuditEventListResponse:
+    try:
+        items, total = list_audit_events(
+            engine,
+            event_type=event_type,
+            actor_type=actor_type,
+            resource_type=resource_type,
+            resource_id=resource_id,
+            created_from=created_from,
+            created_to=created_to,
+            offset=offset,
+            limit=limit,
+        )
+    except SQLAlchemyError as exc:
+        raise ApiError(503, "DATABASE_NOT_READY", "The database is unavailable") from exc
+    return AuditEventListResponse(
+        items=tuple(AuditEventResponse.model_validate(item) for item in items),
+        total=total,
+        offset=offset,
+        limit=limit,
+    )
 
 
 @admin_router.get(

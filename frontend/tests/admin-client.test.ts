@@ -134,6 +134,26 @@ describe("admin client", () => {
     expect(fetchMock.mock.calls[1]?.[0]).toContain("/api/v1/admin/evaluations/run-id");
   });
 
+  it("maps paginated audit history and filters", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ items: [{ id: "event-id", event_type: "feedback.created" }], total: 1 }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await adminDataProvider.getList({
+      resource: "audit-events",
+      pagination: { currentPage: 1, pageSize: 20 },
+      filters: [{ field: "event_type", operator: "eq", value: "feedback.created" }],
+    });
+
+    expect(result.total).toBe(1);
+    expect(result.data[0]).toMatchObject({ id: "event-id", event_type: "feedback.created" });
+    expect(fetchMock.mock.calls[0]?.[0]).toContain("event_type=feedback.created");
+  });
+
   it("parses operational events and ignores protocol events", () => {
     expect(
       mapAdminEvent(

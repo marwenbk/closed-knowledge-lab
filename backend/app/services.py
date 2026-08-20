@@ -12,13 +12,14 @@ from app.tuning import TuningError, runtime_status
 
 REQUIRED_EXTENSIONS = {"vector", "pg_trgm"}
 REQUIRED_LEXICAL_INDEXES = {"ix_chunks_search_vector", "ix_chunks_content_trgm"}
-MIGRATION_HEAD = "0008_review_before_send"
+MIGRATION_HEAD = "0009_audit_feedback"
 REQUIRED_EVENT_TABLES = {
     "admin_sessions",
     "admin_users",
     "conversation_events",
     "conversations",
     "handoff_events",
+    "feedback",
     "messages",
     "message_reviews",
     "rag_runs",

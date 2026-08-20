@@ -55,6 +55,8 @@ export function AdminProvider({ children }: { children: ReactNode }) {
         { name: "prompt-versions", list: "/admin/tuning", show: "/admin/tuning/prompts/:id" },
         { name: "settings-versions", list: "/admin/tuning", show: "/admin/tuning/settings/:id" },
         { name: "evaluation-runs", show: "/admin/tuning/evaluations/:id" },
+        { name: "audit-events", list: "/admin/audit" },
+        { name: "feedback", list: "/admin/audit" },
         { name: "rag-runs" },
       ]}
       options={{ disableTelemetry: true, liveMode: "auto", syncWithLocation: true }}

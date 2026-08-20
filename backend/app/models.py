@@ -612,6 +612,33 @@ class MessageReview(Base):
     )
 
 
+class Feedback(Base):
+    __tablename__ = "feedback"
+    __table_args__ = (
+        CheckConstraint(
+            "category IN ('CORRECT', 'INCORRECT', 'MISSING_KB_INFORMATION', "
+            "'CONFLICTING_KB_INFORMATION', 'RETRIEVAL_FAILURE', 'GROUNDING_FAILURE', "
+            "'ESCALATION_APPROPRIATE', 'ESCALATION_UNNECESSARY')",
+            name="ck_feedback_category",
+        ),
+        Index("ix_feedback_rag_run_created_at", "rag_run_id", "created_at"),
+        Index("ix_feedback_category_created_at", "category", "created_at"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
+    rag_run_id: Mapped[UUID] = mapped_column(
+        ForeignKey("rag_runs.id", ondelete="RESTRICT"), nullable=False
+    )
+    category: Mapped[str] = mapped_column(String(50), nullable=False)
+    note: Mapped[str | None] = mapped_column(Text)
+    created_by: Mapped[UUID] = mapped_column(
+        ForeignKey("admin_users.id", ondelete="RESTRICT"), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
 class RagRun(Base):
     __tablename__ = "rag_runs"
     __table_args__ = (

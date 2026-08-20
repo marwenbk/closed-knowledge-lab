@@ -88,7 +88,7 @@ Conflict scenarios are disabled by default. They may be included only after thei
 
 ## PostgreSQL and Backend Knowledge Foundation
 
-Phase 1 projects the generated Markdown corpus into PostgreSQL and adds local hybrid retrieval. Phase 2 adds verified DeepSeek answers. Phase 3 adds persistent conversations and replayable SSE. Phase 4 adds the customer widget. Phase 5 adds authenticated human takeover. Phase 6 adds the Refine operations back office. Phase 7A adds governed knowledge publishing, and Phase 7B adds evaluated prompt and retrieval-setting versions.
+Phase 1 projects the generated Markdown corpus into PostgreSQL and adds local hybrid retrieval. Phase 2 adds verified DeepSeek answers. Phase 3 adds persistent conversations and replayable SSE. Phase 4 adds the customer widget. Phase 5 adds authenticated human takeover. Phase 6 adds the Refine operations back office. Phase 7 completes governed knowledge publishing, evaluated tuning, review-before-send, auditing, and feedback.
 
 ### Prerequisites
 
@@ -359,6 +359,12 @@ Every new RAG run snapshots the active KB, prompt, and settings versions before 
 Set `REVIEW_BEFORE_SEND_ENABLED=true` to hold verified `ANSWERABLE` and `PARTIALLY_ANSWERABLE` proposals for a reviewer after migration `0008_review_before_send`. The widget receives `delivery_mode: "REVIEW_PENDING"`, never receives the proposal text, and shows a waiting banner while the conversation is `AI_REVIEW_PENDING`.
 
 An `ADMIN`, `SUPERVISOR`, or `HUMAN_REVIEWER` can approve unchanged, edit and send, regenerate once, send the conversation to the human queue, or close without sending. Edited text is checked again against the stored citation evidence before publication. Proposals, original and final text, diffs, reviewers, decisions, and timestamps remain append-only and auditable. A customer handoff requested during review rejects the hidden proposal before entering the queue.
+
+### Audit explorer and feedback
+
+Migration `0009_audit_feedback` adds append-only response feedback and the `/admin/audit` workspace. `ADMIN`, `SUPERVISOR`, and `AUDITOR` roles can filter audit events by event, actor, resource, identifier, and time and inspect structured before/after metadata. The same workspace lists feedback by category and links back to its conversation.
+
+`ADMIN`, `SUPERVISOR`, `SUPPORT_AGENT`, and `HUMAN_REVIEWER` roles can classify a RAG run from the conversation inspector as correct, incorrect, missing or conflicting KB information, retrieval or grounding failure, or appropriate/unnecessary escalation. Feedback creates an audit event but never changes knowledge, prompts, settings, or model behavior automatically.
 
 For a populated evaluator view, start both servers and replay the canonical scenarios through the public widget API:
 

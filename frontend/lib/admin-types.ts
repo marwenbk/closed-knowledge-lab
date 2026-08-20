@@ -226,6 +226,41 @@ export type EvaluationDetail = EvaluationSummary & {
   started_by: string;
 };
 
+export type FeedbackCategory =
+  | "CORRECT"
+  | "INCORRECT"
+  | "MISSING_KB_INFORMATION"
+  | "CONFLICTING_KB_INFORMATION"
+  | "RETRIEVAL_FAILURE"
+  | "GROUNDING_FAILURE"
+  | "ESCALATION_APPROPRIATE"
+  | "ESCALATION_UNNECESSARY";
+
+export type Feedback = {
+  id: string;
+  rag_run_id: string;
+  conversation_id: string;
+  category: FeedbackCategory;
+  note: string | null;
+  created_by: string;
+  created_by_name: string | null;
+  created_at: string;
+};
+
+export type AuditEvent = {
+  id: string;
+  event_type: string;
+  actor_type: string;
+  actor_id: string | null;
+  resource_type: string;
+  resource_id: string;
+  request_id: string | null;
+  before: Record<string, unknown> | null;
+  after: Record<string, unknown> | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+};
+
 export type PromptBundle = {
   answerability_prompt: string;
   generation_prompt: string;

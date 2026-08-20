@@ -198,6 +198,8 @@ def test_openapi_describes_typed_success_and_error_contracts(application: FastAP
     admin_settings = schema["paths"]["/api/v1/admin/settings"]["get"]
     admin_evaluation = schema["paths"]["/api/v1/admin/evaluations/{run_id}"]["get"]
     admin_review = schema["paths"]["/api/v1/admin/messages/{message_id}/review"]["post"]
+    admin_feedback = schema["paths"]["/api/v1/admin/feedback"]["post"]
+    admin_audit = schema["paths"]["/api/v1/admin/audit-events"]["get"]
     admin_rag_run = schema["paths"]["/api/v1/admin/rag-runs/{rag_run_id}"]["get"]
     admin_events = schema["paths"]["/api/v1/admin/events"]["get"]
 
@@ -278,6 +280,12 @@ def test_openapi_describes_typed_success_and_error_contracts(application: FastAP
     assert admin_review["requestBody"]["content"]["application/json"]["schema"]["$ref"].endswith(
         "/ReviewMessageRequest"
     )
+    assert admin_feedback["requestBody"]["content"]["application/json"]["schema"]["$ref"].endswith(
+        "/FeedbackRequest"
+    )
+    assert admin_audit["responses"]["200"]["content"]["application/json"]["schema"][
+        "$ref"
+    ].endswith("/AuditEventListResponse")
     assert admin_rag_run["responses"]["200"]["content"]["application/json"]["schema"][
         "$ref"
     ].endswith("/RagRunDetailResponse")
