@@ -1,0 +1,91 @@
+services:
+  - type: web
+    name: topmed-demo-api-marwen
+    runtime: docker
+    repo: https://github.com/marwenbk/topmed-demo
+    branch: develop
+    region: frankfurt
+    plan: standard
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    preDeployCommand: bash scripts/bootstrap_production.sh
+    autoDeployTrigger: commit
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: LOG_LEVEL
+        value: INFO
+      - key: DATABASE_URL
+        fromDatabase:
+          name: topmed-demo-db-marwen
+          property: connectionString
+      - key: DEEPSEEK_API_KEY
+        sync: false
+      - key: ADMIN_BOOTSTRAP_EMAIL
+        value: admin@topmed.local
+      - key: ADMIN_BOOTSTRAP_PASSWORD
+        sync: false
+      - key: ADMIN_BOOTSTRAP_DISPLAY_NAME
+        value: TopMed Admin
+      - key: WIDGET_ASSISTANT_KEY
+        value: topmed-demo-marwen-2026
+      - key: WIDGET_TOKEN_SECRET
+        generateValue: true
+      - key: WIDGET_ALLOWED_ORIGINS
+        value: https://topmed-demo-web-marwen.onrender.com,https://topmed-demo-embed-marwen.onrender.com
+      - key: ADMIN_ALLOWED_ORIGINS
+        value: https://topmed-demo-web-marwen.onrender.com
+      - key: REVIEW_BEFORE_SEND_ENABLED
+        value: "true"
+
+  - type: web
+    name: topmed-demo-web-marwen
+    runtime: docker
+    repo: https://github.com/marwenbk/topmed-demo
+    branch: develop
+    region: frankfurt
+    plan: starter
+    dockerfilePath: ./frontend/Dockerfile
+    dockerContext: .
+    healthCheckPath: /
+    autoDeployTrigger: commit
+    envVars:
+      - key: BACKEND_HOSTPORT
+        fromService:
+          type: web
+          name: topmed-demo-api-marwen
+          property: hostport
+      - key: NEXT_PUBLIC_API_BASE_URL
+        value: https://topmed-demo-web-marwen.onrender.com
+      - key: NEXT_PUBLIC_WIDGET_ASSISTANT_KEY
+        value: topmed-demo-marwen-2026
+      - key: TOPMED_FRAME_ANCESTORS
+        value: https://topmed-demo-web-marwen.onrender.com https://topmed-demo-embed-marwen.onrender.com
+      - key: TOPMED_PUBLIC_ORIGIN
+        value: https://topmed-demo-web-marwen.onrender.com
+
+  - type: web
+    name: topmed-demo-embed-marwen
+    runtime: static
+    repo: https://github.com/marwenbk/topmed-demo
+    branch: develop
+    buildCommand: node demo/build_render_fixture.mjs
+    staticPublishPath: ./demo/dist
+    autoDeployTrigger: commit
+    envVars:
+      - key: TOPMED_APP_URL
+        value: https://topmed-demo-web-marwen.onrender.com
+      - key: TOPMED_WIDGET_ASSISTANT_KEY
+        value: topmed-demo-marwen-2026
+
+databases:
+  - name: topmed-demo-db-marwen
+    databaseName: topmed
+    user: topmed
+    plan: basic-256mb
+    diskSizeGB: 5
+    region: frankfurt
+    postgresMajorVersion: "17"
+    storageAutoscalingEnabled: false
+    ipAllowList: []

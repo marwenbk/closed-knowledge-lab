@@ -383,6 +383,14 @@ set +a
 
 This replay uses real API calls and DeepSeek, consumes API credit, and writes only the ignored `demo/seed-report.json` report outside PostgreSQL.
 
+## Production deployment
+
+Phase 8 targets Render's Hobby workspace with paid runtime instances: a Standard FastAPI/ONNX service, a Starter Next.js service, a Basic PostgreSQL 17 database, and a free static external embed fixture. The root `render.yaml` is the authoritative infrastructure definition; both application services build from their pinned Dockerfiles.
+
+The Next.js service proxies `/api`, `/health`, and `/ready` to FastAPI over Render's private network. Browser traffic therefore remains same-origin for secure administrator cookies and SSE. The backend Docker image bakes in the checksum-verified embedding model, while PostgreSQL remains the only mutable runtime data store.
+
+See [the Render deployment runbook](docs/deployment.md) for provisioning, secrets, release verification, rollback, and recovery. Never commit production credentials or place them in Docker build arguments.
+
 ## Customer chat widget
 
 Phase 4 provides a direct chat at `/chat`, an iframe application at `/widget`, and a small framework-free loader at `/widget.js`. The UI uses assistant-ui's external-store runtime: FastAPI and PostgreSQL remain authoritative, while the browser keeps only the signed session, active conversation ID, and replay cursor in session storage.
