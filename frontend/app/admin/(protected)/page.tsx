@@ -2,10 +2,12 @@
 
 import { useCustom, useSubscription } from "@refinedev/core";
 import { Activity, BookOpen, Clock3, MessagesSquare } from "lucide-react";
+import Link from "next/link";
 
 import {
   ErrorState,
   formatDuration,
+  formatDate,
   LoadingState,
   PageHeading,
   Panel,
@@ -76,6 +78,35 @@ export default function AdminDashboardPage() {
           value={`${Math.round(dashboard.quality.average_handoff_wait_seconds)}s`}
         />
       </div>
+
+      {dashboard.pending_reviews.length ? (
+        <Panel className="mt-6 border-sky-200">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h2 className="font-semibold">Respostas aguardando revisão</h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Propostas verificadas permanecem privadas até uma decisão humana.
+              </p>
+            </div>
+            <StatusBadge value={`${dashboard.pending_reviews.length} PENDING`} />
+          </div>
+          <div className="mt-4 grid gap-3">
+            {dashboard.pending_reviews.map((review) => (
+              <Link
+                className="rounded-xl border border-slate-200 p-3 transition hover:border-sky-300 hover:bg-sky-50/40"
+                href={`/admin/conversations/${review.conversation_id}`}
+                key={review.message_id}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <StatusBadge value={review.status} />
+                  <span className="text-xs text-slate-500">{formatDate(review.created_at)}</span>
+                </div>
+                <p className="mt-2 line-clamp-2 text-sm text-slate-700">{review.content}</p>
+              </Link>
+            ))}
+          </div>
+        </Panel>
+      ) : null}
 
       <div className="mt-6 grid gap-6 xl:grid-cols-2">
         <Panel>

@@ -96,6 +96,13 @@ export type Dashboard = {
     average_ai_latency_ms: number;
     average_handoff_wait_seconds: number;
   };
+  pending_reviews: Array<{
+    conversation_id: string;
+    message_id: string;
+    content: string;
+    status: "PENDING" | "REGENERATING";
+    created_at: string;
+  }>;
   latest_evaluation: {
     mode: string | null;
     passed: boolean | null;

@@ -236,6 +236,7 @@ def test_reviewed_ai_proposal_is_hidden_until_approved(
             for message in admin_view.json()["messages"]
             if message["review_status"] == "PENDING"
         )
+        pending_dashboard = client.get("/api/v1/admin/dashboard")
         approved = client.post(
             f"/api/v1/admin/messages/{proposal['message_id']}/review",
             headers=admin_headers,
@@ -250,6 +251,16 @@ def test_reviewed_ai_proposal_is_hidden_until_approved(
     assert hidden.json()["state"] == "AI_REVIEW_PENDING"
     assert all(message["sender"]["type"] != "AI" for message in hidden.json()["messages"])
     assert proposal["visibility"] == "INTERNAL"
+    assert pending_dashboard.status_code == 200, pending_dashboard.text
+    assert pending_dashboard.json()["pending_reviews"] == [
+        {
+            "conversation_id": str(conversation_id),
+            "message_id": proposal["message_id"],
+            "content": "Resposta verificada.",
+            "status": "PENDING",
+            "created_at": proposal["created_at"],
+        }
+    ]
     assert approved.status_code == 200, approved.text
     assert delivered.json()["state"] == "AI_ACTIVE"
     assert any(message["sender"]["type"] == "AI" for message in delivered.json()["messages"])

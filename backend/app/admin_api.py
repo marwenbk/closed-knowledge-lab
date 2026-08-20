@@ -252,6 +252,14 @@ class DashboardQualityResponse(BaseModel):
     average_handoff_wait_seconds: float
 
 
+class DashboardPendingReviewResponse(BaseModel):
+    conversation_id: UUID
+    message_id: UUID
+    content: str
+    status: Literal["PENDING", "REGENERATING"]
+    created_at: datetime
+
+
 class LatestEvaluationResponse(BaseModel):
     mode: str | None
     passed: bool | None
@@ -266,6 +274,7 @@ class DashboardResponse(BaseModel):
     runtime: DashboardRuntimeResponse
     conversations: DashboardConversationResponse
     quality: DashboardQualityResponse
+    pending_reviews: tuple[DashboardPendingReviewResponse, ...]
     latest_evaluation: LatestEvaluationResponse | None
 
 

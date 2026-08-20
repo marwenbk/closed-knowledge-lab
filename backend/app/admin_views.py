@@ -132,6 +132,27 @@ def dashboard_snapshot(engine: Engine, settings: Settings) -> dict[str, Any]:
             .order_by(EvaluationRun.started_at.desc())
             .limit(1)
         ).one_or_none()
+        pending_reviews = [
+            {
+                "conversation_id": conversation_id,
+                "message_id": message_id,
+                "content": content,
+                "status": status,
+                "created_at": created_at,
+            }
+            for conversation_id, message_id, content, status, created_at in session.execute(
+                select(
+                    Message.conversation_id,
+                    Message.id,
+                    Message.content,
+                    Message.review_status,
+                    Message.created_at,
+                )
+                .where(Message.review_status.in_(("PENDING", "REGENERATING")))
+                .order_by(Message.created_at, Message.id)
+                .limit(20)
+            )
+        ]
 
     def rate(status: str) -> float:
         return (
@@ -181,6 +202,7 @@ def dashboard_snapshot(engine: Engine, settings: Settings) -> dict[str, Any]:
             "average_ai_latency_ms": round(float(average_latency or 0), 2),
             "average_handoff_wait_seconds": round(float(average_handoff_wait or 0), 2),
         },
+        "pending_reviews": pending_reviews,
         "latest_evaluation": (
             {
                 "mode": latest_evaluation_row[0].suite,
