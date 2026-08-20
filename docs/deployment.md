@@ -9,7 +9,7 @@ Browser / external host
 topmed-demo-web-marwen (Next.js)
         |  same-origin /api, /health, /ready proxy
         v
-topmed-demo-api-marwen (FastAPI + ONNX)
+topmed-demo-api-marwen (FastAPI + static embeddings)
         |
         v
 topmed-demo-db-marwen (Render PostgreSQL 17)
@@ -67,10 +67,18 @@ Required checks:
 - review-before-send keeps proposals private until approval;
 - audit and feedback records are visible only to authorized roles.
 
+### Verified free-tier release
+
+The 20 August 2026 release candidate passed the complete automated gate with 103 backend tests against PostgreSQL and both pinned embedding runtimes, 17 frontend tests, Ruff, formatting, MyPy, Alembic drift detection, Next.js production build, and both Docker builds. The 63-case retrieval suite passed for the full local ONNX model and the static production runtime with 100% source recall, fact recall, and required second-hop coverage.
+
+Live Render verification confirmed migration `0009_audit_feedback`, both PostgreSQL extensions, 15 active documents, 30 embedded chunks, DeepSeek readiness, the external launcher, reviewed answer delivery with a citation, and the complete customer-requested takeover path through claim and human reply. The idempotent production bootstrap also passed inside a hard 512 MB local container limit before deployment.
+
+The optional 200-call live prompt comparison was not run because it consumes API credit and this deployment is restricted to free infrastructure. Prompt lifecycle and failure behavior remain covered by deterministic tests; one representative DeepSeek request was used for the live end-to-end smoke test.
+
 ## Rollback and recovery
 
 - Application rollback: use Render's service rollback to the previous successful image.
-- Database rollback: do not downgrade automatically. Restore through Render Postgres point-in-time recovery when data recovery is required.
+- Database rollback: do not downgrade automatically. The free database has no durable recovery guarantee, so export required data before risky changes and recreate this fictional demo from its canonical generated inputs when necessary.
 - Knowledge or tuning rollback: use the authenticated TopMed admin workflow, which preserves provenance and audit events.
 - Failed startup: inspect the backend deploy logs, correct configuration, and redeploy. The database bootstrap is idempotent.
 

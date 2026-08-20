@@ -385,7 +385,7 @@ This replay uses real API calls and DeepSeek, consumes API credit, and writes on
 
 ## Production deployment
 
-Phase 8 targets Render's Hobby workspace using only free instances: a FastAPI/ONNX web service, a Next.js web service, a PostgreSQL 17 database, and a static external embed fixture. The root `render.yaml` is the authoritative infrastructure definition; both application services build from their pinned Dockerfiles.
+Phase 8 targets Render's Hobby workspace using only free instances: a FastAPI web service with the static production embedding runtime, a Next.js web service, a PostgreSQL 17 database, and a static external embed fixture. The root `render.yaml` is the authoritative infrastructure definition; both application services build from their pinned Dockerfiles.
 
 The Next.js service proxies `/api`, `/health`, and `/ready` to FastAPI's public Render URL so browser traffic remains same-origin for secure administrator cookies and SSE. The backend Docker image bakes in a checksum-verified 16M-parameter static distillation of multilingual-e5-small for the 512 MB free-service limit; local development and release evaluation retain the full ONNX model. PostgreSQL remains the only mutable runtime data store.
 
