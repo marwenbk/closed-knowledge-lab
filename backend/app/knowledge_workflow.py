@@ -32,7 +32,7 @@ from app.models import (
     EvaluationRun,
     KnowledgeBaseVersion,
 )
-from app.tuning import runtime_snapshot
+from app.tuning import evaluation_lock, recover_interrupted_evaluations, runtime_snapshot
 
 POLICY_ID_PATTERN = re.compile(r"\bTM-[A-Z0-9]+(?:-[A-Z0-9]+)+\b")
 
@@ -729,7 +729,7 @@ def _retarget(data: EvaluationData, dataset_version: str) -> EvaluationData:
     )
 
 
-def evaluate_version(
+def _evaluate_version(
     engine: Engine,
     provider: EmbeddingProvider,
     settings: Settings,
@@ -840,6 +840,29 @@ def evaluate_version(
             409, "KB_EVALUATION_FAILED", "The retrieval evaluation could not complete"
         ) from failure
     return report
+
+
+def evaluate_version(
+    engine: Engine,
+    provider: EmbeddingProvider,
+    settings: Settings,
+    *,
+    dataset_id: str,
+    version_id: UUID,
+    actor_id: UUID,
+    request_id: UUID,
+) -> dict[str, Any]:
+    with evaluation_lock(engine):
+        recover_interrupted_evaluations(engine, actor_id, request_id)
+        return _evaluate_version(
+            engine,
+            provider,
+            settings,
+            dataset_id=dataset_id,
+            version_id=version_id,
+            actor_id=actor_id,
+            request_id=request_id,
+        )
 
 
 def publish_version(

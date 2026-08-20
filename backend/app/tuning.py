@@ -562,7 +562,7 @@ def _evaluation_data(dataset_version: str) -> Any:
     )
 
 
-def _complete_orphaned_runs(engine: Engine, actor_id: UUID, request_id: UUID) -> None:
+def recover_interrupted_evaluations(engine: Engine, actor_id: UUID, request_id: UUID) -> None:
     with Session(engine) as session, session.begin():
         runs = session.scalars(
             select(EvaluationRun).where(EvaluationRun.status == "RUNNING").with_for_update()
@@ -839,7 +839,7 @@ def evaluate_prompt_version(
     request_id: UUID,
 ) -> dict[str, Any]:
     with evaluation_lock(engine):
-        _complete_orphaned_runs(engine, actor_id, request_id)
+        recover_interrupted_evaluations(engine, actor_id, request_id)
         with Session(engine) as session:
             candidate = _prompt(session, version_id)
             active_settings = session.scalar(
@@ -875,7 +875,7 @@ def evaluate_settings_version(
     request_id: UUID,
 ) -> dict[str, Any]:
     with evaluation_lock(engine):
-        _complete_orphaned_runs(engine, actor_id, request_id)
+        recover_interrupted_evaluations(engine, actor_id, request_id)
         with Session(engine) as session:
             candidate = _settings(session, version_id)
             active_prompt = session.scalar(
