@@ -199,6 +199,80 @@ export type KnowledgeWorkflowDocument = {
   chunks: KnowledgeDocumentDetail["chunks"];
 };
 
+export type EvaluationSummary = {
+  id: string;
+  suite: string;
+  mode: "RETRIEVAL" | "FULL";
+  status: "RUNNING" | "PASSED" | "FAILED";
+  baseline_run_id: string | null;
+  metrics: Record<string, unknown>;
+  error_code: string | null;
+  started_at: string;
+  completed_at: string | null;
+};
+
+export type EvaluationDetail = EvaluationSummary & {
+  kb_version_id: string;
+  kb_manifest_checksum: string;
+  prompt_version: string;
+  prompt_checksum: string;
+  settings_version: string;
+  settings_checksum: string;
+  model_name: string;
+  embedding_model: string;
+  embedding_version: string;
+  started_by: string;
+};
+
+export type PromptBundle = {
+  answerability_prompt: string;
+  generation_prompt: string;
+  verification_prompt: string;
+};
+
+export type PromptVersion = {
+  id: string;
+  version: string;
+  status: "DRAFT" | "EVALUATED" | "ACTIVE" | "RETIRED";
+  content_checksum: string;
+  source_version_id: string | null;
+  created_by: string | null;
+  activated_by: string | null;
+  created_at: string;
+  updated_at: string;
+  activated_at: string | null;
+  prompts: PromptBundle;
+  evaluation: EvaluationSummary | null;
+};
+
+export type RetrievalTuning = {
+  vector_top_k: number;
+  lexical_top_k: number;
+  trigram_top_k: number;
+  final_context_k: number;
+  rrf_k: number;
+  min_vector_similarity: number;
+  trigram_min_similarity: number;
+  trigram_fallback_enabled: boolean;
+  second_hop_enabled: boolean;
+};
+
+export type SettingsVersion = {
+  id: string;
+  version: string;
+  status: PromptVersion["status"];
+  content_checksum: string;
+  requires_reindex: boolean;
+  source_version_id: string | null;
+  created_by: string | null;
+  activated_by: string | null;
+  created_at: string;
+  updated_at: string;
+  activated_at: string | null;
+  settings: RetrievalTuning;
+  evaluation: EvaluationSummary | null;
+};
+
 export type RagRunDetail = {
   id: string;
   conversation_id: string;

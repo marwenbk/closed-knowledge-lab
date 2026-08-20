@@ -17,6 +17,7 @@ from app.embeddings import EmbeddingError, EmbeddingProvider, OnnxE5EmbeddingPro
 from app.llm import DeepSeekProvider, LLMError, LLMProvider
 from app.retrieval import RetrievalError, retrieve_knowledge
 from app.services import KnowledgeBaseUnavailable, kb_status, readiness
+from app.tuning import TuningError, load_runtime_snapshot
 
 
 class ApiError(RuntimeError):
@@ -243,7 +244,15 @@ def retrieve(
     settings: SettingsDep,
 ) -> RetrievalResponse:
     try:
-        result = retrieve_knowledge(engine, embedding_provider(request), settings, payload.query)
+        runtime = load_runtime_snapshot(engine, settings)
+        result = retrieve_knowledge(
+            engine,
+            embedding_provider(request),
+            runtime.effective_settings,
+            payload.query,
+        )
+    except TuningError as exc:
+        raise ApiError(exc.status_code, exc.code, str(exc)) from exc
     except (EmbeddingError, RetrievalError) as exc:
         raise ApiError(
             503,
@@ -270,13 +279,17 @@ def answer(
     settings: SettingsDep,
 ) -> GroundedAnswer:
     try:
+        runtime = load_runtime_snapshot(engine, settings)
         result = answer_knowledge(
             engine,
             embedding_provider(request),
             llm_provider(request),
-            settings,
+            runtime.effective_settings,
+            runtime.prompts,
             payload.query,
         )
+    except TuningError as exc:
+        raise ApiError(exc.status_code, exc.code, str(exc)) from exc
     except LLMError as exc:
         raise ApiError(
             503,

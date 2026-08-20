@@ -21,7 +21,14 @@ from app.answering import (
 )
 from app.config import Settings
 from app.retrieval import RetrievalMatch, RetrievalResult
+from app.tuning import PromptBundle
 from pydantic import BaseModel
+
+PROMPTS = PromptBundle(
+    answerability_prompt="Classifique somente pelas evidências fornecidas. " * 3,
+    generation_prompt="Responda somente pelas evidências e cite cada afirmação. " * 3,
+    verification_prompt="Verifique cada afirmação somente contra as evidências. " * 3,
+)
 
 
 class StubLLMProvider:
@@ -124,6 +131,7 @@ def _run(monkeypatch: pytest.MonkeyPatch, provider: StubLLMProvider) -> Any:
         object(),
         provider,
         Settings(_env_file=None),
+        PROMPTS,
         "Quantos dependentes o plano Família permite?",
     )
 
@@ -174,6 +182,7 @@ def test_answer_pipeline_exposes_only_structured_operational_trace(
         object(),
         provider,
         Settings(_env_file=None),
+        PROMPTS,
         "Quantos dependentes o plano Família permite?",
     )
 
@@ -272,6 +281,7 @@ def test_multi_hop_answer_requires_the_mapping_citation(
         object(),
         provider,
         Settings(_env_file=None),
+        PROMPTS,
         "Tenho Gold. Quantos dependentes posso cadastrar?",
     )
 

@@ -8,10 +8,11 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.models import Chunk, Document, KnowledgeBaseVersion
+from app.tuning import TuningError, runtime_status
 
 REQUIRED_EXTENSIONS = {"vector", "pg_trgm"}
 REQUIRED_LEXICAL_INDEXES = {"ix_chunks_search_vector", "ix_chunks_content_trgm"}
-MIGRATION_HEAD = "0006_knowledge_publishing"
+MIGRATION_HEAD = "0007_runtime_tuning"
 REQUIRED_EVENT_TABLES = {
     "admin_sessions",
     "admin_users",
@@ -135,6 +136,7 @@ def readiness(
             "status": "not_ready",
             "required": sorted(REQUIRED_EVENT_TABLES),
         },
+        "runtime_configuration": {"status": "not_ready"},
     }
     llm_matches = chat_model_version == expected_chat_model
     checks["llm_runtime"] = {
@@ -239,8 +241,11 @@ def readiness(
             "expected_dimensions": expected_embedding_dimensions,
             "metadata_matches": metadata_matches,
         }
+        checks["runtime_configuration"] = runtime_status(engine)
     except KnowledgeBaseUnavailable as exc:
         checks["knowledge_base"]["detail"] = str(exc)
+    except TuningError as exc:
+        checks["runtime_configuration"] = {"status": "not_ready", "detail": str(exc)}
     except SQLAlchemyError as exc:
         logger.warning("readiness database check failed", exc_info=exc)
         checks["database"] = {
@@ -258,6 +263,7 @@ def readiness(
         "embedding_runtime",
         "llm_runtime",
         "event_store",
+        "runtime_configuration",
     )
     ready = all(checks[name]["status"] == "ready" for name in required_checks)
     return {"status": "ready" if ready else "not_ready", "checks": checks}

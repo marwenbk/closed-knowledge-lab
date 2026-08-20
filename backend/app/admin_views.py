@@ -19,6 +19,7 @@ from app.models import (
     Message,
     RagRun,
 )
+from app.tuning import runtime_status
 
 
 def _now() -> datetime:
@@ -139,6 +140,7 @@ def dashboard_snapshot(engine: Engine, settings: Settings) -> dict[str, Any]:
             else 0.0
         )
 
+    runtime = runtime_status(engine)
     return {
         "generated_at": now,
         "knowledge": {
@@ -151,10 +153,8 @@ def dashboard_snapshot(engine: Engine, settings: Settings) -> dict[str, Any]:
         "runtime": {
             "model": latest_run.model_name if latest_run else settings.chat_model,
             "model_version": latest_run.model_version if latest_run else None,
-            "prompt_version": latest_run.prompt_version if latest_run else settings.prompt_version,
-            "settings_version": latest_run.settings_version
-            if latest_run
-            else settings.settings_version,
+            "prompt_version": runtime["prompt_version"],
+            "settings_version": runtime["settings_version"],
             "embedding_version": (
                 latest_run.embedding_version if latest_run else settings.embedding_model_revision
             ),

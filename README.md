@@ -88,7 +88,7 @@ Conflict scenarios are disabled by default. They may be included only after thei
 
 ## PostgreSQL and Backend Knowledge Foundation
 
-Phase 1 projects the generated Markdown corpus into PostgreSQL and adds local hybrid retrieval. Phase 2 adds verified DeepSeek answers. Phase 3 adds persistent conversations and replayable SSE. Phase 4 adds the customer widget. Phase 5 adds authenticated human takeover. Phase 6 adds the Refine operations back office. Phase 7A adds governed knowledge drafting and evaluation-gated publication.
+Phase 1 projects the generated Markdown corpus into PostgreSQL and adds local hybrid retrieval. Phase 2 adds verified DeepSeek answers. Phase 3 adds persistent conversations and replayable SSE. Phase 4 adds the customer widget. Phase 5 adds authenticated human takeover. Phase 6 adds the Refine operations back office. Phase 7A adds governed knowledge publishing, and Phase 7B adds evaluated prompt and retrieval-setting versions.
 
 ### Prerequisites
 
@@ -345,6 +345,14 @@ Knowledge publishing is available under `/admin/knowledge` after migration `0006
 Only `ADMIN` and `SUPERVISOR` roles can publish a passing draft or reactivate a retired version. A successful gate is bound to the exact draft manifest checksum, so any later edit invalidates validation and prevents stale evaluation results from being activated. The publication gate uses the local embedding model and PostgreSQL but does not call DeepSeek or consume API credit. Full live answer evaluation remains an explicit release check.
 
 Re-running `bash scripts/setup_local_backend.sh` preserves whichever governed knowledge version is active; it activates the generated `2.0.0` baseline only when no active version exists.
+
+### Versioned prompt and retrieval tuning
+
+Migration `0007_runtime_tuning` seeds the existing prompt bundle and retrieval defaults as immutable active version `1.0.0`. The `/admin/tuning` workspace lets authorized operators clone semantic-versioned drafts, edit the three system prompts or the nine supported retrieval controls, inspect checksum-bound evaluations, activate a passing candidate, and roll back an evaluated retired version.
+
+Retrieval settings run the complete 63-case local gate without API cost. Prompt evaluation requires an explicit confirmation because it runs all 100 cases through DeepSeek and may first run another 100 cases to establish an exact active baseline. The browser waits for this synchronous operation; do not restart the backend while it is running. Activation is rejected whenever the active KB, counterpart configuration, model identity, embedding revision, or candidate checksum differs from the evaluated tuple.
+
+Every new RAG run snapshots the active KB, prompt, and settings versions before inference. Active and retired runtime versions are database-protected, and the public/widget APIs fail closed if either active configuration is missing or its checksum is invalid.
 
 For a populated evaluator view, start both servers and replay the canonical scenarios through the public widget API:
 

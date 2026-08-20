@@ -1,7 +1,7 @@
 "use client";
 
 import { useGetIdentity, useLogout } from "@refinedev/core";
-import { BookOpen, LayoutDashboard, LogOut, Menu, MessagesSquare, X } from "lucide-react";
+import { BookOpen, LayoutDashboard, LogOut, Menu, MessagesSquare, SlidersHorizontal, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
@@ -29,6 +29,12 @@ const navigation = [
       "KNOWLEDGE_EDITOR",
       "AUDITOR",
     ],
+  },
+  {
+    href: "/admin/tuning",
+    label: "Ajustes",
+    icon: SlidersHorizontal,
+    roles: ["ADMIN", "SUPERVISOR", "HUMAN_REVIEWER", "KNOWLEDGE_EDITOR", "AUDITOR"],
   },
 ];
 

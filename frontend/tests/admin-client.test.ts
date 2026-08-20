@@ -102,6 +102,38 @@ describe("admin client", () => {
     expect(result.data[0]).toMatchObject({ id: "version-id", status: "DRAFT" });
   });
 
+  it("maps tuning versions and evaluation details", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ items: [{ id: "prompt-id", version: "1.0.1" }] }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ id: "run-id", status: "PASSED" }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const versions = await adminDataProvider.getList({
+      resource: "prompt-versions",
+      pagination: { mode: "off" },
+    });
+    const evaluation = await adminDataProvider.getOne({
+      resource: "evaluation-runs",
+      id: "run-id",
+    });
+
+    expect(versions.data[0]).toMatchObject({ id: "prompt-id", version: "1.0.1" });
+    expect(evaluation.data).toMatchObject({ id: "run-id", status: "PASSED" });
+    expect(fetchMock.mock.calls[0]?.[0]).toContain("/api/v1/admin/prompts");
+    expect(fetchMock.mock.calls[1]?.[0]).toContain("/api/v1/admin/evaluations/run-id");
+  });
+
   it("parses operational events and ignores protocol events", () => {
     expect(
       mapAdminEvent(

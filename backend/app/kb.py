@@ -595,6 +595,10 @@ def _activate_version(
     expected_embedding_model: str,
     expected_embedding_version: str,
     expected_embedding_dimensions: int,
+    expected_prompt_version: str | None = None,
+    expected_prompt_checksum: str | None = None,
+    expected_settings_version: str | None = None,
+    expected_settings_checksum: str | None = None,
     actor_type: str = "SYSTEM",
     actor_id: str | None = None,
     request_id: UUID | None = None,
@@ -633,6 +637,26 @@ def _activate_version(
                 EvaluationRun.kb_version_id == version.id,
                 EvaluationRun.status == "PASSED",
                 EvaluationRun.kb_manifest_checksum == version.manifest_checksum,
+                *(
+                    (EvaluationRun.prompt_version == expected_prompt_version,)
+                    if expected_prompt_version is not None
+                    else ()
+                ),
+                *(
+                    (EvaluationRun.prompt_checksum == expected_prompt_checksum,)
+                    if expected_prompt_checksum is not None
+                    else ()
+                ),
+                *(
+                    (EvaluationRun.settings_version == expected_settings_version,)
+                    if expected_settings_version is not None
+                    else ()
+                ),
+                *(
+                    (EvaluationRun.settings_checksum == expected_settings_checksum,)
+                    if expected_settings_checksum is not None
+                    else ()
+                ),
             )
             .order_by(EvaluationRun.completed_at.desc())
             .limit(1)
@@ -705,6 +729,10 @@ def activate_knowledge_base(
     expected_embedding_model: str,
     expected_embedding_version: str,
     expected_embedding_dimensions: int,
+    expected_prompt_version: str | None = None,
+    expected_prompt_checksum: str | None = None,
+    expected_settings_version: str | None = None,
+    expected_settings_checksum: str | None = None,
     actor_type: str = "SYSTEM",
     actor_id: str | None = None,
     request_id: UUID | None = None,
@@ -729,6 +757,10 @@ def activate_knowledge_base(
             expected_embedding_model=expected_embedding_model,
             expected_embedding_version=expected_embedding_version,
             expected_embedding_dimensions=expected_embedding_dimensions,
+            expected_prompt_version=expected_prompt_version,
+            expected_prompt_checksum=expected_prompt_checksum,
+            expected_settings_version=expected_settings_version,
+            expected_settings_checksum=expected_settings_checksum,
             actor_type=actor_type,
             actor_id=actor_id,
             request_id=request_id,

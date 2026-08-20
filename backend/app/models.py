@@ -7,6 +7,7 @@ from uuid import UUID
 from pgvector.sqlalchemy import VECTOR
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     CheckConstraint,
     Computed,
     DateTime,
@@ -299,6 +300,89 @@ class AdminSession(Base):
     )
 
 
+class PromptVersion(Base):
+    __tablename__ = "prompt_versions"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('DRAFT', 'EVALUATED', 'ACTIVE', 'RETIRED')",
+            name="ck_prompt_versions_status",
+        ),
+        UniqueConstraint("version", name="uq_prompt_versions_version"),
+        Index(
+            "uq_prompt_versions_one_active",
+            "status",
+            unique=True,
+            postgresql_where=text("status = 'ACTIVE'"),
+        ),
+        Index("ix_prompt_versions_created_at", "created_at"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
+    version: Mapped[str] = mapped_column(String(50), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False)
+    answerability_prompt: Mapped[str] = mapped_column(Text, nullable=False)
+    generation_prompt: Mapped[str] = mapped_column(Text, nullable=False)
+    verification_prompt: Mapped[str] = mapped_column(Text, nullable=False)
+    content_checksum: Mapped[str] = mapped_column(String(64), nullable=False)
+    source_version_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("prompt_versions.id", ondelete="RESTRICT")
+    )
+    created_by: Mapped[UUID | None] = mapped_column(
+        ForeignKey("admin_users.id", ondelete="RESTRICT")
+    )
+    activated_by: Mapped[UUID | None] = mapped_column(
+        ForeignKey("admin_users.id", ondelete="RESTRICT")
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    activated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class SettingsVersion(Base):
+    __tablename__ = "settings_versions"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('DRAFT', 'EVALUATED', 'ACTIVE', 'RETIRED')",
+            name="ck_settings_versions_status",
+        ),
+        UniqueConstraint("version", name="uq_settings_versions_version"),
+        Index(
+            "uq_settings_versions_one_active",
+            "status",
+            unique=True,
+            postgresql_where=text("status = 'ACTIVE'"),
+        ),
+        Index("ix_settings_versions_created_at", "created_at"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
+    version: Mapped[str] = mapped_column(String(50), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False)
+    settings_json: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    content_checksum: Mapped[str] = mapped_column(String(64), nullable=False)
+    requires_reindex: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    source_version_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("settings_versions.id", ondelete="RESTRICT")
+    )
+    created_by: Mapped[UUID | None] = mapped_column(
+        ForeignKey("admin_users.id", ondelete="RESTRICT")
+    )
+    activated_by: Mapped[UUID | None] = mapped_column(
+        ForeignKey("admin_users.id", ondelete="RESTRICT")
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    activated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
 class EvaluationRun(Base):
     __tablename__ = "evaluation_runs"
     __table_args__ = (
@@ -321,9 +405,22 @@ class EvaluationRun(Base):
         ForeignKey("knowledge_base_versions.id", ondelete="RESTRICT"), nullable=False
     )
     kb_manifest_checksum: Mapped[str] = mapped_column(String(64), nullable=False)
-    prompt_version: Mapped[str] = mapped_column(String(100), nullable=False)
-    settings_version: Mapped[str] = mapped_column(String(100), nullable=False)
+    prompt_version: Mapped[str] = mapped_column(
+        String(100), ForeignKey("prompt_versions.version", ondelete="RESTRICT"), nullable=False
+    )
+    settings_version: Mapped[str] = mapped_column(
+        String(100), ForeignKey("settings_versions.version", ondelete="RESTRICT"), nullable=False
+    )
+    prompt_checksum: Mapped[str] = mapped_column(String(64), nullable=False)
+    settings_checksum: Mapped[str] = mapped_column(String(64), nullable=False)
+    mode: Mapped[str] = mapped_column(String(20), nullable=False)
+    baseline_run_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("evaluation_runs.id", ondelete="RESTRICT")
+    )
     model_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    embedding_model: Mapped[str] = mapped_column(String(200), nullable=False)
+    embedding_version: Mapped[str] = mapped_column(String(100), nullable=False)
+    error_code: Mapped[str | None] = mapped_column(String(100))
     status: Mapped[str] = mapped_column(String(20), nullable=False)
     metrics_json: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
     started_by: Mapped[UUID] = mapped_column(
@@ -502,9 +599,13 @@ class RagRun(Base):
     model_provider: Mapped[str] = mapped_column(String(100), nullable=False)
     model_name: Mapped[str] = mapped_column(String(200), nullable=False)
     model_version: Mapped[str | None] = mapped_column(String(200))
-    prompt_version: Mapped[str] = mapped_column(String(100), nullable=False)
+    prompt_version: Mapped[str] = mapped_column(
+        String(100), ForeignKey("prompt_versions.version", ondelete="RESTRICT"), nullable=False
+    )
     embedding_version: Mapped[str] = mapped_column(String(100), nullable=False)
-    settings_version: Mapped[str] = mapped_column(String(100), nullable=False)
+    settings_version: Mapped[str] = mapped_column(
+        String(100), ForeignKey("settings_versions.version", ondelete="RESTRICT"), nullable=False
+    )
     regenerated: Mapped[bool | None] = mapped_column()
     latency_ms: Mapped[float | None] = mapped_column()
     error_code: Mapped[str | None] = mapped_column(String(100))

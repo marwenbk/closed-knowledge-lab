@@ -19,6 +19,7 @@ from app.kb import KnowledgeImportError, activate_knowledge_base, import_knowled
 from app.llm import DeepSeekProvider, LLMError
 from app.retrieval import RetrievalError, retrieve_knowledge
 from app.services import KnowledgeBaseUnavailable, kb_status, readiness
+from app.tuning import TuningError, load_runtime_snapshot
 
 DEFAULT_MANIFEST = PROJECT_ROOT / "knowledge_base" / "manifest.json"
 
@@ -107,12 +108,23 @@ def main() -> int:
             print_result(activation_result)
         elif args.resource == "kb" and args.command == "retrieve":
             provider = OnnxE5EmbeddingProvider(settings)
-            retrieval_result = retrieve_knowledge(engine, provider, settings, args.query)
+            runtime = load_runtime_snapshot(engine, settings)
+            retrieval_result = retrieve_knowledge(
+                engine, provider, runtime.effective_settings, args.query
+            )
             print(json.dumps(retrieval_result.as_dict(), ensure_ascii=False, indent=2))
         elif args.resource == "kb" and args.command == "answer":
             provider = OnnxE5EmbeddingProvider(settings)
             llm_provider = DeepSeekProvider(settings)
-            result = answer_knowledge(engine, provider, llm_provider, settings, args.query)
+            runtime = load_runtime_snapshot(engine, settings)
+            result = answer_knowledge(
+                engine,
+                provider,
+                llm_provider,
+                runtime.effective_settings,
+                runtime.prompts,
+                args.query,
+            )
             print(json.dumps(result.model_dump(mode="json"), ensure_ascii=False, indent=2))
         elif args.resource == "kb" and args.command == "status":
             print(json.dumps(kb_status(engine, dataset_id=settings.expected_dataset_id), indent=2))
@@ -136,12 +148,14 @@ def main() -> int:
                 return 1
         elif args.resource == "eval" and args.command == "run":
             provider = OnnxE5EmbeddingProvider(settings)
+            runtime = load_runtime_snapshot(engine, settings)
             if args.live:
                 llm_provider = DeepSeekProvider(settings)
             report = run_evaluation(
                 engine,
                 provider,
-                settings,
+                runtime.effective_settings,
+                runtime.prompts,
                 load_evaluation_data(),
                 llm_provider=llm_provider,
             )
@@ -181,6 +195,7 @@ def main() -> int:
         LLMError,
         RetrievalError,
         SQLAlchemyError,
+        TuningError,
     ) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1

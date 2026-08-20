@@ -28,6 +28,7 @@ from app.evaluation import (
 )
 from app.kb import activate_knowledge_base, import_knowledge_base
 from app.retrieval import RetrievalMatch, RetrievalResult
+from app.tuning import load_runtime_snapshot
 from sqlalchemy import Engine
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -217,10 +218,12 @@ def test_generated_retrieval_gate_with_postgres_and_pinned_model(
         expected_embedding_dimensions=provider.dimensions,
     )
 
+    runtime = load_runtime_snapshot(postgres_engine, settings)
     report = run_evaluation(
         postgres_engine,
         provider,
-        settings,
+        runtime.effective_settings,
+        runtime.prompts,
         load_evaluation_data(),
     )
 

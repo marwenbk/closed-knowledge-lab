@@ -6,7 +6,7 @@ import unicodedata
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Cookie, Depends, Header, Path, Query, Request, Response
@@ -21,6 +21,9 @@ from app.admin_auth import (
     KNOWLEDGE_EDITOR_ROLES,
     KNOWLEDGE_PUBLISHER_ROLES,
     KNOWLEDGE_ROLES,
+    TUNING_EDITOR_ROLES,
+    TUNING_PUBLISHER_ROLES,
+    TUNING_ROLES,
     AdminAuthError,
     AdminPrincipal,
     authenticate_admin,
@@ -34,7 +37,14 @@ from app.admin_views import (
     dashboard_snapshot,
     get_rag_run,
 )
-from app.api import ApiError, EngineDep, ErrorResponse, SettingsDep, embedding_provider
+from app.api import (
+    ApiError,
+    EngineDep,
+    ErrorResponse,
+    SettingsDep,
+    embedding_provider,
+    llm_provider,
+)
 from app.config import Settings
 from app.conversations import ConversationError, normalize_origin
 from app.handoffs import (
@@ -69,8 +79,43 @@ from app.knowledge_workflow import (
 from app.knowledge_workflow import (
     update_document as update_workflow_document,
 )
+from app.tuning import (
+    PromptBundle,
+    RetrievalTuning,
+    TuningError,
+    activate_runtime_version,
+    create_prompt_draft,
+    create_settings_draft,
+    evaluate_prompt_version,
+    evaluate_settings_version,
+    get_evaluation,
+    get_prompt_version,
+    get_settings_version,
+    list_evaluations,
+    list_prompt_versions,
+    list_settings_versions,
+    update_prompt_version,
+    update_settings_version,
+)
 
-ERROR_RESPONSE = {"model": ErrorResponse}
+ERROR_RESPONSE: dict[str, Any] = {"model": ErrorResponse}
+ADMIN_READ_RESPONSES: dict[int | str, dict[str, Any]] = {
+    401: ERROR_RESPONSE,
+    403: ERROR_RESPONSE,
+    503: ERROR_RESPONSE,
+}
+ADMIN_DETAIL_RESPONSES: dict[int | str, dict[str, Any]] = {
+    **ADMIN_READ_RESPONSES,
+    404: ERROR_RESPONSE,
+}
+ADMIN_MUTATION_RESPONSES: dict[int | str, dict[str, Any]] = {
+    401: ERROR_RESPONSE,
+    403: ERROR_RESPONSE,
+    404: ERROR_RESPONSE,
+    409: ERROR_RESPONSE,
+    422: ERROR_RESPONSE,
+    503: ERROR_RESPONSE,
+}
 auth_router = APIRouter(prefix="/api/v1/admin/auth", tags=["admin-auth"])
 admin_router = APIRouter(prefix="/api/v1/admin", tags=["admin"])
 
@@ -326,6 +371,94 @@ class KnowledgeActionRequest(StrictRequest):
     action: Literal["VALIDATE", "INDEX", "EVALUATE", "ACTIVATE", "ROLLBACK"]
 
 
+class EvaluationSummaryResponse(BaseModel):
+    id: UUID
+    suite: str
+    mode: str
+    status: str
+    baseline_run_id: UUID | None
+    metrics: dict[str, object]
+    error_code: str | None
+    started_at: datetime
+    completed_at: datetime | None
+
+
+class PromptVersionResponse(BaseModel):
+    id: UUID
+    version: str
+    status: str
+    content_checksum: str
+    source_version_id: UUID | None
+    created_by: UUID | None
+    activated_by: UUID | None
+    created_at: datetime
+    updated_at: datetime
+    activated_at: datetime | None
+    prompts: PromptBundle
+    evaluation: EvaluationSummaryResponse | None
+
+
+class PromptVersionListResponse(BaseModel):
+    items: tuple[PromptVersionResponse, ...]
+
+
+class SettingsVersionResponse(BaseModel):
+    id: UUID
+    version: str
+    status: str
+    content_checksum: str
+    requires_reindex: bool
+    source_version_id: UUID | None
+    created_by: UUID | None
+    activated_by: UUID | None
+    created_at: datetime
+    updated_at: datetime
+    activated_at: datetime | None
+    settings: RetrievalTuning
+    evaluation: EvaluationSummaryResponse | None
+
+
+class SettingsVersionListResponse(BaseModel):
+    items: tuple[SettingsVersionResponse, ...]
+
+
+class CreateRuntimeDraftRequest(StrictRequest):
+    version: str = Field(
+        min_length=5,
+        max_length=50,
+        pattern=r"^[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?$",
+    )
+
+
+class PromptActionRequest(StrictRequest):
+    action: Literal["EVALUATE", "ACTIVATE", "ROLLBACK"]
+    confirm_live_cost: bool = False
+
+
+class SettingsActionRequest(StrictRequest):
+    action: Literal["EVALUATE", "ACTIVATE", "ROLLBACK"]
+
+
+class EvaluationDetailResponse(EvaluationSummaryResponse):
+    kb_version_id: UUID
+    kb_manifest_checksum: str
+    prompt_version: str
+    prompt_checksum: str
+    settings_version: str
+    settings_checksum: str
+    model_name: str
+    embedding_model: str
+    embedding_version: str
+    started_by: UUID
+
+
+class EvaluationListResponse(BaseModel):
+    items: tuple[EvaluationSummaryResponse, ...]
+    total: int
+    offset: int
+    limit: int
+
+
 class RagModelResponse(BaseModel):
     provider: str
     name: str
@@ -390,6 +523,10 @@ def _conversation_error(exc: ConversationError) -> ApiError:
 
 
 def _knowledge_error(exc: KnowledgeWorkflowError) -> ApiError:
+    return ApiError(exc.status_code, exc.code, str(exc))
+
+
+def _tuning_error(exc: TuningError) -> ApiError:
     return ApiError(exc.status_code, exc.code, str(exc))
 
 
@@ -479,6 +616,26 @@ def _knowledge_editor_principal(principal: CsrfPrincipalDep) -> AdminPrincipal:
 
 KnowledgePrincipalDep = Annotated[AdminPrincipal, Depends(_knowledge_principal)]
 KnowledgeEditorPrincipalDep = Annotated[AdminPrincipal, Depends(_knowledge_editor_principal)]
+
+
+def _tuning_principal(principal: AdminPrincipalDep) -> AdminPrincipal:
+    try:
+        require_any_role(principal, TUNING_ROLES)
+    except AdminAuthError as exc:
+        raise _auth_error(exc) from exc
+    return principal
+
+
+def _tuning_editor_principal(principal: CsrfPrincipalDep) -> AdminPrincipal:
+    try:
+        require_any_role(principal, TUNING_EDITOR_ROLES)
+    except AdminAuthError as exc:
+        raise _auth_error(exc) from exc
+    return principal
+
+
+TuningPrincipalDep = Annotated[AdminPrincipal, Depends(_tuning_principal)]
+TuningEditorPrincipalDep = Annotated[AdminPrincipal, Depends(_tuning_editor_principal)]
 
 
 def _identity(principal: AdminPrincipal) -> AdminIdentityResponse:
@@ -868,6 +1025,307 @@ def run_knowledge_action(
     except SQLAlchemyError as exc:
         raise ApiError(503, "DATABASE_NOT_READY", "The database is unavailable") from exc
     return KnowledgeVersionDetailResponse.model_validate(result)
+
+
+@admin_router.get("/prompts", responses=ADMIN_READ_RESPONSES)
+def prompt_versions(
+    _principal: TuningPrincipalDep,
+    engine: EngineDep,
+) -> PromptVersionListResponse:
+    try:
+        items = list_prompt_versions(engine)
+    except SQLAlchemyError as exc:
+        raise ApiError(503, "DATABASE_NOT_READY", "The database is unavailable") from exc
+    return PromptVersionListResponse(
+        items=tuple(PromptVersionResponse.model_validate(item) for item in items)
+    )
+
+
+@admin_router.post(
+    "/prompts",
+    status_code=201,
+    responses=ADMIN_MUTATION_RESPONSES,
+)
+def create_prompt_version(
+    request: Request,
+    payload: CreateRuntimeDraftRequest,
+    principal: TuningEditorPrincipalDep,
+    engine: EngineDep,
+) -> PromptVersionResponse:
+    try:
+        result = create_prompt_draft(
+            engine,
+            version=payload.version,
+            actor_id=principal.user_id,
+            request_id=_request_id(request),
+        )
+    except TuningError as exc:
+        raise _tuning_error(exc) from exc
+    except SQLAlchemyError as exc:
+        raise ApiError(503, "DATABASE_NOT_READY", "The database is unavailable") from exc
+    return PromptVersionResponse.model_validate(result)
+
+
+@admin_router.get(
+    "/prompts/{version_id}",
+    responses=ADMIN_DETAIL_RESPONSES,
+)
+def prompt_version(
+    version_id: Annotated[UUID, Path()],
+    _principal: TuningPrincipalDep,
+    engine: EngineDep,
+) -> PromptVersionResponse:
+    try:
+        return PromptVersionResponse.model_validate(get_prompt_version(engine, version_id))
+    except TuningError as exc:
+        raise _tuning_error(exc) from exc
+    except SQLAlchemyError as exc:
+        raise ApiError(503, "DATABASE_NOT_READY", "The database is unavailable") from exc
+
+
+@admin_router.put(
+    "/prompts/{version_id}",
+    responses=ADMIN_MUTATION_RESPONSES,
+)
+def revise_prompt_version(
+    request: Request,
+    version_id: Annotated[UUID, Path()],
+    payload: PromptBundle,
+    principal: TuningEditorPrincipalDep,
+    engine: EngineDep,
+) -> PromptVersionResponse:
+    try:
+        result = update_prompt_version(
+            engine,
+            version_id,
+            payload,
+            actor_id=principal.user_id,
+            request_id=_request_id(request),
+        )
+    except TuningError as exc:
+        raise _tuning_error(exc) from exc
+    except SQLAlchemyError as exc:
+        raise ApiError(503, "DATABASE_NOT_READY", "The database is unavailable") from exc
+    return PromptVersionResponse.model_validate(result)
+
+
+@admin_router.post(
+    "/prompts/{version_id}/actions",
+    responses=ADMIN_MUTATION_RESPONSES,
+)
+def run_prompt_action(
+    request: Request,
+    version_id: Annotated[UUID, Path()],
+    payload: PromptActionRequest,
+    principal: CsrfPrincipalDep,
+    engine: EngineDep,
+    settings: SettingsDep,
+) -> PromptVersionResponse:
+    try:
+        require_any_role(principal, TUNING_PUBLISHER_ROLES)
+        if payload.action == "EVALUATE":
+            if payload.confirm_live_cost is not True:
+                raise TuningError(
+                    422,
+                    "LIVE_COST_CONFIRMATION_REQUIRED",
+                    "Full DeepSeek evaluation requires explicit cost confirmation",
+                )
+            result = evaluate_prompt_version(
+                engine,
+                embedding_provider(request),
+                llm_provider(request),
+                settings,
+                version_id,
+                actor_id=principal.user_id,
+                request_id=_request_id(request),
+            )
+        else:
+            result = activate_runtime_version(
+                engine,
+                settings,
+                version_id,
+                kind="PROMPT",
+                rollback=payload.action == "ROLLBACK",
+                actor_id=principal.user_id,
+                request_id=_request_id(request),
+            )
+    except AdminAuthError as exc:
+        raise _auth_error(exc) from exc
+    except TuningError as exc:
+        raise _tuning_error(exc) from exc
+    except SQLAlchemyError as exc:
+        raise ApiError(503, "DATABASE_NOT_READY", "The database is unavailable") from exc
+    return PromptVersionResponse.model_validate(result)
+
+
+@admin_router.get("/settings", responses=ADMIN_READ_RESPONSES)
+def settings_versions(
+    _principal: TuningPrincipalDep,
+    engine: EngineDep,
+) -> SettingsVersionListResponse:
+    try:
+        items = list_settings_versions(engine)
+    except SQLAlchemyError as exc:
+        raise ApiError(503, "DATABASE_NOT_READY", "The database is unavailable") from exc
+    return SettingsVersionListResponse(
+        items=tuple(SettingsVersionResponse.model_validate(item) for item in items)
+    )
+
+
+@admin_router.post(
+    "/settings",
+    status_code=201,
+    responses=ADMIN_MUTATION_RESPONSES,
+)
+def create_settings_version(
+    request: Request,
+    payload: CreateRuntimeDraftRequest,
+    principal: TuningEditorPrincipalDep,
+    engine: EngineDep,
+) -> SettingsVersionResponse:
+    try:
+        result = create_settings_draft(
+            engine,
+            version=payload.version,
+            actor_id=principal.user_id,
+            request_id=_request_id(request),
+        )
+    except TuningError as exc:
+        raise _tuning_error(exc) from exc
+    except SQLAlchemyError as exc:
+        raise ApiError(503, "DATABASE_NOT_READY", "The database is unavailable") from exc
+    return SettingsVersionResponse.model_validate(result)
+
+
+@admin_router.get(
+    "/settings/{version_id}",
+    responses=ADMIN_DETAIL_RESPONSES,
+)
+def settings_version(
+    version_id: Annotated[UUID, Path()],
+    _principal: TuningPrincipalDep,
+    engine: EngineDep,
+) -> SettingsVersionResponse:
+    try:
+        return SettingsVersionResponse.model_validate(get_settings_version(engine, version_id))
+    except TuningError as exc:
+        raise _tuning_error(exc) from exc
+    except SQLAlchemyError as exc:
+        raise ApiError(503, "DATABASE_NOT_READY", "The database is unavailable") from exc
+
+
+@admin_router.put(
+    "/settings/{version_id}",
+    responses=ADMIN_MUTATION_RESPONSES,
+)
+def revise_settings_version(
+    request: Request,
+    version_id: Annotated[UUID, Path()],
+    payload: RetrievalTuning,
+    principal: TuningEditorPrincipalDep,
+    engine: EngineDep,
+) -> SettingsVersionResponse:
+    try:
+        result = update_settings_version(
+            engine,
+            version_id,
+            payload,
+            actor_id=principal.user_id,
+            request_id=_request_id(request),
+        )
+    except TuningError as exc:
+        raise _tuning_error(exc) from exc
+    except SQLAlchemyError as exc:
+        raise ApiError(503, "DATABASE_NOT_READY", "The database is unavailable") from exc
+    return SettingsVersionResponse.model_validate(result)
+
+
+@admin_router.post(
+    "/settings/{version_id}/actions",
+    responses=ADMIN_MUTATION_RESPONSES,
+)
+def run_settings_action(
+    request: Request,
+    version_id: Annotated[UUID, Path()],
+    payload: SettingsActionRequest,
+    principal: CsrfPrincipalDep,
+    engine: EngineDep,
+    settings: SettingsDep,
+) -> SettingsVersionResponse:
+    try:
+        require_any_role(
+            principal,
+            TUNING_EDITOR_ROLES if payload.action == "EVALUATE" else TUNING_PUBLISHER_ROLES,
+        )
+        if payload.action == "EVALUATE":
+            result = evaluate_settings_version(
+                engine,
+                embedding_provider(request),
+                settings,
+                version_id,
+                actor_id=principal.user_id,
+                request_id=_request_id(request),
+            )
+        else:
+            result = activate_runtime_version(
+                engine,
+                settings,
+                version_id,
+                kind="SETTINGS",
+                rollback=payload.action == "ROLLBACK",
+                actor_id=principal.user_id,
+                request_id=_request_id(request),
+            )
+    except AdminAuthError as exc:
+        raise _auth_error(exc) from exc
+    except TuningError as exc:
+        raise _tuning_error(exc) from exc
+    except SQLAlchemyError as exc:
+        raise ApiError(503, "DATABASE_NOT_READY", "The database is unavailable") from exc
+    return SettingsVersionResponse.model_validate(result)
+
+
+@admin_router.get(
+    "/evaluations",
+    responses={401: ERROR_RESPONSE, 403: ERROR_RESPONSE, 503: ERROR_RESPONSE},
+)
+def evaluations(
+    _principal: TuningPrincipalDep,
+    engine: EngineDep,
+    status: Annotated[Literal["RUNNING", "PASSED", "FAILED"] | None, Query()] = None,
+    mode: Annotated[Literal["RETRIEVAL", "FULL"] | None, Query()] = None,
+    offset: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+) -> EvaluationListResponse:
+    try:
+        items, total = list_evaluations(
+            engine, status=status, mode=mode, offset=offset, limit=limit
+        )
+    except SQLAlchemyError as exc:
+        raise ApiError(503, "DATABASE_NOT_READY", "The database is unavailable") from exc
+    return EvaluationListResponse(
+        items=tuple(EvaluationSummaryResponse.model_validate(item) for item in items),
+        total=total,
+        offset=offset,
+        limit=limit,
+    )
+
+
+@admin_router.get(
+    "/evaluations/{run_id}",
+    responses=ADMIN_DETAIL_RESPONSES,
+)
+def evaluation(
+    run_id: Annotated[UUID, Path()],
+    _principal: TuningPrincipalDep,
+    engine: EngineDep,
+) -> EvaluationDetailResponse:
+    try:
+        return EvaluationDetailResponse.model_validate(get_evaluation(engine, run_id))
+    except TuningError as exc:
+        raise _tuning_error(exc) from exc
+    except SQLAlchemyError as exc:
+        raise ApiError(503, "DATABASE_NOT_READY", "The database is unavailable") from exc
 
 
 @admin_router.get(

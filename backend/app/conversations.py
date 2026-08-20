@@ -28,6 +28,7 @@ from app.models import (
     RagRun,
     WidgetSession,
 )
+from app.tuning import RuntimeSnapshot, TuningError, runtime_snapshot
 
 ConversationState = Literal[
     "AI_ACTIVE",
@@ -537,7 +538,7 @@ def _start_submission(
     client_message_id: UUID,
     content: str,
     request_id: UUID,
-) -> tuple[UUID, UUID, tuple[str, ...]] | MessageSubmissionResult:
+) -> tuple[UUID, UUID, tuple[str, ...], RuntimeSnapshot] | MessageSubmissionResult:
     now = _now()
     with Session(engine) as session, session.begin():
         conversation = owned_conversation(session, principal, conversation_id, for_update=True)
@@ -599,6 +600,10 @@ def _start_submission(
                 "KNOWLEDGE_BASE_NOT_READY",
                 "The knowledge base is not ready",
             )
+        try:
+            runtime = runtime_snapshot(session, settings)
+        except TuningError as exc:
+            raise ConversationError(exc.status_code, exc.code, str(exc)) from exc
         previous_state = conversation.state
         if previous_state == "RETURNED_TO_AI":
             conversation.state = "AI_ACTIVE"
@@ -659,9 +664,9 @@ def _start_submission(
             model_provider="deepseek",
             model_name=settings.chat_model,
             model_version=None,
-            prompt_version=settings.prompt_version,
+            prompt_version=runtime.prompt_version,
             embedding_version=settings.embedding_model_revision,
-            settings_version=settings.settings_version,
+            settings_version=runtime.settings_version,
         )
         session.add_all((user_message, run))
         record_conversation_event(
@@ -672,7 +677,7 @@ def _start_submission(
             actor_type="SYSTEM",
             actor_id=None,
         )
-        return user_message.id, run.id, previous_messages
+        return user_message.id, run.id, previous_messages, runtime
 
 
 def _fail_submission(engine: Engine, run_id: UUID, error_code: str) -> None:
@@ -836,7 +841,7 @@ def submit_message(
     )
     if isinstance(started, (SubmissionResult, QueuedSubmissionResult)):
         return started
-    user_message_id, run_id, conversation_context = started
+    user_message_id, run_id, conversation_context, runtime = started
     try:
         embedding_provider = get_embedding_provider()
         llm_provider = get_llm_provider()
@@ -844,14 +849,15 @@ def submit_message(
             engine,
             embedding_provider,
             llm_provider,
-            settings,
+            runtime.effective_settings,
+            runtime.prompts,
             content,
             conversation_context=conversation_context,
         )
         return _finish_submission(
             engine,
             principal,
-            settings,
+            runtime.effective_settings,
             conversation_id=conversation_id,
             user_message_id=user_message_id,
             run_id=run_id,

@@ -32,6 +32,7 @@ from app.models import (
     EvaluationRun,
     KnowledgeBaseVersion,
 )
+from app.tuning import runtime_snapshot
 
 POLICY_ID_PATTERN = re.compile(r"\bTM-[A-Z0-9]+(?:-[A-Z0-9]+)+\b")
 
@@ -772,15 +773,23 @@ def evaluate_version(
                 )
             checksum = version.manifest_checksum
             dataset_version = version.dataset_version
+            runtime = runtime_snapshot(session, settings)
             session.add(
                 EvaluationRun(
                     id=run_id,
                     suite="KNOWLEDGE_PUBLISH_RETRIEVAL",
                     kb_version_id=version.id,
                     kb_manifest_checksum=checksum,
-                    prompt_version=settings.prompt_version,
-                    settings_version=settings.settings_version,
+                    prompt_version=runtime.prompt_version,
+                    settings_version=runtime.settings_version,
+                    prompt_checksum=runtime.prompt_checksum,
+                    settings_checksum=runtime.settings_checksum,
+                    mode="RETRIEVAL",
+                    baseline_run_id=None,
                     model_name=provider.model_id,
+                    embedding_model=provider.model_id,
+                    embedding_version=provider.model_version,
+                    error_code=None,
                     status="RUNNING",
                     metrics_json={},
                     started_by=actor_id,
@@ -796,7 +805,8 @@ def evaluate_version(
         report = run_evaluation(
             engine,
             provider,
-            settings,
+            runtime.effective_settings,
+            runtime.prompts,
             _retarget(load_evaluation_data(), dataset_version),
             kb_version_id=version_id,
         )
@@ -844,6 +854,7 @@ def publish_version(
 ) -> dict[str, Any]:
     with Session(engine) as session:
         version = _version(session, version_id, dataset_id)
+        runtime = runtime_snapshot(session, settings)
         expected_status = "RETIRED" if rollback else "DRAFT"
         if version.status != expected_status:
             action = "rolled back" if rollback else "activated"
@@ -861,6 +872,10 @@ def publish_version(
             expected_embedding_model=settings.embedding_model_id,
             expected_embedding_version=settings.embedding_model_revision,
             expected_embedding_dimensions=settings.embedding_dimensions,
+            expected_prompt_version=runtime.prompt_version,
+            expected_prompt_checksum=runtime.prompt_checksum,
+            expected_settings_version=runtime.settings_version,
+            expected_settings_checksum=runtime.settings_checksum,
             actor_type="ADMIN",
             actor_id=str(actor_id),
             request_id=request_id,

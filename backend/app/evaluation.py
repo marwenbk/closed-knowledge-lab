@@ -23,6 +23,7 @@ from app.embeddings import EmbeddingProvider
 from app.kb import normalize_content
 from app.llm import LLMProvider
 from app.retrieval import RetrievalMatch, RetrievalResult, retrieve_knowledge
+from app.tuning import PromptBundle
 
 DEFAULT_CASES_PATH = PROJECT_ROOT / "evals" / "cases.yaml"
 DEFAULT_FACTS_PATH = PROJECT_ROOT / "data" / "fact_catalog.yaml"
@@ -406,6 +407,7 @@ def run_evaluation(
     engine: Engine,
     embedding_provider: EmbeddingProvider,
     settings: Settings,
+    prompts: PromptBundle,
     data: EvaluationData,
     *,
     llm_provider: LLMProvider | None = None,
@@ -447,6 +449,7 @@ def run_evaluation(
                 embedding_provider,
                 llm_provider,
                 settings,
+                prompts,
                 case.messages[-1],
                 conversation_context=case.messages[:-1],
                 retrieval_result=retrieval,

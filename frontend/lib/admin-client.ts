@@ -35,6 +35,14 @@ const KNOWLEDGE_ROLES = new Set([
   "AUDITOR",
 ]);
 const KNOWLEDGE_EDITOR_ROLES = new Set(["ADMIN", "SUPERVISOR", "KNOWLEDGE_EDITOR"]);
+const TUNING_ROLES = new Set([
+  "ADMIN",
+  "SUPERVISOR",
+  "HUMAN_REVIEWER",
+  "KNOWLEDGE_EDITOR",
+  "AUDITOR",
+]);
+const TUNING_EDITOR_ROLES = new Set(["ADMIN", "SUPERVISOR", "KNOWLEDGE_EDITOR"]);
 const ADMIN_EVENTS = [
   "conversation.ai_resumed",
   "conversation.closed",
@@ -202,6 +210,10 @@ export const adminAccessControlProvider: AccessControlProvider = {
     try {
       const identity = await getIdentity();
       const knowledge = resource?.startsWith("knowledge-") ?? false;
+      const tuning =
+        resource === "prompt-versions" ||
+        resource === "settings-versions" ||
+        resource === "evaluation-runs";
       const allowedRoles =
         resource === "dashboard"
           ? new Set(identity.roles)
@@ -209,6 +221,10 @@ export const adminAccessControlProvider: AccessControlProvider = {
           ? KNOWLEDGE_EDITOR_ROLES
           : knowledge
             ? KNOWLEDGE_ROLES
+            : tuning && ["create", "edit", "delete"].includes(action)
+              ? TUNING_EDITOR_ROLES
+              : tuning
+                ? TUNING_ROLES
             : OPERATOR_ROLES;
       const can = identity.roles.some((role) => allowedRoles.has(role));
       return { can, reason: can ? undefined : "Função sem acesso operacional." };
@@ -261,6 +277,25 @@ async function getList<TData extends BaseRecord = BaseRecord>({
       );
       return { data: result.items, total: result.items.length };
     }
+    if (resource === "prompt-versions" || resource === "settings-versions") {
+      const path = resource === "prompt-versions" ? "prompts" : "settings";
+      const result = await adminRequest<{ items: TData[] }>(`/api/v1/admin/${path}`);
+      return { data: result.items, total: result.items.length };
+    }
+    if (resource === "evaluation-runs") {
+      const result = await adminRequest<{ items: TData[]; total: number }>(
+        "/api/v1/admin/evaluations",
+        {
+          query: {
+            offset: (page - 1) * limit,
+            limit,
+            status: logicalFilter(filters, "status"),
+            mode: logicalFilter(filters, "mode"),
+          },
+        },
+      );
+      return { data: result.items, total: result.total };
+    }
     return unsupported();
 }
 
@@ -281,6 +316,13 @@ async function getOne<TData extends BaseRecord = BaseRecord>({
     }
     if (resource === "rag-runs") {
       return { data: await adminRequest<TData>(`/api/v1/admin/rag-runs/${id}`) };
+    }
+    if (resource === "prompt-versions" || resource === "settings-versions") {
+      const path = resource === "prompt-versions" ? "prompts" : "settings";
+      return { data: await adminRequest<TData>(`/api/v1/admin/${path}/${id}`) };
+    }
+    if (resource === "evaluation-runs") {
+      return { data: await adminRequest<TData>(`/api/v1/admin/evaluations/${id}`) };
     }
     return unsupported();
 }

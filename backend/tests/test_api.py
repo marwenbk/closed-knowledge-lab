@@ -4,6 +4,7 @@ import threading
 import time
 from collections.abc import Iterator, Mapping, Sequence
 from concurrent.futures import ThreadPoolExecutor
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 from uuid import UUID
 
@@ -192,6 +193,10 @@ def test_openapi_describes_typed_success_and_error_contracts(application: FastAP
         "/api/v1/admin/knowledge/versions/{version_id}/documents/{document_id}"
     ]["put"]
     admin_action = schema["paths"]["/api/v1/admin/knowledge/versions/{version_id}/actions"]["post"]
+    admin_prompts = schema["paths"]["/api/v1/admin/prompts"]["get"]
+    admin_prompt_action = schema["paths"]["/api/v1/admin/prompts/{version_id}/actions"]["post"]
+    admin_settings = schema["paths"]["/api/v1/admin/settings"]["get"]
+    admin_evaluation = schema["paths"]["/api/v1/admin/evaluations/{run_id}"]["get"]
     admin_rag_run = schema["paths"]["/api/v1/admin/rag-runs/{rag_run_id}"]["get"]
     admin_events = schema["paths"]["/api/v1/admin/events"]["get"]
 
@@ -256,6 +261,18 @@ def test_openapi_describes_typed_success_and_error_contracts(application: FastAP
     assert admin_action["responses"]["200"]["content"]["application/json"]["schema"][
         "$ref"
     ].endswith("/KnowledgeVersionDetailResponse")
+    assert admin_prompts["responses"]["200"]["content"]["application/json"]["schema"][
+        "$ref"
+    ].endswith("/PromptVersionListResponse")
+    assert admin_prompt_action["requestBody"]["content"]["application/json"]["schema"][
+        "$ref"
+    ].endswith("/PromptActionRequest")
+    assert admin_settings["responses"]["200"]["content"]["application/json"]["schema"][
+        "$ref"
+    ].endswith("/SettingsVersionListResponse")
+    assert admin_evaluation["responses"]["200"]["content"]["application/json"]["schema"][
+        "$ref"
+    ].endswith("/EvaluationDetailResponse")
     assert admin_rag_run["responses"]["200"]["content"]["application/json"]["schema"][
         "$ref"
     ].endswith("/RagRunDetailResponse")
@@ -293,6 +310,10 @@ def test_answer_endpoint_returns_only_the_grounded_contract(
         duration_ms=10.0,
     )
     monkeypatch.setattr("app.api.answer_knowledge", lambda *_: result)
+    monkeypatch.setattr(
+        "app.api.load_runtime_snapshot",
+        lambda *_: SimpleNamespace(effective_settings=Settings(_env_file=None), prompts=object()),
+    )
 
     response = client.post(
         "/api/v1/kb/answer",

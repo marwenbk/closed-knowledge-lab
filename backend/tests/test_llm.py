@@ -12,6 +12,7 @@ from app.db import get_engine
 from app.embeddings import OnnxE5EmbeddingProvider
 from app.evaluation import load_evaluation_data
 from app.llm import DeepSeekProvider, LLMError
+from app.tuning import load_runtime_snapshot
 from pydantic import BaseModel, SecretStr
 
 PIPELINE_CASE_IDS = (
@@ -201,6 +202,7 @@ def test_representative_deepseek_pipeline_cases() -> None:
     assert set(cases) == set(PIPELINE_CASE_IDS)
 
     engine = get_engine()
+    runtime = load_runtime_snapshot(engine, settings)
     embedding = OnnxE5EmbeddingProvider(settings)
     provider = DeepSeekProvider(settings)
     try:
@@ -210,7 +212,8 @@ def test_representative_deepseek_pipeline_cases() -> None:
                 engine,
                 embedding,
                 provider,
-                settings,
+                runtime.effective_settings,
+                runtime.prompts,
                 case.messages[-1],
                 conversation_context=case.messages[:-1],
             )
