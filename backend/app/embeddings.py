@@ -174,8 +174,16 @@ class OnnxE5EmbeddingProvider:
         try:
             self.tokenizer = Tokenizer.from_file(str(artifacts.tokenizer_path))
             self.tokenizer.enable_truncation(max_length=self.max_length)
+            session_options = ort.SessionOptions()
+            session_options.enable_cpu_mem_arena = False
+            session_options.enable_mem_pattern = False
+            session_options.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
+            session_options.intra_op_num_threads = 1
+            session_options.inter_op_num_threads = 1
+            session_options.add_session_config_entry("session.disable_prepacking", "1")
             self.session = ort.InferenceSession(
                 str(artifacts.model_path),
+                sess_options=session_options,
                 providers=["CPUExecutionProvider"],
             )
         except Exception as exc:

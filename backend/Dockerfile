@@ -5,6 +5,10 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PIP_NO_CACHE_DIR=1 \
+    MALLOC_ARENA_MAX=1 \
+    OMP_NUM_THREADS=1 \
+    OPENBLAS_NUM_THREADS=1 \
+    MKL_NUM_THREADS=1 \
     EMBEDDING_CACHE_DIR=/opt/topmed-models
 
 WORKDIR /app
@@ -30,4 +34,4 @@ USER topmed
 
 EXPOSE 10000
 
-CMD ["bash", "-lc", "uvicorn app.main:app --app-dir /app/backend --host 0.0.0.0 --port ${PORT:-10000}"]
+CMD ["bash", "scripts/start_production.sh"]

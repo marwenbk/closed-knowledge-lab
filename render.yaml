@@ -5,11 +5,10 @@ services:
     repo: https://github.com/marwenbk/topmed-demo
     branch: develop
     region: frankfurt
-    plan: standard
+    plan: free
     dockerfilePath: ./backend/Dockerfile
     dockerContext: .
     healthCheckPath: /health
-    preDeployCommand: bash scripts/bootstrap_production.sh
     autoDeployTrigger: commit
     envVars:
       - key: APP_ENV
@@ -45,17 +44,14 @@ services:
     repo: https://github.com/marwenbk/topmed-demo
     branch: develop
     region: frankfurt
-    plan: starter
+    plan: free
     dockerfilePath: ./frontend/Dockerfile
     dockerContext: .
     healthCheckPath: /
     autoDeployTrigger: commit
     envVars:
-      - key: BACKEND_HOSTPORT
-        fromService:
-          type: web
-          name: topmed-demo-api-marwen
-          property: hostport
+      - key: BACKEND_ORIGIN
+        value: https://topmed-demo-api-marwen.onrender.com
       - key: NEXT_PUBLIC_API_BASE_URL
         value: https://topmed-demo-web-marwen.onrender.com
       - key: NEXT_PUBLIC_WIDGET_ASSISTANT_KEY
@@ -83,9 +79,7 @@ databases:
   - name: topmed-demo-db-marwen
     databaseName: topmed
     user: topmed
-    plan: basic-256mb
-    diskSizeGB: 5
+    plan: free
     region: frankfurt
     postgresMajorVersion: "17"
-    storageAutoscalingEnabled: false
     ipAllowList: []

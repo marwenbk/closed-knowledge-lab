@@ -1,8 +1,10 @@
 import type { NextConfig } from "next";
 
-const backendOrigin = process.env.BACKEND_HOSTPORT
-  ? `http://${process.env.BACKEND_HOSTPORT}`
-  : undefined;
+const backendOrigin = process.env.BACKEND_ORIGIN
+  ? process.env.BACKEND_ORIGIN.replace(/\/$/, "")
+  : process.env.BACKEND_HOSTPORT
+    ? `http://${process.env.BACKEND_HOSTPORT}`
+    : undefined;
 const frameAncestors = process.env.TOPMED_FRAME_ANCESTORS ?? "'self'";
 
 const nextConfig: NextConfig = {

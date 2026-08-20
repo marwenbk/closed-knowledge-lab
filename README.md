@@ -385,9 +385,11 @@ This replay uses real API calls and DeepSeek, consumes API credit, and writes on
 
 ## Production deployment
 
-Phase 8 targets Render's Hobby workspace with paid runtime instances: a Standard FastAPI/ONNX service, a Starter Next.js service, a Basic PostgreSQL 17 database, and a free static external embed fixture. The root `render.yaml` is the authoritative infrastructure definition; both application services build from their pinned Dockerfiles.
+Phase 8 targets Render's Hobby workspace using only free instances: a FastAPI/ONNX web service, a Next.js web service, a PostgreSQL 17 database, and a static external embed fixture. The root `render.yaml` is the authoritative infrastructure definition; both application services build from their pinned Dockerfiles.
 
-The Next.js service proxies `/api`, `/health`, and `/ready` to FastAPI over Render's private network. Browser traffic therefore remains same-origin for secure administrator cookies and SSE. The backend Docker image bakes in the checksum-verified embedding model, while PostgreSQL remains the only mutable runtime data store.
+The Next.js service proxies `/api`, `/health`, and `/ready` to FastAPI's public Render URL so browser traffic remains same-origin for secure administrator cookies and SSE. The backend Docker image bakes in the checksum-verified embedding model, while PostgreSQL remains the only mutable runtime data store.
+
+Free Render web services sleep after 15 idle minutes, so the first request can take about a minute and active SSE connections end when an instance sleeps or redeploys. Free Render PostgreSQL expires after 30 days. This topology is suitable only for the fictional evaluator demo, not a durable production service.
 
 See [the Render deployment runbook](docs/deployment.md) for provisioning, secrets, release verification, rollback, and recovery. Never commit production credentials or place them in Docker build arguments.
 

@@ -76,6 +76,7 @@ jobs:
       - run: >-
           docker build --file frontend/Dockerfile --tag topmed-web:ci
           --build-arg BACKEND_HOSTPORT=topmed-api:10000
+          --build-arg BACKEND_ORIGIN=https://topmed-api.example
           --build-arg NEXT_PUBLIC_API_BASE_URL=https://topmed.example
           --build-arg NEXT_PUBLIC_WIDGET_ASSISTANT_KEY=topmed-ci
           --build-arg "TOPMED_FRAME_ANCESTORS=https://topmed.example"
