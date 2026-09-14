@@ -82,6 +82,7 @@ Fresh checks recorded on 14 September 2026:
 - 17 frontend tests and the production frontend build passed.
 - one live Gold-tier question returned a verified answer with exact mapping and dependent-limit citations;
 - one live chest-pain question returned a generic `NOT_ANSWERABLE` limitation without diagnosis, citations, or an emergency next step.
+- the production static-runtime deployment reported English dataset `3.0.0` ready and returned a verified Gold-tier answer with the required source documents.
 
 The 20 August 2026 release record belongs to the retired `2.0.0` dataset and is separate from the current English gate. The English static-runtime result is verified by the complete backend suite.
 
