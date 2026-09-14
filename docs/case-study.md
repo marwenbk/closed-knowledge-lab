@@ -55,7 +55,7 @@ The same research supports both formats. Choose the split after collecting the e
 
 ## Evidence map
 
-The released implementation baseline is commit `a658ff8` (`v0.1.0`); the project rename and learning-journey baseline is `957bcfe`. Commit references describe repository history, not the author's learning chronology or time spent.
+The original released implementation is commit `a658ff8` (`v0.1.0`); the English medical-support baseline is `c2ca9fa`. Commit references describe repository history, not the author's learning chronology or time spent.
 
 | Claim or story element | Repository evidence | Publication scope |
 | --- | --- | --- |

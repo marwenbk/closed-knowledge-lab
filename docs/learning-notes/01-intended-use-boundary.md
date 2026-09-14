@@ -1,6 +1,7 @@
 # Learning note 01: intended-use boundary
 
 - Date: 14 September 2026
+- Source revision: `c2ca9fa`
 - Dataset: `topmed-demo:3.0.0`, English (`en-US`)
 - Prompt: `2.0.0`
 - Retrieval settings: `1.0.0`

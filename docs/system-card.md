@@ -2,6 +2,7 @@
 
 - Version: 0.1
 - Reviewed: 14 September 2026
+- Source revision: `c2ca9fa`
 - Release stage: fictional technical demonstration
 - Repository owner: `marwenbk`
 

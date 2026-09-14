@@ -14,7 +14,7 @@ The [original brief](../PROJECT.md) asks for a web chat that answers from a clos
 
 TopMed Health is explicitly fictional in [the canonical rules](../data/seed_rules.yaml). This is a healthcare-service support bot; diagnosis, clinical triage, treatment recommendations, emergency care, and real patient data are outside its configured scope. Read the [medical AI guidance map](medical-ai-guidance.md) before treating any engineering control as a safety or compliance claim.
 
-Starting baseline for this track: commit `957bcfe`. The English dataset is `topmed-demo:3.0.0`. The eight checkpoints below are proposed learning sessions. Repository inspection and automated checks do not establish that the author has completed them.
+The English baseline is commit `c2ca9fa` with dataset `topmed-demo:3.0.0`. The eight checkpoints below are proposed learning sessions. Repository inspection and automated checks do not establish that the author has completed them.
 
 ## How each checkpoint works
 
