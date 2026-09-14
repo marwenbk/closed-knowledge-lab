@@ -1,8 +1,8 @@
 # Closed-Knowledge Lab
 
-Closed-Knowledge Lab is a learning project and the basis for a LinkedIn engineering case study. It uses a fictional Portuguese service knowledge base to explore evidence-grounded answers, retrieval, human takeover, and deployment constraints.
+Closed-Knowledge Lab is a learning project built around a fictional healthcare-service support bot. It explores how to answer operational health-service questions from approved evidence without drifting into diagnosis or clinical triage, and how to preserve human control when the bot should not answer.
 
-Start with the [learning journey](docs/learning-journey.md) for guided investigations and the [case study brief](docs/case-study.md) for the story, source evidence, and article options.
+Start with the [learning journey](docs/learning-journey.md), the [medical AI guidance map](docs/medical-ai-guidance.md), the [prototype system card](docs/system-card.md), and the [case study brief](docs/case-study.md).
 
 Repository: [marwenbk/closed-knowledge-lab](https://github.com/marwenbk/closed-knowledge-lab).
 
