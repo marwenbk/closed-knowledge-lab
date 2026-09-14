@@ -146,6 +146,8 @@ def _topic_companion_document_keys(query: str) -> set[str]:
         term in normalized for term in ("receive", "paid", "refund", "return")
     ):
         document_keys.update(("cancellation", "refund-policy"))
+    if "plan" in normalized and any(term in normalized for term in ("price", "cost", "monthly")):
+        document_keys.add("billing-and-payments")
     if _mentioned_employer_tier(query) and "dependent" in normalized:
         document_keys.update(("employer-plans", "family-members"))
     return document_keys

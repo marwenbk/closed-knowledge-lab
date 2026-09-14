@@ -219,7 +219,8 @@ def test_employer_tier_detection_requires_a_complete_word() -> None:
             "How many dependents does the employer Gold benefit allow?",
             {"employer-plans", "family-members"},
         ),
-        ("How much does the Essential plan cost?", set()),
+        ("How much does the Essential plan cost?", {"billing-and-payments"}),
+        ("How much does the Premum plan cost?", {"billing-and-payments"}),
     ],
 )
 def test_topic_companions_are_bounded_to_explicit_cross_document_intents(

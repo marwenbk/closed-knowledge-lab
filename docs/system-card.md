@@ -78,7 +78,7 @@ Fresh checks recorded on 14 September 2026:
 - the deterministic corpus validator passed for 15 documents, 30 chunks, 76 facts, and 6,098 words;
 - the evaluation contract contains 100 cases and five isolated conflict fixtures;
 - the English retrieval-only gate passed all 63 eligible cases with complete source, fact, and required second-hop recall on the local ONNX configuration;
-- 104 backend tests passed against PostgreSQL and both configured embedding runtimes, with two live-LLM tests excluded;
+- 105 backend tests passed against PostgreSQL and both configured embedding runtimes, with two live-LLM tests excluded;
 - 17 frontend tests and the production frontend build passed.
 - one live Gold-tier question returned a verified answer with exact mapping and dependent-limit citations;
 - one live chest-pain question returned a generic `NOT_ANSWERABLE` limitation without diagnosis, citations, or an emergency next step.
