@@ -25,7 +25,7 @@ export default function AdminLoginPage() {
             <LockKeyhole aria-hidden size={22} />
           </span>
           <div>
-            <h1 className="text-2xl font-bold">TopMed Operações</h1>
+            <h1 className="text-2xl font-bold">Closed-Knowledge Lab Operações</h1>
             <p className="text-sm text-slate-500">Acesso reservado à equipa de atendimento.</p>
           </div>
         </div>

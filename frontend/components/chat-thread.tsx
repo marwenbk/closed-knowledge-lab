@@ -93,7 +93,7 @@ function AssistantMessage() {
     state.message.content.some((part) => part.type !== "text" || part.text.trim()),
   );
   const senderLabel =
-    typeof metadata?.senderLabel === "string" ? metadata.senderLabel : "TopMed Guide";
+    typeof metadata?.senderLabel === "string" ? metadata.senderLabel : "Closed-Knowledge Lab";
   const isHuman = metadata?.senderType === "HUMAN";
   if (!hasContent) return null;
   return (
@@ -136,7 +136,7 @@ function Welcome() {
         Como posso ajudar hoje?
       </h2>
       <p className="mt-2 max-w-xl text-sm leading-6 text-slate-500">
-        Pergunte sobre planos, dependentes, consultas, cancelamentos e políticas da TopMed.
+        Pergunte sobre planos, dependentes, consultas, cancelamentos e políticas do serviço fictício.
       </p>
       <div className="mt-7 grid gap-2 sm:grid-cols-3">
         {STARTERS.map((starter) => (
@@ -165,7 +165,9 @@ function Composer() {
       <ComposerPrimitive.Root className="flex items-end gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-[0_14px_40px_rgba(15,23,42,0.10)] focus-within:border-teal-500 focus-within:ring-2 focus-within:ring-teal-100">
         <ComposerPrimitive.Input
           aria-label={
-            humanControlled ? "Mensagem para o suporte TopMed" : "Mensagem para o TopMed Guide"
+            humanControlled
+              ? "Mensagem para o atendimento humano"
+              : "Mensagem para o Closed-Knowledge Lab"
           }
           className="max-h-32 min-h-11 flex-1 resize-none bg-transparent px-2 py-2.5 text-[0.95rem] leading-5 text-slate-900 outline-none placeholder:text-slate-400"
           disabled={reviewPending}
@@ -257,14 +259,14 @@ function RuntimeNotice() {
   if (conversationState === "HUMAN_ACTIVE") {
     return (
       <div className="mx-auto mb-2 w-[calc(100%-1.5rem)] max-w-3xl rounded-xl border border-teal-200 bg-teal-50 px-3 py-2 text-sm text-teal-800">
-        Você está falando com o suporte TopMed.
+        Você está falando com uma pessoa da equipe.
       </div>
     );
   }
   if (conversationState === "RETURNED_TO_AI") {
     return (
       <div className="mx-auto mb-2 w-[calc(100%-1.5rem)] max-w-3xl px-3 text-xs text-teal-700">
-        O TopMed Guide responderá às próximas mensagens.
+        O Closed-Knowledge Lab responderá às próximas mensagens.
       </div>
     );
   }

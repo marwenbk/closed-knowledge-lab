@@ -1,6 +1,8 @@
-# TopMed Render Deployment
+# Closed-Knowledge Lab Render Deployment
 
-TopMed deploys as one modular monolith split into two runtime processes and one managed database:
+The project and GitHub repository were renamed on 14 September 2026. The service names, URLs, database identifiers, and integration keys below describe the existing deployment and retain their original values. Renaming the repository does not rename those Render resources. The Blueprint's repository references point to `marwenbk/closed-knowledge-lab`.
+
+Closed-Knowledge Lab deploys as one modular monolith split into two runtime processes and one managed database:
 
 ```text
 Browser / external host
@@ -79,7 +81,7 @@ The optional 200-call live prompt comparison was not run because it consumes API
 
 - Application rollback: use Render's service rollback to the previous successful image.
 - Database rollback: do not downgrade automatically. The free database has no durable recovery guarantee, so export required data before risky changes and recreate this fictional demo from its canonical generated inputs when necessary.
-- Knowledge or tuning rollback: use the authenticated TopMed admin workflow, which preserves provenance and audit events.
+- Knowledge or tuning rollback: use the authenticated Closed-Knowledge Lab admin workflow, which preserves provenance and audit events.
 - Failed startup: inspect the backend deploy logs, correct configuration, and redeploy. The database bootstrap is idempotent.
 
 Never place DeepSeek credentials, administrator passwords, database URLs, session secrets, or generated release credentials in Git, build arguments, logs, or evaluation reports.

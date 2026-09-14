@@ -28,10 +28,11 @@ AnswerabilityStatus = Literal[
 VerificationStatus = Literal["VERIFIED", "NOT_REQUIRED", "FAILED_CLOSED"]
 
 LIMITATION_ANSWER = (
-    "Não encontrei informações suficientes na base de conhecimento da TopMed para responder."
+    "Não encontrei informações suficientes na base de conhecimento desta "
+    "demonstração para responder."
 )
 CONFLICT_ANSWER = (
-    "Encontrei informações conflitantes na base da TopMed e não posso confirmar uma resposta."
+    "Encontrei informações conflitantes nesta base e não posso confirmar uma resposta."
 )
 
 

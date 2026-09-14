@@ -2,7 +2,7 @@ services:
   - type: web
     name: topmed-demo-api-marwen
     runtime: docker
-    repo: https://github.com/marwenbk/topmed-demo
+    repo: https://github.com/marwenbk/closed-knowledge-lab
     branch: develop
     region: frankfurt
     plan: free
@@ -13,6 +13,10 @@ services:
     envVars:
       - key: APP_ENV
         value: production
+      - key: APP_NAME
+        value: Closed-Knowledge Lab API
+      - key: WIDGET_ASSISTANT_LABEL
+        value: Closed-Knowledge Lab
       - key: LOG_LEVEL
         value: INFO
       - key: EMBEDDING_PROVIDER
@@ -28,7 +32,7 @@ services:
       - key: ADMIN_BOOTSTRAP_PASSWORD
         sync: false
       - key: ADMIN_BOOTSTRAP_DISPLAY_NAME
-        value: TopMed Admin
+        value: Closed-Knowledge Lab Admin
       - key: WIDGET_ASSISTANT_KEY
         value: topmed-demo-marwen-2026
       - key: WIDGET_TOKEN_SECRET
@@ -43,7 +47,7 @@ services:
   - type: web
     name: topmed-demo-web-marwen
     runtime: docker
-    repo: https://github.com/marwenbk/topmed-demo
+    repo: https://github.com/marwenbk/closed-knowledge-lab
     branch: develop
     region: frankfurt
     plan: free
@@ -66,7 +70,7 @@ services:
   - type: web
     name: topmed-demo-embed-marwen
     runtime: static
-    repo: https://github.com/marwenbk/topmed-demo
+    repo: https://github.com/marwenbk/closed-knowledge-lab
     branch: develop
     buildCommand: node demo/build_render_fixture.mjs
     staticPublishPath: ./demo/dist

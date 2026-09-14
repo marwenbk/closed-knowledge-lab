@@ -78,11 +78,11 @@ export function AdminShell({ children }: { children: ReactNode }) {
     <div className="min-h-screen bg-slate-50 text-slate-950">
       <aside className="fixed inset-y-0 left-0 hidden w-64 border-r border-slate-200 bg-white p-5 lg:block">
         <Link className="mb-8 flex items-center gap-3" href="/admin">
-          <span className="grid size-10 place-items-center rounded-xl bg-teal-700 font-bold text-white">
-            T
+          <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-teal-700 text-sm font-bold text-white">
+            CL
           </span>
-          <span>
-            <strong className="block text-lg">TopMed</strong>
+          <span className="min-w-0">
+            <strong className="block text-sm leading-5">Closed-Knowledge Lab</strong>
             <span className="text-xs text-slate-500">Operações</span>
           </span>
         </Link>
@@ -93,7 +93,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
         <div className="fixed inset-0 z-40 bg-slate-950/35 lg:hidden" role="presentation">
           <aside className="h-full w-72 bg-white p-5 shadow-xl">
             <div className="mb-8 flex items-center justify-between">
-              <strong>TopMed Operações</strong>
+              <strong>Closed-Knowledge Lab Operações</strong>
               <Button
                 aria-label="Fechar menu"
                 onClick={() => setMenuOpen(false)}

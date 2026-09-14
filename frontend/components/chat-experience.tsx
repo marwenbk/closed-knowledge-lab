@@ -47,7 +47,7 @@ function ChatFrame({ mode, parentOrigin }: Pick<ChatExperienceProps, "mode" | "p
             <HeartPulse className="size-4.5" />
           </div>
           <div className="min-w-0">
-            <h1 className="truncate text-sm font-bold text-slate-950">TopMed Guide</h1>
+            <h1 className="truncate text-sm font-bold text-slate-950">Closed-Knowledge Lab</h1>
             <ConnectionDot />
           </div>
         </div>

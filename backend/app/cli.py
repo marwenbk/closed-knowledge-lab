@@ -33,7 +33,7 @@ def print_result(result: Any) -> None:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="TopMed backend management CLI")
+    parser = argparse.ArgumentParser(description="Closed-Knowledge Lab backend management CLI")
     resources = parser.add_subparsers(dest="resource", required=True)
     kb_parser = resources.add_parser("kb", help="Manage the knowledge base")
     kb_commands = kb_parser.add_subparsers(dest="command", required=True)

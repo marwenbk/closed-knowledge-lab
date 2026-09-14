@@ -16,7 +16,7 @@ Similarity = Annotated[float, Field(ge=0, le=1)]
 
 
 class Settings(BaseSettings):
-    app_name: str = "TopMed API"
+    app_name: str = "Closed-Knowledge Lab API"
     app_env: Literal["development", "test", "production"] = "development"
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     database_url: str = "postgresql+psycopg://topmed:topmed@localhost:5433/topmed"
@@ -68,7 +68,7 @@ class Settings(BaseSettings):
     widget_token_secret: SecretStr = SecretStr("topmed-local-development-token-secret")
     widget_allowed_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
     widget_session_ttl_seconds: Annotated[int, Field(ge=60, le=86_400)] = 3_600
-    widget_assistant_label: str = "TopMed Guide"
+    widget_assistant_label: str = "Closed-Knowledge Lab"
     auto_handoff_on_conflict: bool = True
     auto_handoff_on_not_answerable: bool = False
     auto_handoff_on_partial: bool = False
@@ -77,7 +77,7 @@ class Settings(BaseSettings):
     admin_session_ttl_seconds: Annotated[int, Field(ge=300, le=86_400)] = 28_800
     admin_bootstrap_email: str | None = None
     admin_bootstrap_password: SecretStr | None = None
-    admin_bootstrap_display_name: str = "TopMed Admin"
+    admin_bootstrap_display_name: str = "Closed-Knowledge Lab Admin"
     sse_keepalive_seconds: Annotated[float, Field(gt=0, le=60)] = 15.0
     sse_poll_interval_seconds: Annotated[float, Field(gt=0, le=5)] = 0.5
     sse_replay_limit: Annotated[int, Field(gt=0, le=5_000)] = 500

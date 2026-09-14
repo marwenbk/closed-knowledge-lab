@@ -3,9 +3,9 @@ requires = ["setuptools==80.9.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "topmed-backend"
+name = "closed-knowledge-lab-backend"
 version = "0.1.0"
-description = "TopMed closed-knowledge backend foundation"
+description = "Closed-Knowledge Lab backend"
 requires-python = ">=3.12"
 dependencies = [
   "alembic==1.18.5",

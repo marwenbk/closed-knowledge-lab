@@ -197,8 +197,8 @@ WidgetPrincipalDep = Annotated[WidgetPrincipal, Depends(_principal)]
 
 
 def _sender(sender_type: str, assistant_label: str) -> SenderResponse:
-    labels = {"CUSTOMER": "Você", "AI": assistant_label, "HUMAN": "Suporte TopMed"}
-    return SenderResponse(type=sender_type, label=labels.get(sender_type, "TopMed"))
+    labels = {"CUSTOMER": "Você", "AI": assistant_label, "HUMAN": "Atendimento humano"}
+    return SenderResponse(type=sender_type, label=labels.get(sender_type, assistant_label))
 
 
 def _conversation_response(

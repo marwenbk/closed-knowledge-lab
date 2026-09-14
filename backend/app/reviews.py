@@ -191,7 +191,7 @@ def _deliver(
         payload = {
             "message_id": str(message.id),
             "rag_run_id": str(run.id),
-            "sender": {"type": "AI", "label": "TopMed Guide"},
+            "sender": {"type": "AI", "label": "Closed-Knowledge Lab"},
             "status": run.answerability_status,
             "content": message.content,
             "citations": message.citations_json,

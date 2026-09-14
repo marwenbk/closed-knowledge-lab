@@ -1,4 +1,16 @@
-# TopMed Demo
+# Closed-Knowledge Lab
+
+Closed-Knowledge Lab is a learning project and the basis for a LinkedIn engineering case study. It uses a fictional Portuguese service knowledge base to explore evidence-grounded answers, retrieval, human takeover, and deployment constraints.
+
+Start with the [learning journey](docs/learning-journey.md) for guided investigations and the [case study brief](docs/case-study.md) for the story, source evidence, and article options.
+
+Repository: [marwenbk/closed-knowledge-lab](https://github.com/marwenbk/closed-knowledge-lab).
+
+### Project identity and compatibility
+
+The project was renamed from TopMed Demo to **Closed-Knowledge Lab** on 14 September 2026. TopMed Saúde remains the fictional service in the original, versioned sample dataset. It is a case-study fixture, not the project's name or a claim of affiliation with a real service.
+
+The historical `topmed-demo:2.0.0` dataset, migration history, `TOPMED_*` configuration keys, widget protocol/session identifiers, database volumes, and existing Render service addresses retain their original identifiers. This branding change preserves their compatibility and the provenance of recorded evaluations. Existing environments with custom display names can update `APP_NAME`, `WIDGET_ASSISTANT_LABEL`, and `ADMIN_BOOTSTRAP_DISPLAY_NAME` to the values in `.env.example`.
 
 ## Local Demo Data
 

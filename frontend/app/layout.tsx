@@ -4,8 +4,8 @@ import type { ReactNode } from "react";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "TopMed Guide",
-  description: "Assistente demonstrativo da TopMed",
+  title: "Closed-Knowledge Lab",
+  description: "Laboratório de aprendizado sobre assistentes de IA com base de conhecimento fechada.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {

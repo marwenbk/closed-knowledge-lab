@@ -1,1 +1,1 @@
-"""TopMed backend application package."""
+"""Closed-Knowledge Lab backend application package."""

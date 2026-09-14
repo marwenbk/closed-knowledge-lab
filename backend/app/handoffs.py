@@ -615,13 +615,17 @@ def _admin_message(
     sender_name: str | None,
     rag_run_id: UUID | None,
 ) -> AdminMessageRecord:
-    labels = {"CUSTOMER": "Cliente", "AI": "TopMed Guide", "SYSTEM": "TopMed"}
+    labels = {
+        "CUSTOMER": "Cliente",
+        "AI": "Closed-Knowledge Lab",
+        "SYSTEM": "Closed-Knowledge Lab",
+    }
     return AdminMessageRecord(
         message_id=message.id,
         client_message_id=message.client_message_id,
         sender_type=message.sender_type,
         sender_user_id=message.sender_user_id,
-        sender_label=sender_name or labels.get(message.sender_type, "Suporte TopMed"),
+        sender_label=sender_name or labels.get(message.sender_type, "Atendimento humano"),
         content=message.content,
         visibility=message.visibility,
         status=message.status,

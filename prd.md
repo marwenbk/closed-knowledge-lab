@@ -3,7 +3,7 @@
 **Document:** `prd.md`  
 **Version:** 3.0.0  
 **Status:** Implementation-ready product specification  
-**Product:** TopMed Guide
+**Product:** Closed-Knowledge Lab
 **Product type:** Web-based, closed-knowledge conversational assistant  
 **Primary language of demo knowledge base:** Portuguese (Brazil), `pt-BR`  
 **Primary timezone:** `America/Sao_Paulo`  
@@ -12,7 +12,7 @@
 
 ## 1. Executive Summary
 
-TopMed Guide is a closed-knowledge support platform with two user-facing surfaces:
+Closed-Knowledge Lab is a closed-knowledge support platform with two user-facing surfaces:
 
 1. an **embeddable customer chat widget** built with **assistant-ui + shadcn/ui**;
 2. an **operations and governance back office** built with **Refine v5 + shadcn/ui**.
@@ -379,7 +379,7 @@ Primary needs:
 
 ### Name
 
-**TopMed Guide**
+**Closed-Knowledge Lab**
 
 ### Role
 
@@ -1906,7 +1906,7 @@ Reports database connectivity, active KB/index readiness, event-store readiness,
   "answer": "Funcionários Gold recebem acesso ao plano Família, que permite até três dependentes cadastrados.",
   "sender": {
     "type": "AI",
-    "label": "TopMed Guide"
+    "label": "Closed-Knowledge Lab"
   },
   "citations": [
     {

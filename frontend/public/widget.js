@@ -19,7 +19,7 @@
   var chatUrl = httpUrl(script.dataset.chatUrl, scriptUrl && scriptUrl.origin);
   var apiUrl = httpUrl(script.dataset.apiUrl);
   if (!assistantKey || !chatUrl) {
-    console.error("TopMed widget: data-assistant-key and a valid chat URL are required.");
+    console.error("Closed-Knowledge Lab widget: data-assistant-key and a valid chat URL are required.");
     return;
   }
 
@@ -46,7 +46,7 @@
   frameShell.className = "tm-frame";
   frameShell.dataset.open = "false";
   var iframe = document.createElement("iframe");
-  iframe.title = "Atendimento TopMed Guide";
+  iframe.title = "Atendimento Closed-Knowledge Lab";
   iframe.loading = "lazy";
   iframe.referrerPolicy = "strict-origin-when-cross-origin";
   var widgetUrl = new URL("/widget", chatUrl.origin);
@@ -63,7 +63,7 @@
   launcher.className = "tm-launcher";
   launcher.type = "button";
   launcher.setAttribute("aria-expanded", "false");
-  launcher.setAttribute("aria-label", "Abrir atendimento TopMed");
+  launcher.setAttribute("aria-label", "Abrir atendimento Closed-Knowledge Lab");
   launcher.innerHTML = '<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/><path d="M8 9h8M8 13h5"/></svg>';
 
   var unread = 0;
@@ -90,7 +90,7 @@
   function setOpen(open) {
     frameShell.dataset.open = String(open);
     launcher.setAttribute("aria-expanded", String(open));
-    launcher.setAttribute("aria-label", open ? "Fechar atendimento TopMed" : "Abrir atendimento TopMed");
+    launcher.setAttribute("aria-label", open ? "Fechar atendimento Closed-Knowledge Lab" : "Abrir atendimento Closed-Knowledge Lab");
     if (open) {
       unread = 0;
       renderUnread();

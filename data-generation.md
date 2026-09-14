@@ -12,7 +12,7 @@
 
 ## 1. Purpose
 
-This document defines how to create, validate, version, and use the synthetic data required by the TopMed Guide demo.
+This document defines how to create, validate, version, and use the synthetic data required by the Closed-Knowledge Lab demo.
 
 The demo data includes four distinct layers:
 

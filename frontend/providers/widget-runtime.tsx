@@ -87,7 +87,7 @@ function errorMessage(error: unknown): string {
     };
     return messages[error.code] ?? error.message;
   }
-  return "Não foi possível conectar ao TopMed Guide. Verifique sua conexão e tente novamente.";
+  return "Não foi possível conectar ao Closed-Knowledge Lab. Verifique sua conexão e tente novamente.";
 }
 
 function optimisticMessage(content: string, clientMessageId: string): RuntimeMessage {
