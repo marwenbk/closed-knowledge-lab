@@ -1,59 +1,59 @@
 ---
 document_id: consultation-flow
-title: Fluxo de consulta
+title: Consultation flow
 language: {{ seed.dataset.language }}
 dataset_id: {{ seed.dataset.id }}
 dataset_version: "{{ seed.dataset.version }}"
 ---
 
-# Fluxo de consulta
+# Consultation flow
 
-## Etapas
+## Steps
 
 {% for step in seed.consultation_flow.steps %}
-{{ loop.index }}. {{ step | consultation_step_pt }}
+{{ loop.index }}. {{ step | consultation_step_en }}
 {% endfor %}
 
-## Modalidades
+## Service modes
 
-- A clínica geral utiliza uma fila de atendimento imediato.
-- As especialidades utilizam consultas agendadas.
-- O perfil confirmado deve corresponder à pessoa que receberá o atendimento.
+- General practice uses an immediate-care queue.
+- Specialties use scheduled appointments.
+- The confirmed profile must belong to the person receiving care.
 
-## Cancelamento, falta e acompanhamento
+## Cancellation, missed appointments, and follow-up
 
-- Uma consulta agendada pode ser cancelada antes do horário de início.
-- Depois de uma consulta perdida, o usuário pode realizar um novo agendamento.
-- A base não define uma cobrança por falta; nenhuma taxa deve ser inventada.
-- O acompanhamento pode ser organizado quando estiver disponível.
-- Depois da consulta, o resumo é armazenado conforme o fluxo do serviço.
+- A scheduled appointment may be canceled before its start time.
+- After a missed appointment, the user may schedule another appointment.
+- The knowledge base defines no missed-appointment fee; no fee may be invented.
+- Follow-up may be arranged when available.
+- The service stores a summary after the consultation.
 
-A disponibilidade de uma especialidade depende tanto do plano quanto do horário correspondente. O fluxo não altera essas regras de cobertura e disponibilidade.
+Specialty availability depends on both plan coverage and the corresponding schedule. This workflow does not override coverage or availability rules.
 
-## Preparação da consulta
+## Preparing for a consultation
 
-O usuário começa autenticando-se e escolhendo o serviço desejado. Antes de entrar em uma fila ou selecionar um horário, confirma o perfil que receberá o atendimento. Essa confirmação é especialmente importante quando a conta possui dependentes, pois cada pessoa usa um perfil separado.
+The user begins by signing in and choosing the desired service. Before joining a queue or selecting a time, the user confirms the profile that will receive care. This is especially important for accounts with dependents because each person uses a separate profile.
 
-Depois da confirmação, a modalidade do serviço define o próximo passo. A {{ seed.specialties.general_practice.name | lower }} encaminha o usuário para uma fila imediata. As especialidades agendadas exigem a escolha de um horário dentro da disponibilidade documentada.
+After confirmation, the service mode determines the next step. {{ seed.specialties.general_practice.name }} sends the user to an immediate queue. Scheduled specialties require selecting a time inside their documented availability.
 
-## Durante e depois do atendimento
+## During and after care
 
-A consulta é concluída pelo perfil confirmado. Em seguida, o fluxo registra um resumo e pode organizar acompanhamento quando essa opção estiver disponível. O assistente não deve transformar a possibilidade de acompanhamento em uma garantia para todos os atendimentos.
+The confirmed profile completes the consultation. The workflow then stores a summary and may arrange follow-up when that option is available. The assistant must not turn possible follow-up into a guarantee for every consultation.
 
-O armazenamento do resumo faz parte do fluxo, mas esta base não acrescenta regras temporais além das que estão explicitamente documentadas. Uma pergunta sobre detalhes não definidos deve receber uma limitação clara.
+Summary storage is part of the workflow, but this knowledge base defines no recording-retention period. A question about an undocumented retention detail must receive a clear limitation.
 
-## Cancelamento de horário e falta
+## Appointment cancellation and absence
 
-O cancelamento de uma consulta agendada precisa ocorrer antes do início. Essa regra trata do horário da consulta e não deve ser confundida com o cancelamento da assinatura.
+A scheduled appointment must be canceled before it starts. This rule concerns an appointment time and is different from canceling a subscription.
 
-Quando uma consulta é perdida, o usuário pode realizar outro agendamento. Como nenhuma cobrança por falta está definida, o assistente não pode calcular ou anunciar uma taxa. O novo agendamento continua sujeito à cobertura do plano e ao horário da especialidade.
+After a missed appointment, the user may book another time. Because no absence fee is defined, the assistant cannot calculate or announce one. The new appointment remains subject to plan coverage and specialty hours.
 
-## Exemplos de percurso
+## Example paths
 
-Uma consulta de clínica geral segue autenticação, escolha do serviço, confirmação do perfil e entrada na fila imediata. Uma consulta de dermatologia segue as mesmas primeiras etapas, mas usa a seleção de horário.
+A general-practice visit follows sign-in, service selection, profile confirmation, and the immediate queue. A dermatology visit follows the same first steps but uses scheduled time selection.
 
-Se um dependente ainda não tiver perfil, o fluxo não deve saltar diretamente para a consulta. Primeiro é necessário cumprir o cadastro definido na política de membros da família.
+If a dependent has no profile, the workflow cannot jump directly to a consultation. The family-members registration rule must be completed first.
 
-## Separação de responsabilidades
+## Separation of responsibilities
 
-Este documento descreve sequência e modalidade. Ele não decide quais especialidades um plano inclui, quantos dependentes uma conta aceita, se uma prescrição será emitida ou se um pagamento será devolvido.
+This document describes sequence and service mode. It does not decide which specialties a plan includes, how many dependents an account accepts, whether a prescription will be issued, or whether a payment will be refunded.

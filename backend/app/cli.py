@@ -54,9 +54,9 @@ def parse_args() -> argparse.Namespace:
     activate_parser.add_argument("--dataset-id")
     activate_parser.add_argument("--dataset-version")
     retrieve_parser = kb_commands.add_parser("retrieve", help="Run closed-KB hybrid retrieval")
-    retrieve_parser.add_argument("--query", required=True, help="Portuguese retrieval query")
+    retrieve_parser.add_argument("--query", required=True, help="English retrieval query")
     answer_parser = kb_commands.add_parser("answer", help="Generate a verified closed-KB answer")
-    answer_parser.add_argument("--query", required=True, help="Portuguese customer question")
+    answer_parser.add_argument("--query", required=True, help="English customer question")
     kb_commands.add_parser("status", help="Show the active KB status")
     system_parser = resources.add_parser("system", help="Inspect backend system state")
     system_commands = system_parser.add_subparsers(dest="command", required=True)
@@ -139,6 +139,7 @@ def main() -> int:
             readiness_result = readiness(
                 engine,
                 expected_dataset_id=settings.expected_dataset_id,
+                expected_dataset_version=settings.expected_dataset_version,
                 expected_embedding_model=settings.active_embedding_model_id,
                 expected_embedding_version=settings.active_embedding_model_revision,
                 expected_embedding_dimensions=settings.embedding_dimensions,

@@ -5,12 +5,12 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Closed-Knowledge Lab",
-  description: "Laboratório de aprendizado sobre assistentes de IA com base de conhecimento fechada.",
+  description: "A learning lab for closed-knowledge AI assistants.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
-    <html lang="pt-BR">
+    <html lang="en-US">
       <body>{children}</body>
     </html>
   );

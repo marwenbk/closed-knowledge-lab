@@ -13,8 +13,8 @@ from data_tools import (
     EXPECTED_TEMPLATES,
     DataToolError,
     combined_checksum,
-    consultation_step_pt,
-    day_range_pt,
+    consultation_step_en,
+    day_range_en,
     load_yaml_mapping,
     money_brl,
     normalize_text,
@@ -29,7 +29,7 @@ from jinja2 import Environment, FileSystemLoader, StrictUndefined, TemplateError
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Generate the deterministic TopMed knowledge base."
+        description="Generate the deterministic English knowledge base."
     )
     parser.add_argument("--force", action="store_true", help="Replace changed generated files.")
     parser.add_argument("--seed", type=Path, default=DEFAULT_SEED_PATH)
@@ -46,8 +46,8 @@ def build_environment(template_dir: Path) -> Environment:
         keep_trailing_newline=True,
     )
     environment.filters["money_brl"] = money_brl
-    environment.filters["day_range_pt"] = day_range_pt
-    environment.filters["consultation_step_pt"] = consultation_step_pt
+    environment.filters["day_range_en"] = day_range_en
+    environment.filters["consultation_step_en"] = consultation_step_en
     return environment
 
 

@@ -90,7 +90,7 @@ export function AdminGuard({ children }: { children: ReactNode }) {
     <Authenticated
       key="admin-protected"
       redirectOnFail="/admin/login"
-      loading={<main className="grid min-h-screen place-items-center">A validar sessão…</main>}
+      loading={<main className="grid min-h-screen place-items-center">Validating session…</main>}
     >
       {children}
     </Authenticated>

@@ -81,7 +81,7 @@ class FakeLLMProvider:
 def embed_version(
     engine: Engine,
     provider: FakeEmbeddingProvider,
-    version: str = "2.0.0",
+    version: str = "3.0.0",
 ) -> EmbeddingRunResult:
     settings = get_settings()
     return embed_knowledge_base(
@@ -93,7 +93,7 @@ def embed_version(
     )
 
 
-def activate_version(engine: Engine, version: str = "2.0.0") -> ActivationResult:
+def activate_version(engine: Engine, version: str = "3.0.0") -> ActivationResult:
     settings = get_settings()
     return activate_knowledge_base(
         engine,
@@ -114,7 +114,7 @@ def copy_knowledge_version(tmp_path: Path, version: str) -> Path:
     for document in manifest["documents"]:
         path = copied_kb / document["path"]
         content = path.read_text(encoding="utf-8").replace(
-            'dataset_version: "2.0.0"', f'dataset_version: "{version}"', 1
+            'dataset_version: "3.0.0"', f'dataset_version: "{version}"', 1
         )
         path.write_text(content, encoding="utf-8")
         document["sha256"] = hashlib.sha256(content.encode()).hexdigest()
@@ -130,7 +130,7 @@ def copy_changed_same_version(tmp_path: Path) -> Path:
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     document = manifest["documents"][0]
     path = copied_kb / document["path"]
-    content = path.read_text(encoding="utf-8") + "\nConteúdo sintético alterado.\n"
+    content = path.read_text(encoding="utf-8") + "\nChanged synthetic content.\n"
     path.write_text(content, encoding="utf-8")
     document["sha256"] = hashlib.sha256(content.encode()).hexdigest()
     document["word_count"] = word_count(content)
@@ -170,13 +170,13 @@ def test_migration_import_indexes_and_api(postgres_engine: Engine, tmp_path: Pat
         lexical_matches = session.scalar(
             text(
                 "SELECT count(*) FROM chunks "
-                "WHERE search_vector @@ plainto_tsquery('portuguese', 'dependentes')"
+                "WHERE search_vector @@ plainto_tsquery('english', 'dependents')"
             )
         )
         typo_matches = session.scalar(
             text(
                 "SELECT count(*) FROM chunks "
-                "WHERE word_similarity('dependntes', content_normalized) > 0.6"
+                "WHERE word_similarity('dependnts', content_normalized) > 0.6"
             )
         )
         assert int(lexical_matches or 0) > 0
@@ -273,19 +273,19 @@ def test_migration_import_indexes_and_api(postgres_engine: Engine, tmp_path: Pat
     with TestClient(application, raise_server_exceptions=False) as client:
         ready_response = client.get("/ready")
         policy_response = client.post(
-            "/api/v1/kb/retrieve", json={"query": "Qual é a regra TM-REF-014?"}
+            "/api/v1/kb/retrieve", json={"query": "What does policy TM-REF-014 establish?"}
         )
         second_hop_response = client.post(
             "/api/v1/kb/retrieve",
-            json={"query": "Quantos dependentes o nível Gold permite?"},
+            json={"query": "How many dependents does the Gold tier allow?"},
         )
         platinum_response = client.post(
             "/api/v1/kb/retrieve",
-            json={"query": "O nível Platinum cobre psicologia e em quais horários?"},
+            json={"query": "Does the Platinum tier cover psychology, and during which hours?"},
         )
         typo_response = client.post(
             "/api/v1/kb/retrieve",
-            json={"query": "quantos depedentes o plano famlia aceita"},
+            json={"query": "how many depndents does the famly plan allow"},
         )
 
     assert ready_response.status_code == 200
@@ -311,7 +311,7 @@ def test_migration_import_indexes_and_api(postgres_engine: Engine, tmp_path: Pat
     with pytest.raises(KnowledgeImportError, match="different manifest checksum"):
         import_knowledge_base(postgres_engine, changed_manifest)
 
-    next_manifest = copy_knowledge_version(tmp_path, "2.0.1")
+    next_manifest = copy_knowledge_version(tmp_path, "3.0.1")
     next_version = import_knowledge_base(postgres_engine, next_manifest)
     assert next_version.status == "DRAFT"
     with Session(postgres_engine) as session:
@@ -323,7 +323,7 @@ def test_migration_import_indexes_and_api(postgres_engine: Engine, tmp_path: Pat
                 )
             ).all()
         )
-        assert states == {"2.0.0": "ACTIVE", "2.0.1": "DRAFT"}
+        assert states == {"3.0.0": "ACTIVE", "3.0.1": "DRAFT"}
 
         old_document_id = session.scalar(
             select(Document.id).where(Document.kb_version_id == first.kb_version_id).limit(1)
@@ -339,9 +339,9 @@ def test_migration_import_indexes_and_api(postgres_engine: Engine, tmp_path: Pat
             )
 
     with pytest.raises(KnowledgeImportError, match="complete, current embedding index"):
-        activate_version(postgres_engine, "2.0.1")
-    embed_version(postgres_engine, provider, "2.0.1")
-    next_activation = activate_version(postgres_engine, "2.0.1")
+        activate_version(postgres_engine, "3.0.1")
+    embed_version(postgres_engine, provider, "3.0.1")
+    next_activation = activate_version(postgres_engine, "3.0.1")
     assert next_activation.previous_version_id == first.kb_version_id
 
     with Session(postgres_engine) as session:
@@ -353,13 +353,13 @@ def test_migration_import_indexes_and_api(postgres_engine: Engine, tmp_path: Pat
                 )
             ).all()
         )
-        assert states == {"2.0.0": "RETIRED", "2.0.1": "ACTIVE"}
+        assert states == {"3.0.0": "RETIRED", "3.0.1": "ACTIVE"}
         assert session.scalar(select(func.count()).select_from(AuditEvent)) == 6
 
     application = create_app(postgres_engine, provider, FakeLLMProvider())
     with TestClient(application, raise_server_exceptions=False) as client:
         active_response = client.post(
-            "/api/v1/kb/retrieve", json={"query": "Qual é a regra TM-REF-014?"}
+            "/api/v1/kb/retrieve", json={"query": "What does policy TM-REF-014 establish?"}
         )
     assert active_response.status_code == 200
-    assert active_response.json()["dataset_version"] == "2.0.1"
+    assert active_response.json()["dataset_version"] == "3.0.1"

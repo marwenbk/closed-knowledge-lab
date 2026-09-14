@@ -100,7 +100,7 @@ def _verification_messages(
         {
             "role": "system",
             "content": prompt
-            + " Avalie o texto final editado e use somente os trechos de citação fornecidos.",
+            + " Evaluate the final edited text using only the supplied citation passages.",
         },
         {
             "role": "user",

@@ -19,7 +19,7 @@ describe("normalizeApiBaseUrl", () => {
   it.each(["javascript:alert(1)", "https://user:secret@example.com"])(
     "rejects an unsafe URL: %s",
     (value) => {
-      expect(() => normalizeApiBaseUrl(value)).toThrow("URL da API");
+      expect(() => normalizeApiBaseUrl(value)).toThrow("widget API URL");
     },
   );
 });
@@ -33,7 +33,7 @@ describe("widget API", () => {
           token: "signed-widget-token",
           token_type: "Bearer",
           expires_at: "2026-08-18T12:00:00Z",
-          locale: "pt-BR",
+          locale: "en-US",
         }),
         { status: 201, headers: { "Content-Type": "application/json" } },
       ),
@@ -43,7 +43,7 @@ describe("widget API", () => {
     const session = await createWidgetSession(
       "http://127.0.0.1:8000",
       "topmed-local-demo",
-      "pt-BR",
+      "en-US",
     );
 
     expect(session.token).toBe("signed-widget-token");
@@ -53,7 +53,7 @@ describe("widget API", () => {
         method: "POST",
         body: JSON.stringify({
           assistant_key: "topmed-local-demo",
-          locale: "pt-BR",
+          locale: "en-US",
         }),
       }),
     );
@@ -77,7 +77,7 @@ describe("widget API", () => {
     );
 
     await expect(
-      createWidgetSession("http://127.0.0.1:8000", "wrong", "pt-BR"),
+      createWidgetSession("http://127.0.0.1:8000", "wrong", "en-US"),
     ).rejects.toEqual(
       new WidgetApiError(
         401,

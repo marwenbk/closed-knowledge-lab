@@ -24,23 +24,23 @@ from data_tools import (
 )
 
 INTENTIONAL_GAP_PATTERNS = {
-    "annual_subscription_plans_or_discounts": (r"plano anual", r"desconto anual"),
-    "student_discounts": (r"desconto estudantil", r"desconto para estudantes?"),
-    "plan_upgrade_prorating": (r"prorrat", r"pro[- ]?rata"),
-    "supported_interface_languages": (r"idiomas? da interface",),
-    "accessibility_accommodations": (r"acomodações? de acessibilidade",),
-    "primary_account_holder_transfer": (r"transferência do titular",),
-    "employer_coverage_after_resignation": (r"cobertura após (?:a )?demissão",),
-    "consultation_recording_retention_period": (r"retenção (?:da|de) gravação",),
-    "refund_bank_fees": (r"tarifas? bancárias?",),
-    "exact_family_account_refund_calculation": (r"cálculo exato do reembolso",),
-    "eligibility_while_temporarily_outside_brazil": (r"temporariamente fora do brasil",),
-    "loyalty_or_points_programs": (r"programa de (?:fidelidade|pontos)",),
+    "annual_subscription_plans_or_discounts": (r"annual plan", r"annual discount"),
+    "student_discounts": (r"student discount",),
+    "plan_upgrade_prorating": (r"prorat", r"pro[- ]?rata"),
+    "supported_interface_languages": (r"interface languages?",),
+    "accessibility_accommodations": (r"accessibility accommodations?",),
+    "primary_account_holder_transfer": (r"transfer (?:the )?(?:primary )?account holder",),
+    "employer_coverage_after_resignation": (r"coverage after (?:leaving|resignation)",),
+    "consultation_recording_retention_period": (r"consultation recording retention",),
+    "refund_bank_fees": (r"bank fees?",),
+    "exact_family_account_refund_calculation": (r"exact family account refund",),
+    "eligibility_while_temporarily_outside_brazil": (r"temporarily outside brazil",),
+    "loyalty_or_points_programs": (r"(?:loyalty|points) program",),
 }
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Validate the generated TopMed knowledge base.")
+    parser = argparse.ArgumentParser(description="Validate the generated English knowledge base.")
     parser.add_argument("--seed", type=Path, default=DEFAULT_SEED_PATH)
     parser.add_argument("--fact-catalog", type=Path, default=DEFAULT_FACT_CATALOG_PATH)
     parser.add_argument("--templates", type=Path, default=DEFAULT_TEMPLATE_DIR)
@@ -262,12 +262,12 @@ def validate(
 
     required_fragments = {
         "03-consultation-hours.md": (
-            f"{seed['specialties']['general_practice']['name']}:** atendimento 24 horas",
+            f"{seed['specialties']['general_practice']['name']}:** available 24 hours",
             str(seed["service_hours"]["timezone"]),
         ),
         "05-family-members.md": (
-            f"até {consumer_plans['familia']['max_dependents']} dependentes",
-            f"até {consumer_plans['premium']['max_dependents']} dependentes",
+            f"up to {consumer_plans['family']['max_dependents']} dependents",
+            f"up to {consumer_plans['premium']['max_dependents']} dependents",
         ),
         "06-employer-plans.md": (
             f"{employer_tiers['silver']['name']} → {employer_plan_name('silver')}",
@@ -275,13 +275,13 @@ def validate(
             f"{employer_tiers['platinum']['name']} → {employer_plan_name('platinum')}",
         ),
         "10-refund-policy.md": (
-            f"{refund_policy['eligibility']['maximum_days_after_initial_payment']} dias corridos",
-            f"{refund_policy['maximum_processing_business_days_after_approval']} dias úteis",
+            f"{refund_policy['eligibility']['maximum_days_after_initial_payment']} calendar days",
+            f"{refund_policy['maximum_processing_business_days_after_approval']} business days",
         ),
         "12-support.md": (seed["support"]["email"], seed["support"]["phone"]),
         "14-billing-and-payments.md": (
-            f"{seed['policies']['billing']['failed_renewal_grace_period_days']} dias",
-            *(str(plan["monthly_price"]).replace(".", ",") for plan in consumer_plans.values()),
+            f"{seed['policies']['billing']['failed_renewal_grace_period_days']} days",
+            *(str(plan["monthly_price"]) for plan in consumer_plans.values()),
         ),
     }
     for document_name, fragments in required_fragments.items():

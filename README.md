@@ -8,9 +8,9 @@ Repository: [marwenbk/closed-knowledge-lab](https://github.com/marwenbk/closed-k
 
 ### Project identity and compatibility
 
-The project was renamed from TopMed Demo to **Closed-Knowledge Lab** on 14 September 2026. TopMed Saúde remains the fictional service in the original, versioned sample dataset. It is a case-study fixture, not the project's name or a claim of affiliation with a real service.
+The project was renamed from TopMed Demo to **Closed-Knowledge Lab** on 14 September 2026. TopMed Health remains the fictional service in the versioned sample dataset. It is a case-study fixture, not the project's name or a claim of affiliation with a real service.
 
-The historical `topmed-demo:2.0.0` dataset, migration history, `TOPMED_*` configuration keys, widget protocol/session identifiers, database volumes, and existing Render service addresses retain their original identifiers. This branding change preserves their compatibility and the provenance of recorded evaluations. Existing environments with custom display names can update `APP_NAME`, `WIDGET_ASSISTANT_LABEL`, and `ADMIN_BOOTSTRAP_DISPLAY_NAME` to the values in `.env.example`.
+The English corpus is dataset `topmed-demo:3.0.0`. Migration history, `TOPMED_*` configuration keys, widget protocol/session identifiers, database volumes, and existing Render service addresses retain their original identifiers for compatibility. Existing environments with custom display names can update `APP_NAME`, `WIDGET_ASSISTANT_LABEL`, and `ADMIN_BOOTSTRAP_DISPLAY_NAME` to the values in `.env.example`.
 
 ## Local Demo Data
 
@@ -121,7 +121,7 @@ cp .env.example .env
 bash scripts/setup_local_backend.sh
 ```
 
-The setup command creates or reuses `.venv`, installs pinned dependencies, regenerates and validates the 15-document dataset, starts PostgreSQL, applies migrations, idempotently bootstraps the configured local administrator, imports and embeds `topmed-demo:2.0.0`, activates the complete version, and verifies readiness.
+The setup command creates or reuses `.venv`, installs pinned dependencies, regenerates and validates the 15-document dataset, starts PostgreSQL, applies migrations, idempotently bootstraps the configured local administrator, imports and embeds `topmed-demo:3.0.0`, activates the complete version, and verifies readiness.
 
 The command is idempotent. Running it again reuses the environment, database, and model cache; identical import and embedding operations both report `"no_op": true`.
 
@@ -141,10 +141,10 @@ curl -fsS http://localhost:8000/ready
 curl -fsS http://localhost:8000/api/v1/kb/status
 curl -fsS -X POST http://localhost:8000/api/v1/kb/retrieve \
   -H 'Content-Type: application/json' \
-  -d '{"query":"Quantos dependentes o nível Gold permite?"}'
+  -d '{"query":"How many dependents does the Gold tier allow?"}'
 curl -fsS -X POST http://localhost:8000/api/v1/kb/answer \
   -H 'Content-Type: application/json' \
-  -d '{"query":"Quantos dependentes o nível Gold permite?"}'
+  -d '{"query":"How many dependents does the Gold tier allow?"}'
 ```
 
 `/health` checks only the API process. `/ready` checks PostgreSQL, migrations, extensions, the active knowledge base, lexical indexes, current embeddings, the embedding runtime, the conversation event store, and authenticated access to the configured DeepSeek model. The current 30-chunk corpus uses exact pgvector search; an ANN index is unnecessary at this size.
@@ -175,14 +175,14 @@ Run hybrid retrieval without starting the HTTP server:
 
 ```bash
 .venv/bin/python -m app.cli kb retrieve \
-  --query "Qual é a regra TM-REF-014?"
+  --query "What does policy TM-REF-014 establish?"
 ```
 
 Run the complete grounded-answer pipeline from the CLI:
 
 ```bash
 .venv/bin/python -m app.cli kb answer \
-  --query "Quantos dependentes o nível Gold permite?"
+  --query "How many dependents does the Gold tier allow?"
 ```
 
 Inspect backend readiness or the active dataset without starting the HTTP server:
@@ -201,7 +201,7 @@ The embedding runtime uses the 384-dimensional [`intfloat/multilingual-e5-small`
 Each query stays inside the active TopMed dataset and runs:
 
 1. exact semantic search with pgvector, top 10;
-2. strict Portuguese full-text search, filled by a bounded broad lexical query when needed;
+2. strict English full-text search, filled by a bounded broad lexical query when needed;
 3. an exact employer-tier mapping candidate when the query names Silver, Gold, or Platinum;
 4. weighted reciprocal-rank fusion with `k=60`, returning the best 6 chunks;
 5. trigram typo fallback only when strict lexical search has no result and semantic confidence is weak;
@@ -213,7 +213,7 @@ The API loads the local embedding model on the first readiness or retrieval requ
 
 ### DeepSeek grounded answering
 
-Grounded generation uses the official DeepSeek API with `deepseek-v4-flash`, non-thinking mode, temperature `0`, and JSON output validated against Pydantic schemas. The API key stays in the ignored local `.env` file and is never returned by the backend.
+Grounded generation uses the official DeepSeek API with the account's current `deepseek-flash` model ID, non-thinking mode, temperature `0`, and JSON output validated against Pydantic schemas. The configured allowlist also supports the provider's documented `deepseek-v4-flash` and `deepseek-v4-pro` IDs. The API key stays in the ignored local `.env` file and is never returned by the backend.
 
 Each answer sends the question and at most six retrieved fictional TopMed chunks to DeepSeek. The provider receives no tools, browser, or web-search capability; PostgreSQL remains the only factual source used by the pipeline.
 
@@ -261,7 +261,7 @@ curl -fsS -X POST \
   -H 'Content-Type: application/json' \
   -H 'Origin: http://localhost:3000' \
   -H "Authorization: Bearer $WIDGET_TOKEN" \
-  -d "{\"content\":\"Quantos dependentes o plano Família permite?\",\
+  -d "{\"content\":\"How many dependents does the Family plan allow?\",\
        \"client_message_id\":\"$CLIENT_MESSAGE_ID\"}"
 ```
 
@@ -356,11 +356,11 @@ Knowledge publishing is available under `/admin/knowledge` after migration `0006
 
 Only `ADMIN` and `SUPERVISOR` roles can publish a passing draft or reactivate a retired version. A successful gate is bound to the exact draft manifest checksum, so any later edit invalidates validation and prevents stale evaluation results from being activated. The publication gate uses the local embedding model and PostgreSQL but does not call DeepSeek or consume API credit. Full live answer evaluation remains an explicit release check.
 
-Re-running `bash scripts/setup_local_backend.sh` preserves whichever governed knowledge version is active; it activates the generated `2.0.0` baseline only when no active version exists.
+Re-running `bash scripts/setup_local_backend.sh` idempotently imports and embeds the generated `3.0.0` English baseline. It activates that baseline when no knowledge base is active or when the active version uses the retired language. A later governed English version remains active.
 
 ### Versioned prompt and retrieval tuning
 
-Migration `0007_runtime_tuning` seeds the existing prompt bundle and retrieval defaults as immutable active version `1.0.0`. The `/admin/tuning` workspace lets authorized operators clone semantic-versioned drafts, edit the three system prompts or the nine supported retrieval controls, inspect checksum-bound evaluations, activate a passing candidate, and roll back an evaluated retired version.
+Migration `0007_runtime_tuning` establishes immutable prompt and retrieval-setting lifecycles. Migration `0010_english_runtime` retires prompt `1.0.0` and activates the English prompt bundle as `2.0.0`; retrieval settings remain `1.0.0`. The `/admin/tuning` workspace lets authorized operators clone semantic-versioned drafts, edit the three system prompts or the nine supported retrieval controls, inspect checksum-bound evaluations, activate a passing candidate, and roll back an evaluated retired version.
 
 Retrieval settings run the complete 63-case local gate without API cost. Prompt evaluation requires an explicit confirmation because it runs all 100 cases through DeepSeek and may first run another 100 cases to establish an exact active baseline. The browser waits for this synchronous operation; do not restart the backend while it is running. Activation is rejected whenever the active KB, counterpart configuration, model identity, embedding revision, or candidate checksum differs from the evaluated tuple.
 
@@ -438,13 +438,13 @@ Then open `http://127.0.0.1:3001/embed-host.html`. The fixture loads:
   data-api-url="http://127.0.0.1:8000"
   data-assistant-key="topmed-local-demo"
   data-position="bottom-right"
-  data-locale="pt-BR"
+  data-locale="en-US"
 ></script>
 ```
 
 The loader injects a style-isolated launcher and iframe, validates host messages against the exact chat origin, supports an unread badge and Escape-to-close, and expands to fullscreen on small screens. The chat reconnects to authenticated SSE using its last persisted event ID and falls back to snapshot polling during transient stream failures. Only committed, verified answers are rendered, with expandable exact citations and a permanent fictional-service/privacy warning.
 
-The browser never receives the DeepSeek key or an admin credential. Add every deployed frontend origin to `WIDGET_ALLOWED_ORIGINS`; the signed widget session is bound to that exact origin. “Falar com uma pessoa” requests takeover, keeps the composer usable while waiting, and updates the banner as an agent claims, replies, or returns the conversation to AI.
+The browser never receives the DeepSeek key or an admin credential. Add every deployed frontend origin to `WIDGET_ALLOWED_ORIGINS`; the signed widget session is bound to that exact origin. “Talk to a person” requests takeover, keeps the composer usable while waiting, and updates the banner as an agent claims, replies, or returns the conversation to AI.
 
 ### Evaluation gates
 

@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     database_url: str = "postgresql+psycopg://topmed:topmed@localhost:5433/topmed"
     expected_dataset_id: str = "topmed-demo"
-    expected_dataset_version: str = "2.0.0"
+    expected_dataset_version: str = "3.0.0"
     embedding_provider: Literal["onnx", "static"] = "onnx"
     embedding_model_id: str = "intfloat/multilingual-e5-small"
     embedding_model_revision: CommitSha = "614241f622f53c4eeff9890bdc4f31cfecc418b3"
@@ -58,8 +58,8 @@ class Settings(BaseSettings):
     second_hop_enabled: bool = True
     deepseek_base_url: str = "https://api.deepseek.com"
     deepseek_api_key: SecretStr | None = None
-    chat_model: Literal["deepseek-v4-flash", "deepseek-v4-pro"] = "deepseek-v4-flash"
-    prompt_version: str = "1.0.0"
+    chat_model: Literal["deepseek-flash", "deepseek-v4-flash", "deepseek-v4-pro"] = "deepseek-flash"
+    prompt_version: str = "2.0.0"
     llm_timeout_seconds: Annotated[float, Field(gt=0, le=600)] = 180.0
     llm_max_output_tokens: Annotated[int, Field(ge=128, le=2048)] = 768
     llm_temperature: Annotated[float, Field(ge=0, le=0.2)] = 0.0

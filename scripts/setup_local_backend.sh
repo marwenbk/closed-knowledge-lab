@@ -31,7 +31,9 @@ bash "${TOPMED_PROJECT_ROOT}/scripts/start_local_postgres.sh"
 "${TOPMED_VENV}/bin/python" -m app.cli kb import \
   --manifest "${TOPMED_PROJECT_ROOT}/knowledge_base/manifest.json"
 "${TOPMED_VENV}/bin/python" -m app.cli kb embed --download
-if ! "${TOPMED_VENV}/bin/python" -m app.cli kb status >/dev/null 2>&1; then
+if ! "${TOPMED_VENV}/bin/python" -m app.cli kb status 2>/dev/null | \
+  "${TOPMED_VENV}/bin/python" -c \
+  'import json, sys; raise SystemExit(0 if json.load(sys.stdin).get("language") == "en-US" else 1)'; then
   "${TOPMED_VENV}/bin/python" -m app.cli kb activate
 fi
 "${TOPMED_VENV}/bin/python" -m app.cli system ready

@@ -1,56 +1,54 @@
 ---
 document_id: cancellation
-title: Cancelamento de assinatura
+title: Subscription cancellation
 language: {{ seed.dataset.language }}
 dataset_id: {{ seed.dataset.id }}
 dataset_version: "{{ seed.dataset.version }}"
 ---
 
-# Cancelamento de assinatura
+# Subscription cancellation
 
-Política canônica: **{{ seed.policies.cancellation.id }}**.
+Canonical policy: **{{ seed.policies.cancellation.id }}**.
 
-## Solicitação
+## Request
 
-- O cancelamento pode ser solicitado a qualquer momento.
-- Os canais aceitos são o portal da conta e o suporte ao cliente.
-- Depois que o cancelamento é concluído, a renovação futura é desativada.
+- Cancellation may be requested at any time.
+- Accepted channels are the account portal and customer support.
+- After cancellation is completed, future renewal is disabled.
 
-## Período de acesso
+## Access period
 
-- O acesso permanece ativo até o final do período de cobrança já pago.
-- O cancelamento não encerra antecipadamente esse período pago.
+- Access remains active until the end of the already-paid billing period.
+- Cancellation does not end that paid period early.
 
-## Cancelamento não é reembolso
+## Cancellation is not a refund
 
-- Cancelar não produz reembolso automático.
-- A elegibilidade para reembolso depende de uma política separada.
-- Uma resposta sobre devolução de valores deve consultar o documento canônico de reembolso, em vez de inferir uma devolução a partir do cancelamento.
+- Canceling does not produce an automatic refund.
+- Refund eligibility is controlled by a separate policy.
+- An answer about returning funds must consult the canonical refund document rather than infer a refund from cancellation.
 
-Assim, o usuário pode cancelar a renovação a qualquer momento, mas isso não significa que receberá automaticamente o valor já pago.
+A user can stop renewal at any time, but that does not mean the amount already paid will be returned automatically.
 
-## Efeito no ciclo atual
+## Effect on the current cycle
 
-O cancelamento interrompe a próxima renovação, não o acesso do período já pago. Depois de uma solicitação concluída, o usuário continua utilizando o serviço até o fim daquele período. A resposta não deve anunciar encerramento imediato quando a regra preserva o acesso atual.
+Cancellation stops the next renewal, not access during the paid period. After a completed request, the user can continue using the service until that period ends. An answer must not announce immediate termination when the rule preserves current access.
 
-Os canais permitidos são o portal da conta e o suporte ao cliente. Explicar esses canais não significa que o assistente execute a solicitação diretamente; ele apenas orienta o processo documentado.
+The permitted channels are the account portal and customer support. Explaining those channels does not mean the assistant executes the request; it only describes the documented process.
 
-## Relação com outras políticas
+## Relationship to other policies
 
-Uma consulta agendada pode ter seu próprio cancelamento antes do horário de início. Esse processo é diferente do cancelamento da assinatura descrito aqui.
+A scheduled consultation has its own cancellation rule before the appointment start time. That process is separate from the subscription cancellation described here.
 
-Da mesma forma, a devolução de pagamento depende da política canônica de reembolso. A possibilidade de cancelar a qualquer momento não remove o prazo e as condições de elegibilidade dessa política.
+Returning a payment depends on the canonical refund policy. The right to request cancellation at any time does not remove that policy's time window or eligibility conditions.
 
-## Exemplos de resposta
+## Response examples
 
-Se o usuário pergunta somente “posso cancelar hoje?”, a base sustenta uma resposta afirmativa e informa os canais. Se também pergunta “vou receber tudo de volta?”, é necessário combinar esta política com a de reembolso e limitar a resposta às condições que ela define.
+If a user asks only “Can I cancel today?”, the knowledge base supports an affirmative answer and the accepted channels. If the user also asks “Will I get everything back?”, the response must combine this policy with the refund policy and stay within its documented conditions.
 
-Se o usuário disser que cancelamento sempre gera devolução, a premissa deve ser corrigida. A política afirma que não existe reembolso automático.
+If a user says cancellation always returns the payment, the assistant must correct the premise. The policy says there is no automatic refund.
 
-Se a pergunta usa “cancelar isso” sem indicar assinatura ou consulta, há ambiguidade. Uma clarificação curta evita aplicar a política errada.
+If the request says “cancel it” without identifying a subscription or consultation, the subject is ambiguous. One short clarification prevents applying the wrong policy.
 
-## Limites operacionais
+## Operational limits
 
-O documento não autoriza o assistente a modificar a conta, confirmar que uma solicitação foi concluída ou inventar um protocolo. Também não define condições especiais além das registradas.
-
-O estado real de uma assinatura precisa ser verificado pelo sistema da aplicação. A base fornece a regra; ela não comprova que a renovação de uma conta específica já foi desativada.
+This document does not authorize the assistant to modify an account, confirm that a request completed, or invent a confirmation number. Actual subscription state must come from an operational system; the knowledge base supplies the rule but cannot prove that renewal for a specific account is disabled.

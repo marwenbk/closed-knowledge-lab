@@ -98,7 +98,7 @@ function resolveUrl(path: string, query?: Record<string, unknown>): string {
   const base = new URL(adminApiUrl);
   const url = new URL(path, `${adminApiUrl}/`);
   if (url.origin !== base.origin) {
-    throw new AdminApiError(400, "INVALID_ADMIN_URL", "Destino administrativo inválido.");
+    throw new AdminApiError(400, "INVALID_ADMIN_URL", "Invalid admin destination.");
   }
   Object.entries(query ?? {}).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== "") {
@@ -142,7 +142,7 @@ export async function adminRequest<T>(
     throw new AdminApiError(
       response.status,
       body.error?.code ?? "ADMIN_REQUEST_FAILED",
-      body.error?.message ?? "Não foi possível concluir a solicitação.",
+      body.error?.message ?? "The request could not be completed.",
       body.error?.request_id,
     );
   }
@@ -238,9 +238,9 @@ export const adminAccessControlProvider: AccessControlProvider = {
                     ? AUDIT_ROLES
             : OPERATOR_ROLES;
       const can = identity.roles.some((role) => allowedRoles.has(role));
-      return { can, reason: can ? undefined : "Função sem acesso operacional." };
+      return { can, reason: can ? undefined : "This role has no operational access." };
     } catch {
-      return { can: false, reason: "Sessão administrativa inválida." };
+      return { can: false, reason: "Invalid admin session." };
     }
   },
 };
@@ -250,7 +250,7 @@ function logicalFilter(filters: CrudFilter[] | undefined, field: string): unknow
 }
 
 function unsupported(): never {
-  throw new AdminApiError(405, "METHOD_NOT_ALLOWED", "Operação não suportada.");
+  throw new AdminApiError(405, "METHOD_NOT_ALLOWED", "Unsupported operation.");
 }
 
 async function getList<TData extends BaseRecord = BaseRecord>({

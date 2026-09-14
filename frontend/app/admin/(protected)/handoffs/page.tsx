@@ -36,9 +36,9 @@ export default function HandoffQueuePage() {
       url: `/api/v1/admin/conversations/${conversationId}/claim`,
       method: "post",
       values: {},
-      successNotification: { message: "Atendimento atribuído.", type: "success" },
+      successNotification: { message: "Handoff assigned.", type: "success" },
       errorNotification: (error) => ({
-        message: "Não foi possível assumir o atendimento.",
+        message: "The handoff could not be claimed.",
         description: error?.message,
         type: "error",
       }),
@@ -53,7 +53,7 @@ export default function HandoffQueuePage() {
     <>
       <PageHeading
         title="Atendimentos humanos"
-        description="Fila em tempo real para pedidos explícitos e conflitos identificados pelo assistente."
+        description="Realtime queue for explicit requests and conflicts identified by the assistant."
       />
       <Panel className="mb-5">
         <div className="flex flex-wrap gap-3">
@@ -64,22 +64,22 @@ export default function HandoffQueuePage() {
               onChange={(event) => setState(event.target.value)}
               value={state}
             >
-              <option value="">Todos os estados abertos</option>
-              <option value="HUMAN_REQUESTED">A aguardar</option>
-              <option value="HUMAN_ASSIGNED">Atribuído</option>
-              <option value="HUMAN_ACTIVE">Em atendimento</option>
+              <option value="">All open states</option>
+              <option value="HUMAN_REQUESTED">Waiting</option>
+              <option value="HUMAN_ASSIGNED">Assigned</option>
+              <option value="HUMAN_ACTIVE">In progress</option>
             </select>
           </label>
           <label className="grid gap-1 text-xs font-medium text-slate-600">
-            Atribuição
+            Assignment
             <select
               className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"
               onChange={(event) => setAssignment(event.target.value)}
               value={assignment}
             >
               <option value="all">Toda a equipa</option>
-              <option value="unassigned">Sem agente</option>
-              <option value="me">Atribuídos a mim</option>
+              <option value="unassigned">Unassigned</option>
+              <option value="me">Assigneds a mim</option>
             </select>
           </label>
           <Button
@@ -98,7 +98,7 @@ export default function HandoffQueuePage() {
       {query.error ? <ErrorState error={query.error} /> : null}
       {!query.isLoading && !query.error && result.data.length === 0 ? (
         <Panel>
-          <p className="py-8 text-center text-sm text-slate-500">Nenhum atendimento nesta fila.</p>
+          <p className="py-8 text-center text-sm text-slate-500">No handoffs in this queue.</p>
         </Panel>
       ) : null}
       <div className="grid gap-3">
@@ -111,7 +111,7 @@ export default function HandoffQueuePage() {
                 <span className="text-xs text-slate-500">{handoff.reason}</span>
               </div>
               <p className="mt-3 line-clamp-2 text-sm text-slate-700">
-                {handoff.latest_customer_message ?? "Sem mensagem recente."}
+                {handoff.latest_customer_message ?? "No recent message."}
               </p>
               <p className="mt-2 text-xs text-slate-500">
                 Espera {formatDuration(handoff.waiting_seconds)} · pedido em {" "}
@@ -131,7 +131,7 @@ export default function HandoffQueuePage() {
                 </Button>
               ) : null}
               <Button asChild size="sm" variant="outline">
-                <Link href={`/admin/conversations/${handoff.conversation_id}`}>Abrir</Link>
+                <Link href={`/admin/conversations/${handoff.conversation_id}`}>Open</Link>
               </Button>
             </div>
           </Panel>

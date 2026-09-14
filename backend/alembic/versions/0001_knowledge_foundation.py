@@ -127,7 +127,7 @@ def upgrade() -> None:
         sa.Column(
             "search_vector",
             postgresql.TSVECTOR(),
-            sa.Computed("to_tsvector('portuguese'::regconfig, content_normalized)", persisted=True),
+            sa.Computed("to_tsvector('english'::regconfig, content_normalized)", persisted=True),
             nullable=True,
         ),
         sa.Column(

@@ -163,9 +163,9 @@ def _seed_active_version(engine: Engine, *, active: bool = True) -> UUID:
             KnowledgeBaseVersion(
                 id=version_id,
                 dataset_id="topmed-demo",
-                dataset_version="2.0.0",
+                dataset_version="3.0.0",
                 generator_version="1.0.0",
-                language="pt-BR",
+                language="en-US",
                 seed_checksum="a" * 64,
                 template_checksum="b" * 64,
                 manifest_checksum="c" * 64,
@@ -181,13 +181,13 @@ def _answer(status: str = "ANSWERABLE") -> GroundedAnswer:
         status=status,
         answer=(
             "As fontes aprovadas apresentam regras conflitantes; "
-            "uma pessoa continuará o atendimento."
+            "a person will continue the conversation."
             if status == "CONFLICTING_EVIDENCE"
-            else "Resposta verificada."
+            else "Verified response."
         ),
         citations=(),
         dataset_id="topmed-demo",
-        dataset_version="2.0.0",
+        dataset_version="3.0.0",
         model=ModelIdentity(
             provider="test",
             name="deepseek-v4-flash",
@@ -224,7 +224,7 @@ def test_reviewed_ai_proposal_is_hidden_until_approved(
         submitted = client.post(
             f"/api/v1/widget/conversations/{conversation_id}/messages",
             headers=widget_headers,
-            json={"content": "Pergunta revisada", "client_message_id": str(uuid4())},
+            json={"content": "Reviewed question", "client_message_id": str(uuid4())},
         )
         hidden = client.get(
             f"/api/v1/widget/conversations/{conversation_id}", headers=widget_headers
@@ -256,7 +256,7 @@ def test_reviewed_ai_proposal_is_hidden_until_approved(
         {
             "conversation_id": str(conversation_id),
             "message_id": proposal["message_id"],
-            "content": "Resposta verificada.",
+            "content": "Verified response.",
             "status": "PENDING",
             "created_at": proposal["created_at"],
         }
@@ -293,7 +293,7 @@ def test_review_edit_fails_closed_and_regeneration_is_limited_to_once(
     _bootstrap(postgres_engine)
     first_answer = _answer()
     regenerated_answer = first_answer.model_copy(
-        update={"answer": "Resposta regenerada e verificada."}
+        update={"answer": "Regenerated and verified response."}
     )
     monkeypatch.setattr(
         "app.conversations.answer_knowledge_with_trace",
@@ -316,7 +316,7 @@ def test_review_edit_fails_closed_and_regeneration_is_limited_to_once(
         client.post(
             f"/api/v1/widget/conversations/{conversation_id}/messages",
             headers=widget_headers,
-            json={"content": "Pergunta revisada", "client_message_id": str(uuid4())},
+            json={"content": "Reviewed question", "client_message_id": str(uuid4())},
         )
         headers = _login(client)
         admin_view = client.get(f"/api/v1/admin/conversations/{conversation_id}").json()
@@ -327,7 +327,7 @@ def test_review_edit_fails_closed_and_regeneration_is_limited_to_once(
         invalid_edit = client.post(
             path,
             headers=headers,
-            json={"action": "EDIT_AND_SEND", "content": "Afirmação inventada.", "note": None},
+            json={"action": "EDIT_AND_SEND", "content": "Invented claim.", "note": None},
         )
         regenerated = client.post(
             path,
@@ -348,7 +348,7 @@ def test_review_edit_fails_closed_and_regeneration_is_limited_to_once(
     with Session(postgres_engine) as session:
         proposal_row = session.get(Message, UUID(proposal["message_id"]))
         assert proposal_row is not None
-        assert proposal_row.content == "Resposta regenerada e verificada."
+        assert proposal_row.content == "Regenerated and verified response."
         assert proposal_row.review_regeneration_count == 1
         assert proposal_row.review_status == "PENDING"
 
@@ -580,8 +580,8 @@ def test_admin_dashboard_rag_trace_and_active_knowledge_browser(
                 id=document_id,
                 kb_version_id=version_id,
                 document_key="support-hours",
-                title="Horários de suporte",
-                language="pt-BR",
+                title="Support hours",
+                language="en-US",
                 source_path="knowledge_base/support-hours.md",
                 checksum="d" * 64,
                 status="IMPORTED",
@@ -595,9 +595,9 @@ def test_admin_dashboard_rag_trace_and_active_knowledge_browser(
                 id=revision_id,
                 document_id=document_id,
                 revision_number=1,
-                content_markdown="# Horários\n\nAtendimento de segunda a sexta.",
+                content_markdown="# Hours\n\nSupport operates Monday through Friday.",
                 content_checksum="d" * 64,
-                front_matter={"title": "Horários de suporte"},
+                front_matter={"title": "Support hours"},
             )
         )
         session.flush()
@@ -608,11 +608,11 @@ def test_admin_dashboard_rag_trace_and_active_knowledge_browser(
                 document_id=document_id,
                 revision_id=revision_id,
                 stable_chunk_key="support-hours:horarios:1",
-                section="Horários",
-                section_path=["Horários"],
+                section="Hours",
+                section_path=["Hours"],
                 ordinal=1,
-                content="Atendimento de segunda a sexta.",
-                content_normalized="atendimento de segunda a sexta.",
+                content="Support operates Monday through Friday.",
+                content_normalized="support operates Monday through Friday.",
                 token_count=6,
                 metadata_json={},
             )
@@ -643,13 +643,13 @@ def test_admin_dashboard_rag_trace_and_active_knowledge_browser(
     assert dashboard.status_code == 200, dashboard.text
     assert dashboard.json()["knowledge"] == {
         "dataset_id": "topmed-demo",
-        "dataset_version": "2.0.0",
+        "dataset_version": "3.0.0",
         "status": "ACTIVE",
         "document_count": 1,
         "chunk_count": 1,
     }
     assert versions.status_code == 200
-    assert versions.json()["items"][0]["dataset_version"] == "2.0.0"
+    assert versions.json()["items"][0]["dataset_version"] == "3.0.0"
     assert version_detail.json()["documents"][0]["document_key"] == "support-hours"
     assert detail.status_code == 200
     assert detail.json()["chunks"][0]["stable_chunk_key"] == "support-hours:horarios:1"
@@ -688,7 +688,7 @@ def test_handoff_queue_claim_messages_notes_return_and_privacy(
         queued = admin_client.post(
             f"/api/v1/widget/conversations/{conversation_id}/messages",
             headers=widget_headers,
-            json={"content": "Ainda estou aguardando.", "client_message_id": queued_message_id},
+            json={"content": "I am still waiting.", "client_message_id": queued_message_id},
         )
         admin_csrf = _login(admin_client)
         agent_csrf = _login(agent_client, "agent@topmed.local")
@@ -721,7 +721,7 @@ def test_handoff_queue_claim_messages_notes_return_and_privacy(
             f"/api/v1/admin/conversations/{conversation_id}/messages",
             headers=losing_headers,
             json={
-                "content": "Esta resposta não deve ser aceita.",
+                "content": "This response must not be accepted.",
                 "client_message_id": str(uuid4()),
                 "visibility": "PUBLIC",
             },
@@ -731,7 +731,7 @@ def test_handoff_queue_claim_messages_notes_return_and_privacy(
             f"/api/v1/admin/conversations/{conversation_id}/messages",
             headers=winning_headers,
             json={
-                "content": "Olá, sou uma pessoa da equipe TopMed.",
+                "content": "Hello, I am a member of the TopMed team.",
                 "client_message_id": public_message_id,
                 "visibility": "PUBLIC",
             },
@@ -740,7 +740,7 @@ def test_handoff_queue_claim_messages_notes_return_and_privacy(
             f"/api/v1/admin/conversations/{conversation_id}/messages",
             headers=winning_headers,
             json={
-                "content": "Olá, sou uma pessoa da equipe TopMed.",
+                "content": "Hello, I am a member of the TopMed team.",
                 "client_message_id": public_message_id,
                 "visibility": "PUBLIC",
             },
@@ -749,7 +749,7 @@ def test_handoff_queue_claim_messages_notes_return_and_privacy(
             f"/api/v1/admin/conversations/{conversation_id}/messages",
             headers=winning_headers,
             json={
-                "content": "Nota privada: confirmar o benefício.",
+                "content": "Private note: confirm the benefit.",
                 "client_message_id": str(uuid4()),
                 "visibility": "INTERNAL",
             },
@@ -781,7 +781,7 @@ def test_handoff_queue_claim_messages_notes_return_and_privacy(
         rejected_after_close = admin_client.post(
             f"/api/v1/widget/conversations/{conversation_id}/messages",
             headers=widget_headers,
-            json={"content": "Ainda posso enviar?", "client_message_id": str(uuid4())},
+            json={"content": "Can I still send messages?", "client_message_id": str(uuid4())},
         )
 
     assert requested.status_code == repeated.status_code == 200
@@ -792,7 +792,7 @@ def test_handoff_queue_claim_messages_notes_return_and_privacy(
     llm_factory.assert_not_called()
     assert queue.status_code == 200
     assert queue.json()["total"] == 1
-    assert queue.json()["items"][0]["latest_customer_message"] == "Ainda estou aguardando."
+    assert queue.json()["items"][0]["latest_customer_message"] == "I am still waiting."
     assert loser.json()["error"]["code"] == "HANDOFF_ALREADY_CLAIMED"
     assert unassigned_reply.status_code == 403
     assert unassigned_reply.json()["error"]["code"] == "HANDOFF_NOT_ASSIGNED"
@@ -807,8 +807,8 @@ def test_handoff_queue_claim_messages_notes_return_and_privacy(
         "INTERNAL",
     }
     widget_contents = [message["content"] for message in widget_detail.json()["messages"]]
-    assert "Olá, sou uma pessoa da equipe TopMed." in widget_contents
-    assert "Nota privada: confirmar o benefício." not in widget_contents
+    assert "Hello, I am a member of the TopMed team." in widget_contents
+    assert "Private note: confirm the benefit." not in widget_contents
     assert returned.status_code == 200
     assert returned.json()["state"] == "RETURNED_TO_AI"
     assert requested_again.status_code == reclaimed.status_code == closed.status_code == 200
@@ -873,7 +873,7 @@ def test_conflict_answer_requests_handoff_and_return_resumes_future_ai(
         first = client.post(
             f"/api/v1/widget/conversations/{conversation_id}/messages",
             headers=widget_headers,
-            json={"content": "Há conflito?", "client_message_id": str(uuid4())},
+            json={"content": "Is there a conflict?", "client_message_id": str(uuid4())},
         )
         state = client.get(
             f"/api/v1/widget/conversations/{conversation_id}", headers=widget_headers
@@ -885,7 +885,7 @@ def test_conflict_answer_requests_handoff_and_return_resumes_future_ai(
             f"/api/v1/admin/conversations/{conversation_id}/messages",
             headers=csrf,
             json={
-                "content": "Nota interna que não pode chegar ao modelo.",
+                "content": "Internal note that must not reach the model.",
                 "client_message_id": str(uuid4()),
                 "visibility": "INTERNAL",
             },
@@ -908,7 +908,7 @@ def test_conflict_answer_requests_handoff_and_return_resumes_future_ai(
     assert claimed.status_code == note.status_code == returned.status_code == 200
     assert second.status_code == 200
     assert second.json()["status"] == "ANSWERABLE"
-    assert conversation_contexts == [(), ("Há conflito?",)]
+    assert conversation_contexts == [(), ("Is there a conflict?",)]
     with Session(postgres_engine) as session:
         conversation = session.get(Conversation, UUID(conversation_id))
         assert conversation is not None
@@ -955,7 +955,7 @@ def test_customer_handoff_suppresses_an_in_flight_ai_delivery(
             return message_client.post(
                 f"/api/v1/widget/conversations/{conversation_id}/messages",
                 headers=widget_headers,
-                json={"content": "Pergunta em andamento", "client_message_id": str(uuid4())},
+                json={"content": "Question in progress", "client_message_id": str(uuid4())},
             )
 
         with ThreadPoolExecutor(max_workers=1) as executor:

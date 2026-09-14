@@ -27,7 +27,7 @@ MIN_CHUNK_TOKENS = 150
 MAX_CHUNK_TOKENS = 350
 EXPECTED_DOCUMENT_COUNT = 15
 TOKEN_PATTERN = re.compile(r"\w+(?:[-']\w+)*|[^\w\s]", re.UNICODE)
-WORD_PATTERN = re.compile(r"\b[\wÀ-ÿ]+(?:[-'][\wÀ-ÿ]+)*\b", re.UNICODE)
+WORD_PATTERN = re.compile(r"\b\w+(?:[-']\w+)*\b", re.UNICODE)
 HEADING_PATTERN = re.compile(r"^(#{1,6})\s+(.+?)\s*#*\s*$")
 HTML_COMMENT_PATTERN = re.compile(r"<!--.*?-->", re.DOTALL)
 

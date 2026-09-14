@@ -76,8 +76,8 @@ export default function TuningPage() {
       url: `/api/v1/admin/${kind}`,
       method: "post",
       values: { version: version.trim() },
-      successNotification: { message: `Rascunho ${version.trim()} criado.`, type: "success" },
-      errorNotification: (error) => ({ message: "Não foi possível criar a versão.", description: error?.message, type: "error" }),
+      successNotification: { message: `Draft ${version.trim()} created.`, type: "success" },
+      errorNotification: (error) => ({ message: "The version could not be created.", description: error?.message, type: "error" }),
     });
     if (kind === "prompts") setPromptVersion("");
     else setSettingsVersion("");
@@ -89,14 +89,14 @@ export default function TuningPage() {
   return (
     <>
       <PageHeading
-        title="Ajustes versionados"
-        description="Prompts e busca só entram em produção depois de avaliação comparável e ativação autorizada."
+        title="Tuning versionados"
+        description="Prompts and retrieval reach production only after comparable evaluation and authorized activation."
       />
       {canEdit ? (
         <div className="mb-5 grid gap-4 md:grid-cols-2">
           {([
-            ["prompts", "Novo prompt", promptVersion, setPromptVersion],
-            ["settings", "Novos ajustes", settingsVersion, setSettingsVersion],
+            ["prompts", "New prompt", promptVersion, setPromptVersion],
+            ["settings", "New settings", settingsVersion, setSettingsVersion],
           ] as const).map(([kind, label, value, setter]) => (
             <Panel key={kind}>
               <form className="flex items-end gap-3" onSubmit={(event) => void create(event, kind, value)}>
@@ -121,10 +121,10 @@ export default function TuningPage() {
       {error ? <ErrorState error={error} /> : null}
       <div className="grid gap-4 lg:grid-cols-2">
         <Versions title="Prompts" resource="prompt" path="prompts" versions={prompts.result.data} />
-        <Versions title="Busca" resource="settings" path="settings" versions={settings.result.data} />
+        <Versions title="Retrieval" resource="settings" path="settings" versions={settings.result.data} />
       </div>
       <Panel className="mt-4">
-        <h2 className="flex items-center gap-2 text-lg font-semibold"><FlaskConical size={18} /> Avaliações recentes</h2>
+        <h2 className="flex items-center gap-2 text-lg font-semibold"><FlaskConical size={18} /> Recent evaluations</h2>
         <div className="mt-3 grid gap-2">
           {evaluations.result.data.map((run) => (
             <Link className="flex items-center justify-between rounded-xl border border-slate-200 p-3" href={`/admin/tuning/evaluations/${run.id}`} key={run.id}>

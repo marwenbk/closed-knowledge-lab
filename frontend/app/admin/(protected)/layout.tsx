@@ -5,7 +5,7 @@ import { AdminGuard } from "@/providers/admin-provider";
 
 export default function ProtectedAdminLayout({ children }: { children: ReactNode }) {
   return (
-    <Suspense fallback={<main className="grid min-h-screen place-items-center">A carregar…</main>}>
+    <Suspense fallback={<main className="grid min-h-screen place-items-center">Loading…</main>}>
       <AdminGuard>
         <AdminShell>{children}</AdminShell>
       </AdminGuard>

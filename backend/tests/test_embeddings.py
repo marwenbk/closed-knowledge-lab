@@ -75,11 +75,11 @@ def test_pinned_multilingual_e5_small_model_runs_locally() -> None:
         raise
 
     provider = OnnxE5EmbeddingProvider(settings)
-    query = provider.embed_queries(["quantos dependentes o plano Família permite?"])[0]
+    query = provider.embed_queries(["how many dependents does the Family plan allow?"])[0]
     passages = provider.embed_documents(
         [
-            "O plano Família permite o cadastro de até 3 dependentes.",
-            "O reembolso retorna ao método de pagamento original.",
+            "The Family plan allows up to 3 dependents.",
+            "An approved refund returns to the original payment method.",
         ]
     )
 
@@ -110,11 +110,11 @@ def test_pinned_static_distillation_runs_with_physical_vector_compatibility() ->
         raise
 
     provider = StaticE5EmbeddingProvider(settings)
-    query = provider.embed_queries(["quantos dependentes o plano Família permite?"])[0]
+    query = provider.embed_queries(["how many dependents does the Family plan allow?"])[0]
     passages = provider.embed_documents(
         [
-            "O plano Família permite o cadastro de até 3 dependentes.",
-            "O reembolso retorna ao método de pagamento original.",
+            "The Family plan allows up to 3 dependents.",
+            "An approved refund returns to the original payment method.",
         ]
     )
 

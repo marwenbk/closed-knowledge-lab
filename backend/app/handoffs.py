@@ -616,7 +616,7 @@ def _admin_message(
     rag_run_id: UUID | None,
 ) -> AdminMessageRecord:
     labels = {
-        "CUSTOMER": "Cliente",
+        "CUSTOMER": "Customer",
         "AI": "Closed-Knowledge Lab",
         "SYSTEM": "Closed-Knowledge Lab",
     }
@@ -625,7 +625,7 @@ def _admin_message(
         client_message_id=message.client_message_id,
         sender_type=message.sender_type,
         sender_user_id=message.sender_user_id,
-        sender_label=sender_name or labels.get(message.sender_type, "Atendimento humano"),
+        sender_label=sender_name or labels.get(message.sender_type, "Human support"),
         content=message.content,
         visibility=message.visibility,
         status=message.status,

@@ -1,58 +1,58 @@
 ---
 document_id: escalation-procedure
-title: Procedimento de escalonamento
-language: pt-BR
+title: Escalation procedure
+language: en-US
 dataset_id: topmed-demo
-dataset_version: "2.0.0"
+dataset_version: "3.0.0"
 ---
 
-# Procedimento de escalonamento
+# Escalation procedure
 
-## Níveis
+## Levels
 
-1. **Nível 1:** atendimento automatizado ou suporte de primeira linha.
-2. **Nível 2:** agente humano de suporte.
-3. **Nível 3:** supervisor de operações.
+1. **Level 1:** automated or first-line support.
+2. **Level 2:** human support agent.
+3. **Level 3:** operations supervisor.
 
-## Quando escalar
+## When to escalate
 
-- A identidade não pode ser verificada.
-- Um pagamento bem-sucedido não restaurou o acesso.
-- A evidência apresentada para reembolso entra em conflito com os registros do sistema.
-- A titularidade da conta está em disputa.
-- A base não define a exceção solicitada.
-- Documentos aprovados apresentam informações conflitantes.
+- Identity cannot be verified.
+- A successful payment did not restore access.
+- Refund evidence conflicts with system records.
+- Account ownership is disputed.
+- The knowledge base does not define a requested exception.
+- Approved documents contain conflicting information.
 
-## Conduta
+## Conduct
 
-O escalonamento encaminha o caso ao nível operacional apropriado. Ele não cria automaticamente uma exceção, não altera uma política e não autoriza o assistente a escolher silenciosamente entre evidências conflitantes.
+Escalation routes a case to the appropriate operational level. It does not automatically create an exception, change a policy, or authorize the assistant to choose silently between conflicting evidence.
 
-Quando a base não define uma exceção, o caso pode ser encaminhado para revisão humana, mas a resposta deve continuar reconhecendo que a regra especial não está documentada.
+When the knowledge base defines no exception, the case may receive human review, but the response must still acknowledge that the special rule is undocumented.
 
-## Progressão entre níveis
+## Progression between levels
 
-O nível inicial cobre automação e atendimento de primeira linha. Quando esse nível não consegue resolver uma condição que exige decisão humana, o caso passa ao agente de suporte. Situações que demandam supervisão operacional chegam ao terceiro nível.
+The first level covers automation and first-line support. When it cannot resolve a condition that requires human judgment, the case moves to a support agent. Situations requiring operational supervision reach the third level.
 
-O encaminhamento deve preservar o motivo original, a evidência disponível e a política relacionada. Ele não deve alterar silenciosamente os fatos ou apagar a existência de um conflito.
+The handoff must preserve the original reason, available evidence, and related policy. It must not silently change facts or erase a conflict.
 
-## Identidade e titularidade
+## Identity and ownership
 
-Se a identidade não puder ser confirmada, o atendimento comum não deve presumir quem está solicitando a ação. Uma disputa sobre quem controla a conta também exige revisão. Esses casos são diferentes de uma simples correção de dado básico do perfil.
+If identity cannot be confirmed, ordinary support must not assume who is requesting the action. A dispute about who controls an account also requires review. These cases are different from a simple correction to basic profile data.
 
-## Pagamento e reembolso
+## Payment and refund
 
-Quando um pagamento bem-sucedido não restaura o acesso, a regra de cobrança informa que o acesso deveria voltar e o procedimento de escalonamento trata a falha operacional.
+When a successful payment does not restore access, the billing rule says access should return and the escalation procedure handles the operational failure.
 
-Quando a evidência de reembolso diverge dos registros do sistema, o assistente não pode decidir quais dados são verdadeiros. Ele deve registrar a divergência e encaminhar.
+When refund evidence differs from system records, the assistant cannot decide which source is correct. It must record the discrepancy and hand the case to a person.
 
-## Ausência e conflito de regras
+## Missing and conflicting rules
 
-Uma solicitação de condição não definida não autoriza a criação de uma nova política. O caso pode ser revisado por uma pessoa, mas a resposta da base continua limitada ao padrão documentado.
+A request for an undefined condition does not authorize a new policy. A person may review the request, but the knowledge-base response remains limited to the documented standard.
 
-Se dois documentos aprovados trouxerem valores incompatíveis, a situação é diferente de mera ausência. O estado esperado é de evidência conflitante, e o sistema deve mostrar o conflito sem selecionar uma regra por conveniência.
+When two approved documents contain incompatible values, the problem is a conflict rather than a simple absence. The expected state is conflicting evidence, and the system must reveal the conflict without selecting a convenient rule.
 
-## Informações para o encaminhamento
+## Handoff information
 
-Um encaminhamento útil identifica a conta ou solicitação envolvida, o motivo, a política consultada e o ponto que não pôde ser resolvido. O assistente não deve incluir segredo, informação não necessária ou conclusão sem evidência.
+A useful handoff identifies the account or request, the reason, the consulted policy, and the unresolved point. It must not include secrets, unnecessary information, or unsupported conclusions.
 
-O procedimento organiza revisão humana. Ele não substitui autenticação, não executa alterações na conta e não garante que uma condição especial será concedida.
+The procedure organizes human review. It does not replace authentication, execute account changes, guarantee a special exception, or make the recipient clinically qualified.

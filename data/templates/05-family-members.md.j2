@@ -1,54 +1,52 @@
 ---
 document_id: family-members
-title: Membros da família e dependentes
+title: Family members and dependents
 language: {{ seed.dataset.language }}
 dataset_id: {{ seed.dataset.id }}
 dataset_version: "{{ seed.dataset.version }}"
 ---
 
-# Membros da família e dependentes
+# Family members and dependents
 
-Política canônica: **{{ seed.dependents.policy_id }}**.
+Canonical policy: **{{ seed.dependents.policy_id }}**.
 
-## Limites de dependentes
+## Dependent limits
 
-- O plano {{ seed.plans.consumer.essencial.name }} permite **{{ seed.plans.consumer.essencial.max_dependents }} dependentes**.
-- O plano {{ seed.plans.consumer.familia.name }} permite o cadastro de **até {{ seed.plans.consumer.familia.max_dependents }} dependentes**.
-- O plano {{ seed.plans.consumer.premium.name }} permite o cadastro de **até {{ seed.plans.consumer.premium.max_dependents }} dependentes**.
+- The {{ seed.plans.consumer.essential.name }} plan allows **{{ seed.plans.consumer.essential.max_dependents }} dependents**.
+- The {{ seed.plans.consumer.family.name }} plan allows **up to {{ seed.plans.consumer.family.max_dependents }} dependents**.
+- The {{ seed.plans.consumer.premium.name }} plan allows **up to {{ seed.plans.consumer.premium.max_dependents }} dependents**.
 
-## Cadastro individual
+## Individual registration
 
-- Cada dependente exige um perfil separado.
-- O perfil do dependente deve ser registrado antes da primeira consulta.
-- Dependentes podem ser menores de idade.
-- Um dependente pode estar vinculado a somente uma conta de consumidor ativa.
+- Each dependent requires a separate profile.
+- A dependent's profile must be registered before the first consultation.
+- Dependents may be minors.
+- A dependent may be linked to only one active consumer account.
 
-## Relação com a cobrança
+## Billing relationship
 
-- Adicionar um dependente não reinicia o ciclo de cobrança da conta.
-- O limite vem do plano de consumidor ativo.
-- Para benefícios patrocinados por empresa, primeiro é necessário identificar qual plano de consumidor corresponde ao nível empresarial; essa correspondência está no documento de planos empresariais.
+- Adding a dependent does not restart the account's billing cycle.
+- The limit comes from the active consumer plan.
+- For employer-sponsored benefits, first identify which consumer plan maps to the employer tier in the employer-plans document.
 
-Este documento é a fonte canônica dos limites de dependentes. A correspondência entre níveis empresariais e planos não é repetida aqui.
+This document is the canonical source for dependent limits. It does not repeat employer-tier mappings.
 
-## Aplicação dos limites
+## Applying the limits
 
-O limite conta perfis de dependentes cadastrados na conta. No {{ seed.plans.consumer.essencial.name }}, não existe vaga para dependente. No {{ seed.plans.consumer.familia.name }}, o teto é {{ seed.plans.consumer.familia.max_dependents }}; no {{ seed.plans.consumer.premium.name }}, o teto é {{ seed.plans.consumer.premium.max_dependents }}. O titular não deve ser contado como dependente, pois exerce um papel separado.
+The limit counts registered dependent profiles. The {{ seed.plans.consumer.essential.name }} plan has no dependent places. The {{ seed.plans.consumer.family.name }} limit is {{ seed.plans.consumer.family.max_dependents }}, and the {{ seed.plans.consumer.premium.name }} limit is {{ seed.plans.consumer.premium.max_dependents }}. The account holder is not counted as a dependent because that is a separate role.
 
-Adicionar um perfil até o limite não confirma automaticamente uma consulta. O dependente precisa estar registrado antes de seu primeiro atendimento e o perfil correto deve ser confirmado durante o fluxo. Dependentes menores são aceitos, mas continuam sujeitos ao cadastro individual.
+Adding a profile within the limit does not automatically confirm a consultation. The dependent must be registered before receiving care, and the correct profile must be confirmed during the consultation flow. Minor dependents are allowed but still require their own profiles.
 
-## Benefício empresarial
+## Employer benefit
 
-Quando a conta vem de uma empresa, o nível empresarial não informa diretamente o limite. Primeiro, o documento de planos patrocinados determina o plano de consumidor equivalente. Em seguida, este documento fornece o limite daquele plano. Esse caminho é necessário, por exemplo, para responder a perguntas sobre o nível {{ seed.plans.employer_tiers.gold.name }} sem copiar a quantidade de dependentes para o documento empresarial.
+For an employer account, the employer tier does not directly state a dependent limit. The sponsored-plans document first identifies the equivalent consumer plan. This document then supplies that plan's limit. This two-document path is required for questions about the {{ seed.plans.employer_tiers.gold.name }} tier.
 
-## Situações comuns
+## Common situations
 
-Uma conta {{ seed.plans.consumer.familia.name }} com menos de {{ seed.plans.consumer.familia.max_dependents }} dependentes cadastrados ainda pode adicionar perfis até alcançar o teto. Uma conta que já alcançou o teto não deve receber a promessa de mais uma vaga.
+A {{ seed.plans.consumer.family.name }} account with fewer than {{ seed.plans.consumer.family.max_dependents }} registered dependents can add profiles until it reaches the limit. An account already at the limit must not be promised another place.
 
-Um dependente já ligado a uma conta de consumidor ativa não pode ser tratado como disponível para uma segunda conta ativa. A regra evita interpretar o mesmo perfil como dois dependentes independentes.
+A dependent already linked to an active consumer account cannot be treated as available for a second active account. Adding a new dependent also does not create a new billing date or restart the existing cycle. The knowledge base defines no additional charge calculation.
 
-O cadastro de um novo dependente não cria uma nova data de cobrança e não reinicia o ciclo atual. Isso não define um valor proporcional ou uma nova tarifa; apenas preserva o ciclo existente.
+## Required evidence
 
-## Evidência necessária
-
-Uma resposta deve identificar o plano antes de informar a quantidade. Se o usuário disser apenas “meu plano” ou “posso adicionar alguém”, falta contexto para escolher entre os três limites. Nessa situação, uma pergunta curta sobre o plano ou nível empresarial é mais segura do que assumir uma opção.
+An answer must identify the plan before stating a quantity. If the user says only “my plan” or “can I add someone,” there is not enough context to select the correct limit. A short clarification should ask which plan or employer tier applies.

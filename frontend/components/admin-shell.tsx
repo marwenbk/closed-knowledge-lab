@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import type { AdminIdentity } from "@/lib/admin-types";
 
 const navigation = [
-  { href: "/admin", label: "Visão geral", icon: LayoutDashboard, roles: [] },
+  { href: "/admin", label: "Overview", icon: LayoutDashboard, roles: [] },
   {
     href: "/admin/handoffs",
     label: "Atendimentos",
@@ -19,7 +19,7 @@ const navigation = [
   },
   {
     href: "/admin/knowledge",
-    label: "Base de conhecimento",
+    label: "Knowledge base",
     icon: BookOpen,
     roles: [
       "ADMIN",
@@ -32,13 +32,13 @@ const navigation = [
   },
   {
     href: "/admin/tuning",
-    label: "Ajustes",
+    label: "Tuning",
     icon: SlidersHorizontal,
     roles: ["ADMIN", "SUPERVISOR", "HUMAN_REVIEWER", "KNOWLEDGE_EDITOR", "AUDITOR"],
   },
   {
     href: "/admin/audit",
-    label: "Auditoria",
+    label: "Audit",
     icon: ScrollText,
     roles: ["ADMIN", "SUPERVISOR", "AUDITOR"],
   },
@@ -47,7 +47,7 @@ const navigation = [
 function Navigation({ roles, close }: { roles: string[]; close?: () => void }) {
   const pathname = usePathname();
   return (
-    <nav className="grid gap-1" aria-label="Navegação administrativa">
+    <nav className="grid gap-1" aria-label="Admin navigation">
       {navigation.filter((item) => item.roles.length === 0 || item.roles.some((role) => roles.includes(role))).map(({ href, label, icon: Icon }) => {
         const active = href === "/admin" ? pathname === href : pathname.startsWith(href);
         return (
@@ -83,7 +83,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
           </span>
           <span className="min-w-0">
             <strong className="block text-sm leading-5">Closed-Knowledge Lab</strong>
-            <span className="text-xs text-slate-500">Operações</span>
+            <span className="text-xs text-slate-500">Operations</span>
           </span>
         </Link>
         <Navigation roles={roles} />
@@ -93,9 +93,9 @@ export function AdminShell({ children }: { children: ReactNode }) {
         <div className="fixed inset-0 z-40 bg-slate-950/35 lg:hidden" role="presentation">
           <aside className="h-full w-72 bg-white p-5 shadow-xl">
             <div className="mb-8 flex items-center justify-between">
-              <strong>Closed-Knowledge Lab Operações</strong>
+              <strong>Closed-Knowledge Lab Operations</strong>
               <Button
-                aria-label="Fechar menu"
+                aria-label="Close menu"
                 onClick={() => setMenuOpen(false)}
                 size="icon"
                 type="button"
@@ -112,7 +112,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
       <div className="lg:pl-64">
         <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-slate-200 bg-white/95 px-4 backdrop-blur sm:px-8">
           <Button
-            aria-label="Abrir menu"
+            aria-label="Open menu"
             className="lg:hidden"
             onClick={() => setMenuOpen(true)}
             size="icon"
@@ -138,7 +138,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
               variant="outline"
             >
               <LogOut size={16} />
-              Sair
+              Sign out
             </Button>
           </div>
         </header>

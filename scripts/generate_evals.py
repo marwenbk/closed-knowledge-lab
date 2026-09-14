@@ -40,7 +40,7 @@ VALID_STATUSES = {
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Generate deterministic TopMed evaluation cases.")
+    parser = argparse.ArgumentParser(description="Generate deterministic English evaluation cases.")
     parser.add_argument("--blueprints", type=Path, default=DEFAULT_EVAL_BLUEPRINTS_PATH)
     parser.add_argument("--fact-catalog", type=Path, default=DEFAULT_FACT_CATALOG_PATH)
     parser.add_argument("--conflict-fixtures", type=Path, default=DEFAULT_CONFLICT_FIXTURES_PATH)
@@ -213,7 +213,7 @@ def generate_cases(
                 "dataset_version": blueprints["dataset_version"],
                 "suite": suite,
                 "category": category,
-                "language": blueprints.get("language", "pt-BR"),
+                "language": blueprints.get("language", "en-US"),
                 "messages": normalize_messages(variant.get("messages"), case_id),
                 "expected_status": expected_status,
                 "required_fact_ids": required_fact_ids,

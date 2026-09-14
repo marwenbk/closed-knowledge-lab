@@ -1,71 +1,71 @@
 ---
 document_id: consultation-flow
-title: Fluxo de consulta
-language: pt-BR
+title: Consultation flow
+language: en-US
 dataset_id: topmed-demo
-dataset_version: "2.0.0"
+dataset_version: "3.0.0"
 ---
 
-# Fluxo de consulta
+# Consultation flow
 
-## Etapas
-
-
-1. Entrar na conta
-
-2. Escolher o serviço
-
-3. Confirmar o perfil que será atendido
-
-4. Entrar na fila imediata ou escolher um horário
-
-5. Realizar a consulta
-
-6. Armazenar o resumo da consulta
-
-7. Organizar o acompanhamento quando disponível
+## Steps
 
 
-## Modalidades
+1. Sign in to the account
 
-- A clínica geral utiliza uma fila de atendimento imediato.
-- As especialidades utilizam consultas agendadas.
-- O perfil confirmado deve corresponder à pessoa que receberá o atendimento.
+2. Choose the service
 
-## Cancelamento, falta e acompanhamento
+3. Confirm the profile that will receive care
 
-- Uma consulta agendada pode ser cancelada antes do horário de início.
-- Depois de uma consulta perdida, o usuário pode realizar um novo agendamento.
-- A base não define uma cobrança por falta; nenhuma taxa deve ser inventada.
-- O acompanhamento pode ser organizado quando estiver disponível.
-- Depois da consulta, o resumo é armazenado conforme o fluxo do serviço.
+4. Join the immediate queue or choose a time
 
-A disponibilidade de uma especialidade depende tanto do plano quanto do horário correspondente. O fluxo não altera essas regras de cobertura e disponibilidade.
+5. Complete the consultation
 
-## Preparação da consulta
+6. Store the consultation summary
 
-O usuário começa autenticando-se e escolhendo o serviço desejado. Antes de entrar em uma fila ou selecionar um horário, confirma o perfil que receberá o atendimento. Essa confirmação é especialmente importante quando a conta possui dependentes, pois cada pessoa usa um perfil separado.
+7. Arrange follow-up when available
 
-Depois da confirmação, a modalidade do serviço define o próximo passo. A clínica geral encaminha o usuário para uma fila imediata. As especialidades agendadas exigem a escolha de um horário dentro da disponibilidade documentada.
 
-## Durante e depois do atendimento
+## Service modes
 
-A consulta é concluída pelo perfil confirmado. Em seguida, o fluxo registra um resumo e pode organizar acompanhamento quando essa opção estiver disponível. O assistente não deve transformar a possibilidade de acompanhamento em uma garantia para todos os atendimentos.
+- General practice uses an immediate-care queue.
+- Specialties use scheduled appointments.
+- The confirmed profile must belong to the person receiving care.
 
-O armazenamento do resumo faz parte do fluxo, mas esta base não acrescenta regras temporais além das que estão explicitamente documentadas. Uma pergunta sobre detalhes não definidos deve receber uma limitação clara.
+## Cancellation, missed appointments, and follow-up
 
-## Cancelamento de horário e falta
+- A scheduled appointment may be canceled before its start time.
+- After a missed appointment, the user may schedule another appointment.
+- The knowledge base defines no missed-appointment fee; no fee may be invented.
+- Follow-up may be arranged when available.
+- The service stores a summary after the consultation.
 
-O cancelamento de uma consulta agendada precisa ocorrer antes do início. Essa regra trata do horário da consulta e não deve ser confundida com o cancelamento da assinatura.
+Specialty availability depends on both plan coverage and the corresponding schedule. This workflow does not override coverage or availability rules.
 
-Quando uma consulta é perdida, o usuário pode realizar outro agendamento. Como nenhuma cobrança por falta está definida, o assistente não pode calcular ou anunciar uma taxa. O novo agendamento continua sujeito à cobertura do plano e ao horário da especialidade.
+## Preparing for a consultation
 
-## Exemplos de percurso
+The user begins by signing in and choosing the desired service. Before joining a queue or selecting a time, the user confirms the profile that will receive care. This is especially important for accounts with dependents because each person uses a separate profile.
 
-Uma consulta de clínica geral segue autenticação, escolha do serviço, confirmação do perfil e entrada na fila imediata. Uma consulta de dermatologia segue as mesmas primeiras etapas, mas usa a seleção de horário.
+After confirmation, the service mode determines the next step. General practice sends the user to an immediate queue. Scheduled specialties require selecting a time inside their documented availability.
 
-Se um dependente ainda não tiver perfil, o fluxo não deve saltar diretamente para a consulta. Primeiro é necessário cumprir o cadastro definido na política de membros da família.
+## During and after care
 
-## Separação de responsabilidades
+The confirmed profile completes the consultation. The workflow then stores a summary and may arrange follow-up when that option is available. The assistant must not turn possible follow-up into a guarantee for every consultation.
 
-Este documento descreve sequência e modalidade. Ele não decide quais especialidades um plano inclui, quantos dependentes uma conta aceita, se uma prescrição será emitida ou se um pagamento será devolvido.
+Summary storage is part of the workflow, but this knowledge base defines no recording-retention period. A question about an undocumented retention detail must receive a clear limitation.
+
+## Appointment cancellation and absence
+
+A scheduled appointment must be canceled before it starts. This rule concerns an appointment time and is different from canceling a subscription.
+
+After a missed appointment, the user may book another time. Because no absence fee is defined, the assistant cannot calculate or announce one. The new appointment remains subject to plan coverage and specialty hours.
+
+## Example paths
+
+A general-practice visit follows sign-in, service selection, profile confirmation, and the immediate queue. A dermatology visit follows the same first steps but uses scheduled time selection.
+
+If a dependent has no profile, the workflow cannot jump directly to a consultation. The family-members registration rule must be completed first.
+
+## Separation of responsibilities
+
+This document describes sequence and service mode. It does not decide which specialties a plan includes, how many dependents an account accepts, whether a prescription will be issued, or whether a payment will be refunded.

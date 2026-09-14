@@ -193,7 +193,7 @@ class Chunk(Base):
     search_vector: Mapped[Any] = mapped_column(
         TSVECTOR,
         Computed(
-            "to_tsvector('portuguese'::regconfig, content_normalized)",
+            "to_tsvector('english'::regconfig, content_normalized)",
             persisted=True,
         ),
     )

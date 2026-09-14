@@ -105,14 +105,14 @@ def test_prompt_and_settings_versions_are_evaluated_immutable_and_audited(
     monkeypatch.setattr("app.evaluation.run_evaluation", _passing_report)
 
     baseline = load_runtime_snapshot(postgres_engine, settings)
-    assert baseline.prompt_version == "1.0.0"
+    assert baseline.prompt_version == "2.0.0"
     assert baseline.settings_version == "1.0.0"
     assert baseline.prompt_checksum == prompt_checksum(baseline.prompts)
     assert baseline.settings_checksum == settings_checksum(baseline.retrieval)
 
     prompt = create_prompt_draft(
         postgres_engine,
-        version="1.0.1",
+        version="2.0.1",
         actor_id=admin.user_id,
         request_id=request_id,
     )
@@ -120,7 +120,7 @@ def test_prompt_and_settings_versions_are_evaluated_immutable_and_audited(
         {
             **prompt["prompts"],
             "generation_prompt": str(prompt["prompts"]["generation_prompt"])
-            + " Preserve respostas concisas.",
+            + " Preserve concise responses.",
         }
     )
     update_prompt_version(
@@ -185,7 +185,7 @@ def test_prompt_and_settings_versions_are_evaluated_immutable_and_audited(
     )
 
     current = load_runtime_snapshot(postgres_engine, settings)
-    assert current.prompt_version == "1.0.1"
+    assert current.prompt_version == "2.0.1"
     assert current.settings_version == "1.0.1"
     assert current.retrieval.rrf_k == 61
     with Session(postgres_engine) as session, session.begin():

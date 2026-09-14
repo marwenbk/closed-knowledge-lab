@@ -78,16 +78,16 @@ function readSession(key: string): WidgetSession | null {
 function errorMessage(error: unknown): string {
   if (error instanceof WidgetApiError) {
     const messages: Record<string, string> = {
-      CONVERSATION_CLOSED: "Esta conversa foi encerrada. Inicie uma nova conversa para continuar.",
-      IDEMPOTENCY_KEY_REUSED: "A mensagem não pôde ser repetida com segurança.",
-      INVALID_ASSISTANT_KEY: "Este assistente não está disponível neste endereço.",
-      INVALID_WIDGET_SESSION: "Sua sessão expirou. Inicie uma nova conversa.",
-      LLM_NOT_READY: "O assistente está temporariamente indisponível. Tente novamente em instantes.",
-      MESSAGE_FAILED: "Não foi possível processar esta mensagem. Envie uma nova tentativa.",
+      CONVERSATION_CLOSED: "This conversation is closed. Start a new conversation to continue.",
+      IDEMPOTENCY_KEY_REUSED: "The message could not be retried safely.",
+      INVALID_ASSISTANT_KEY: "This assistant is not available at this address.",
+      INVALID_WIDGET_SESSION: "Your session expired. Start a new conversation.",
+      LLM_NOT_READY: "The assistant is temporarily unavailable. Try again shortly.",
+      MESSAGE_FAILED: "This message could not be processed. Send a new attempt.",
     };
     return messages[error.code] ?? error.message;
   }
-  return "Não foi possível conectar ao Closed-Knowledge Lab. Verifique sua conexão e tente novamente.";
+  return "Could not connect to Closed-Knowledge Lab. Check your connection and try again.";
 }
 
 function optimisticMessage(content: string, clientMessageId: string): RuntimeMessage {
@@ -95,7 +95,7 @@ function optimisticMessage(content: string, clientMessageId: string): RuntimeMes
   return {
     message_id: `optimistic:${clientMessageId}`,
     rag_run_id: null,
-    sender: { type: "CUSTOMER", label: "Você" },
+    sender: { type: "CUSTOMER", label: "You" },
     content,
     status: "PENDING",
     citations: [],
@@ -140,7 +140,7 @@ function convertMessage(message: RuntimeMessage): ThreadMessageLike {
 export function WidgetRuntimeProvider({
   apiBaseUrl: rawApiBaseUrl,
   assistantKey,
-  locale = "pt-BR",
+  locale = "en-US",
   children,
 }: PropsWithChildren<{
   apiBaseUrl: string;

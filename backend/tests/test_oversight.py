@@ -40,7 +40,7 @@ def _seed_run(engine: Engine) -> UUID:
                 id=widget_id,
                 anonymous_subject="feedback-subject",
                 origin=ORIGIN,
-                locale="pt-BR",
+                locale="en-US",
                 expires_at=now + timedelta(hours=1),
                 last_seen_at=now,
             )
@@ -59,9 +59,9 @@ def _seed_run(engine: Engine) -> UUID:
             KnowledgeBaseVersion(
                 id=kb_id,
                 dataset_id="topmed-demo",
-                dataset_version="2.0.0",
+                dataset_version="3.0.0",
                 generator_version="1.0.0",
-                language="pt-BR",
+                language="en-US",
                 seed_checksum="a" * 64,
                 template_checksum="b" * 64,
                 manifest_checksum="c" * 64,
@@ -77,7 +77,7 @@ def _seed_run(engine: Engine) -> UUID:
                     conversation_id=conversation_id,
                     client_message_id=uuid4(),
                     sender_type="CUSTOMER",
-                    content="Pergunta",
+                    content="Question",
                     visibility="PUBLIC",
                     status="PERSISTED",
                     citations_json=[],
@@ -86,7 +86,7 @@ def _seed_run(engine: Engine) -> UUID:
                     id=ai_message_id,
                     conversation_id=conversation_id,
                     sender_type="AI",
-                    content="Resposta",
+                    content="Answer",
                     visibility="PUBLIC",
                     status="DELIVERED",
                     review_status="NONE",
@@ -105,8 +105,8 @@ def _seed_run(engine: Engine) -> UUID:
                 user_message_id=user_message_id,
                 assistant_message_id=ai_message_id,
                 kb_version_id=kb_id,
-                original_query="Pergunta",
-                retrieval_query="Pergunta",
+                original_query="Question",
+                retrieval_query="Question",
                 conversation_context_json=[],
                 status="COMPLETED",
                 answerability_status="ANSWERABLE",
@@ -138,7 +138,7 @@ def test_feedback_and_audit_history_are_append_only(postgres_engine: Engine) -> 
         postgres_engine,
         rag_run_id=run_id,
         category="GROUNDING_FAILURE",
-        note="A citação não cobre a frase final.",
+        note="The citation does not support the final sentence.",
         actor_id=admin.user_id,
         request_id=uuid4(),
     )
@@ -160,7 +160,10 @@ def test_feedback_and_audit_history_are_append_only(postgres_engine: Engine) -> 
         offset=0,
         limit=10,
     )
-    assert feedback_total == 1 and feedback[0]["note"] == "A citação não cobre a frase final."
+    assert (
+        feedback_total == 1
+        and feedback[0]["note"] == "The citation does not support the final sentence."
+    )
     assert event_total == 1 and events[0]["after"]["rag_run_id"] == str(run_id)
     with Session(postgres_engine) as session, session.begin():
         row = session.get(Feedback, created["id"])

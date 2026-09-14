@@ -18,8 +18,8 @@ const numericFields: Array<{ key: keyof RetrievalTuning; label: string; step?: n
   { key: "trigram_top_k", label: "Trigram top K" },
   { key: "final_context_k", label: "Contexto final K" },
   { key: "rrf_k", label: "RRF K" },
-  { key: "min_vector_similarity", label: "Similaridade vetorial mínima", step: 0.01 },
-  { key: "trigram_min_similarity", label: "Similaridade trigram mínima", step: 0.01 },
+  { key: "min_vector_similarity", label: "Minimum vector similarity", step: 0.01 },
+  { key: "trigram_min_similarity", label: "Minimum trigram similarity", step: 0.01 },
 ];
 
 export default function SettingsVersionPage() {
@@ -46,20 +46,20 @@ export default function SettingsVersionPage() {
       url: `/api/v1/admin/settings/${id}`,
       method: "put",
       values,
-      successNotification: { message: "Ajustes salvos como nova revisão.", type: "success" },
-      errorNotification: (error) => ({ message: "Não foi possível salvar.", description: error?.message, type: "error" }),
+      successNotification: { message: "Settings saved as a new revision.", type: "success" },
+      errorNotification: (error) => ({ message: "Could not save.", description: error?.message, type: "error" }),
     });
     await refresh();
   }
 
   async function run(action: "EVALUATE" | "ACTIVATE" | "ROLLBACK") {
-    if (action !== "EVALUATE" && !window.confirm("Confirmar a troca dos ajustes ativos?")) return;
+    if (action !== "EVALUATE" && !window.confirm("Replace the active settings?")) return;
     await mutation.mutateAsync({
       url: `/api/v1/admin/settings/${id}/actions`,
       method: "post",
       values: { action },
-      successNotification: { message: action === "EVALUATE" ? "63 casos locais concluídos." : "Ajustes ativos atualizados.", type: "success" },
-      errorNotification: (error) => ({ message: "A ação não foi concluída.", description: error?.message, type: "error" }),
+      successNotification: { message: action === "EVALUATE" ? "63 local cases completed." : "Tuning active atualizados.", type: "success" },
+      errorNotification: (error) => ({ message: "The action could not be completed.", description: error?.message, type: "error" }),
     });
     await refresh();
   }
@@ -75,13 +75,13 @@ export default function SettingsVersionPage() {
       <PageHeading
         title={`Busca ${version.version}`}
         description={`${version.content_checksum.slice(0, 16)}… · atualizado ${formatDate(version.updated_at)}`}
-        actions={<Link className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" href="/admin/tuning"><ArrowLeft size={16} /> Ajustes</Link>}
+        actions={<Link className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" href="/admin/tuning"><ArrowLeft size={16} /> Tuning</Link>}
       />
       <Panel className="mb-4">
         <div className="flex flex-wrap items-center gap-2"><StatusBadge value={version.status} /><StatusBadge value={version.evaluation?.status ?? "NOT_EVALUATED"} />{version.requires_reindex ? <StatusBadge value="REINDEX_REQUIRED" /> : null}</div>
         <div className="mt-4 flex flex-wrap gap-2">
-          {mutable ? <Button disabled={busy} onClick={() => void save()} type="button" variant="outline"><Save size={16} /> Salvar revisão</Button> : null}
-          {canEdit && version.status !== "ACTIVE" ? <Button disabled={busy} onClick={() => void run("EVALUATE")} type="button" variant="outline"><FlaskConical size={16} /> Avaliar 63 casos</Button> : null}
+          {mutable ? <Button disabled={busy} onClick={() => void save()} type="button" variant="outline"><Save size={16} /> Save revision</Button> : null}
+          {canEdit && version.status !== "ACTIVE" ? <Button disabled={busy} onClick={() => void run("EVALUATE")} type="button" variant="outline"><FlaskConical size={16} /> Evaluate 63 cases</Button> : null}
           {canPublish && version.status === "EVALUATED" ? <Button disabled={busy} onClick={() => void run("ACTIVATE")} type="button"><ShieldCheck size={16} /> Ativar</Button> : null}
           {canPublish && version.status === "RETIRED" ? <Button disabled={busy} onClick={() => void run("ROLLBACK")} type="button"><RotateCcw size={16} /> Rollback</Button> : null}
         </div>
@@ -106,12 +106,12 @@ export default function SettingsVersionPage() {
           {(["trigram_fallback_enabled", "second_hop_enabled"] as const).map((key) => (
             <label className="flex items-center gap-3 rounded-xl border border-slate-200 p-3 text-sm font-medium" key={key}>
               <input checked={editedValues[key]} disabled={!mutable} onChange={(event) => setValues({ ...editedValues, [key]: event.target.checked })} type="checkbox" />
-              {key === "trigram_fallback_enabled" ? "Fallback por trigram" : "Segunda etapa de recuperação"}
+              {key === "trigram_fallback_enabled" ? "Trigram fallback" : "Second retrieval hop"}
             </label>
           ))}
         </div>
       </Panel>
-      {version.evaluation ? <Panel className="mt-4"><h2 className="font-semibold">Última avaliação</h2><pre className="mt-3 max-h-96 overflow-auto rounded-xl bg-slate-950 p-4 text-xs text-slate-100">{JSON.stringify(version.evaluation.metrics, null, 2)}</pre></Panel> : null}
+      {version.evaluation ? <Panel className="mt-4"><h2 className="font-semibold">Latest evaluation</h2><pre className="mt-3 max-h-96 overflow-auto rounded-xl bg-slate-950 p-4 text-xs text-slate-100">{JSON.stringify(version.evaluation.metrics, null, 2)}</pre></Panel> : null}
     </>
   );
 }

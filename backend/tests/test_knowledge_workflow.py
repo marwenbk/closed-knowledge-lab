@@ -113,7 +113,7 @@ def test_governed_draft_validation_publication_and_rollback(
     draft = create_draft(
         postgres_engine,
         dataset_id=settings.expected_dataset_id,
-        dataset_version="2.0.1",
+        dataset_version="3.0.1",
         actor_id=actor,
         request_id=uuid4(),
     )
@@ -206,7 +206,7 @@ def test_governed_draft_validation_publication_and_rollback(
             dataset_id=settings.expected_dataset_id,
             version_id=draft["id"],
             document_id=family.id,
-            content=f"{revised['content_markdown'].rstrip()}\n\nAlteração concorrente.\n",
+            content=f"{revised['content_markdown'].rstrip()}\n\nConcurrent change.\n",
             actor_id=actor,
             request_id=uuid4(),
         )
@@ -342,7 +342,7 @@ def test_validation_rejects_archived_conflicting_policy(postgres_engine: Engine)
     draft = create_draft(
         postgres_engine,
         dataset_id=settings.expected_dataset_id,
-        dataset_version="2.0.1",
+        dataset_version="3.0.1",
         actor_id=actor,
         request_id=uuid4(),
     )
@@ -367,7 +367,7 @@ def test_validation_rejects_archived_conflicting_policy(postgres_engine: Engine)
         document_id=employer.id,
         content=(
             f"{detail['content_markdown'].rstrip()}\n\n"
-            "O nível empresarial Gold corresponde ao plano Premium.\n"
+            "The employer Gold tier maps to the Premium plan.\n"
         ),
         actor_id=actor,
         request_id=uuid4(),
@@ -418,7 +418,7 @@ def test_knowledge_editor_can_draft_but_cannot_publish(postgres_engine: Engine) 
         created = client.post(
             "/api/v1/admin/knowledge/versions",
             headers=headers,
-            json={"dataset_version": "2.0.1"},
+            json={"dataset_version": "3.0.1"},
         )
         assert created.status_code == 201, created.text
         versions = client.get("/api/v1/admin/knowledge/versions")
@@ -471,7 +471,7 @@ def test_draft_passes_the_real_retrieval_publication_gate(postgres_engine: Engin
     draft = create_draft(
         postgres_engine,
         dataset_id=settings.expected_dataset_id,
-        dataset_version="2.0.1",
+        dataset_version="3.0.1",
         actor_id=actor,
         request_id=uuid4(),
     )
@@ -503,5 +503,5 @@ def test_draft_passes_the_real_retrieval_publication_gate(postgres_engine: Engin
     )
 
     assert report["passed"] is True
-    assert report["dataset_version"] == "2.0.1"
+    assert report["dataset_version"] == "3.0.1"
     assert report["retrieval"]["evaluated_cases"] == 63

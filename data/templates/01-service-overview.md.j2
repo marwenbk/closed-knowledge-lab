@@ -1,6 +1,6 @@
 ---
 document_id: service-overview
-title: Visão geral do serviço
+title: Service overview
 language: {{ seed.dataset.language }}
 dataset_id: {{ seed.dataset.id }}
 dataset_version: "{{ seed.dataset.version }}"
@@ -8,39 +8,47 @@ dataset_version: "{{ seed.dataset.version }}"
 
 # {{ seed.service.name }}
 
-A {{ seed.service.name }} é um serviço fictício de teleatendimento criado para esta demonstração. O assistente explica operações, benefícios e regras do serviço usando somente os documentos aprovados desta base.
+{{ seed.service.name }} is a fictional telehealth service created for this demonstration. The assistant explains service operations, benefits, and rules using only the approved documents in this knowledge base.
 
-## Planos disponíveis
+## Available plans
 
-Há três planos de contratação direta:
+Three plans are available for direct subscription:
 
-- **{{ seed.plans.consumer.essencial.name }}**
-- **{{ seed.plans.consumer.familia.name }}**
+- **{{ seed.plans.consumer.essential.name }}**
+- **{{ seed.plans.consumer.family.name }}**
 - **{{ seed.plans.consumer.premium.name }}**
 
-Também existe acesso patrocinado por empresas. Os níveis {{ seed.plans.employer_tiers.silver.name }}, {{ seed.plans.employer_tiers.gold.name }} e {{ seed.plans.employer_tiers.platinum.name }} correspondem a planos de consumidor definidos em outro documento. Os benefícios e a disponibilidade de especialidades dependem do plano associado.
+Employer-sponsored access is also available. The {{ seed.plans.employer_tiers.silver.name }}, {{ seed.plans.employer_tiers.gold.name }}, and {{ seed.plans.employer_tiers.platinum.name }} tiers map to consumer plans defined in another document. Benefits and specialty availability follow the mapped consumer plan.
 
-## Escopo do atendimento
+## Support scope
 
-- A base cobre regras operacionais, benefícios e limites do serviço.
-- O assistente não realiza diagnóstico clínico nem triagem clínica.
-- A {{ seed.service.name }} não é um serviço de emergência.
-- O conteúdo, as organizações, os contatos, os preços e as políticas são inteiramente fictícios.
+- The knowledge base covers operational rules, benefits, and service limits.
+- The assistant does not provide clinical diagnosis or clinical triage.
+- {{ seed.service.name }} is not an emergency service.
+- All organizations, contacts, prices, and policies in this dataset are fictional.
 
-Quando a informação solicitada não estiver nos documentos aprovados, o assistente deve informar que a base não contém evidência suficiente.
+When approved documents do not contain the requested information, the assistant must say that the knowledge base has insufficient evidence.
 
-## Como consultar esta base
+## How to use this knowledge base
 
-Cada documento tem uma responsabilidade definida. As páginas de planos apresentam cobertura, dependentes e preços; a página de horários informa quando consultas e suporte funcionam; as políticas de cancelamento, reembolso e cobrança explicam processos financeiros distintos. Separar esses assuntos evita que uma frase resumida seja usada como substituta de uma regra mais específica.
+Each document has a defined responsibility. Plan documents describe coverage, dependents, and prices. The hours document describes when consultations and support operate. Cancellation, refund, and billing policies describe separate financial processes. Keeping these responsibilities separate prevents a summary sentence from replacing a more specific rule.
 
-Uma pergunta simples pode ser respondida por um único documento. Uma pergunta sobre um benefício empresarial pode exigir primeiro a correspondência entre o nível da empresa e um plano de consumidor e, depois, a consulta ao documento que contém o benefício solicitado. Esse encadeamento deve permanecer limitado às relações expressamente registradas na base.
+A simple question may need one document. An employer-benefit question can require two steps: first map the employer tier to a consumer plan, then consult the document that contains the requested benefit. This chain must remain limited to relationships explicitly recorded in the knowledge base.
 
-## Respostas sustentadas por evidência
+## Evidence-supported answers
 
-O assistente deve citar trechos dos documentos que realmente sustentam a resposta. O histórico da conversa ajuda a entender referências como “ele”, “esse plano” ou “depois disso”, mas não cria fatos. Uma afirmação feita pelo usuário também não substitui as regras aprovadas.
+The assistant must cite passages that actually support its answer. Conversation history can resolve references such as “it,” “that plan,” or “after that,” but history does not create facts. A claim made by the user also cannot replace an approved rule.
 
-Quando apenas parte de uma pergunta puder ser comprovada, a parte sustentada pode ser explicada e a parte ausente deve ser identificada como não documentada. Quando faltar o sujeito da pergunta, o assistente deve pedir uma única clarificação objetiva. Quando dois documentos aprovados entrarem em conflito, o conflito deve ser mostrado sem escolher silenciosamente uma versão.
+When only part of a question is supported, the assistant may explain the supported part and identify the missing part as undocumented. When the subject is missing, it should ask one focused clarification question. When approved documents conflict, it should surface the conflict without silently selecting one version.
 
-## Limites da demonstração
+## Demonstration limits
 
-Este conjunto de dados descreve somente a {{ seed.service.name }} fictícia. Ele não contém prontuários, pessoas reais, contratos reais ou informações clínicas individuais. O assistente não recebe ferramentas de busca externa e não deve complementar uma lacuna com conhecimento de treinamento, opinião ou suposição.
+This dataset describes only the fictional {{ seed.service.name }}. It contains no real patient records, people, contracts, or individual clinical information. The assistant has no external search tools and must not fill a gap with training knowledge, opinion, or assumption.
+
+The demo shows how evidence can control an answer. It does not establish clinical safety, healthcare compliance, or suitability for real patient care.
+
+## Why the boundary matters
+
+An operational support answer can still affect a person's choices, so the assistant must state what it knows and what it cannot establish. A plan rule, consultation schedule, or refund condition may be explained only from approved evidence. A symptom, diagnosis, treatment request, or emergency cannot be converted into a service-policy answer merely because both subjects appear in a healthcare conversation.
+
+The correct behavior may be a supported explanation, one clarification question, a limitation, a conflict notice, or transfer to a person. Fluency is never evidence. The response type must follow the available source material and the declared purpose of this demonstration.

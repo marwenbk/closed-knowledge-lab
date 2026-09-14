@@ -1,50 +1,50 @@
 ---
 document_id: eligibility
-title: Elegibilidade e cadastro
-language: pt-BR
+title: Eligibility and registration
+language: en-US
 dataset_id: topmed-demo
-dataset_version: "2.0.0"
+dataset_version: "3.0.0"
 ---
 
-# Elegibilidade e cadastro
+# Eligibility and registration
 
-## Titular da conta
+## Account holder
 
-- O titular deve ter no mínimo **18 anos**.
-- Somente usuários cadastrados podem utilizar o serviço.
-- Cada conta de consumidor possui um titular.
+- The account holder must be at least **18 years old**.
+- Only registered users may use the service.
+- Each consumer account has one account holder.
 
-## Dependentes
+## Dependents
 
-- Dependentes podem ser menores de idade.
-- Cada dependente precisa ter um perfil separado no cadastro.
-- O perfil deve ser criado antes da primeira consulta do dependente.
-- A quantidade permitida de dependentes varia conforme o plano e é definida no documento sobre membros da família.
+- Dependents may be minors.
+- Each dependent needs a separate registered profile.
+- The profile must be created before the dependent's first consultation.
+- The number of permitted dependents varies by plan and is defined in the family-members document.
 
-O cadastro de um dependente não substitui a confirmação do perfil no início do fluxo de consulta. O usuário deve selecionar e confirmar quem receberá o atendimento.
+Registering a dependent does not replace profile confirmation at the beginning of a consultation. The user must select and confirm the person who will receive care.
 
-## Acesso patrocinado por empresa
+## Employer-sponsored access
 
-- O acesso empresarial exige inscrição ativa no benefício oferecido pelo empregador.
-- Sem inscrição ativa, o usuário não é elegível ao acesso patrocinado.
-- A empresa define o nível do benefício; o documento de planos empresariais explica a correspondência com os planos de consumidor.
+- Employer access requires active enrollment in the benefit offered by the employer.
+- Without active enrollment, the user is not eligible for sponsored access.
+- The employer defines the benefit tier; the employer-plans document maps that tier to a consumer plan.
 
-Estas são regras de acesso ao serviço. Elas não alteram benefícios, preços, horários ou limites descritos nos respectivos documentos canônicos.
+These rules control access to the service. They do not change benefits, prices, schedules, or limits described in their canonical documents.
 
-## Verificação antes do atendimento
+## Verification before care
 
-O fluxo de elegibilidade começa pela identificação do titular ou do dependente que receberá o atendimento. Ter uma conta existente não elimina a necessidade de confirmar o perfil correto. Quando o atendimento é destinado a um dependente, o perfil individual deve existir previamente e ser selecionado no fluxo de consulta.
+The eligibility flow begins by identifying the account holder or dependent who will receive care. An existing account does not remove the need to confirm the correct profile. When care is intended for a dependent, that person's profile must already exist and must be selected in the consultation flow.
 
-A permissão para dependentes menores não muda a idade mínima do titular. Essas duas regras tratam de papéis diferentes: o titular administra a conta, enquanto o dependente utiliza um perfil próprio vinculado a ela. A quantidade de perfis permitidos continua sendo determinada pelo plano de consumidor ativo.
+Permission for minor dependents does not change the minimum age for an account holder. The rules concern different roles: the account holder manages the account, while a dependent uses a separate linked profile. The active consumer plan still determines how many dependent profiles are permitted.
 
-## Exemplos de aplicação
+## Application examples
 
-Uma pessoa com menos de 18 anos não pode ser criada como titular apenas porque dependentes menores são aceitos. Ela pode ser cadastrada como dependente quando houver um titular elegível, um plano que aceite dependentes e um perfil separado preparado antes do atendimento.
+A person younger than 18 cannot become the account holder merely because minor dependents are allowed. The person may be registered as a dependent when there is an eligible account holder, an active plan that accepts dependents, and a separate profile created before care.
 
-No benefício empresarial, a existência de vínculo com uma organização não é suficiente por si só. A inscrição precisa estar ativa. Depois dessa confirmação, o nível empresarial é convertido no plano de consumidor correspondente, e somente então os benefícios daquele plano podem ser consultados.
+For an employer benefit, association with an organization is not sufficient by itself. Enrollment must be active. After that condition is confirmed, the employer tier maps to its consumer plan, and only then can the benefits of that plan be applied.
 
-## O que esta regra não decide
+## What eligibility does not decide
 
-Elegibilidade não determina se uma especialidade está incluída, quantas pessoas podem ser adicionadas, quanto custa um plano ou em qual horário ocorre o atendimento. Essas respostas pertencem a documentos específicos. Também não cabe ao assistente presumir que uma pessoa está cadastrada ou que a inscrição empresarial está ativa; essas condições dependem do estado real da conta.
+Eligibility does not determine which specialties are included, how many people can be added, what a plan costs, or when care is available. Those answers belong to specific documents. The assistant also cannot assume that a person is registered or that an employer enrollment is active; those conditions depend on actual account state.
 
-Se uma pergunta não disser quem pretende usar o serviço, qual plano está envolvido ou se o acesso é direto ou empresarial, pode ser necessário pedir uma clarificação antes de aplicar as regras.
+If a question does not identify who will use the service, which plan is involved, or whether access is direct or employer-sponsored, the assistant may need one clarification before applying a rule.

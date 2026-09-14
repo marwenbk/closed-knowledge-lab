@@ -12,7 +12,7 @@ from app.tuning import TuningError, runtime_status
 
 REQUIRED_EXTENSIONS = {"vector", "pg_trgm"}
 REQUIRED_LEXICAL_INDEXES = {"ix_chunks_search_vector", "ix_chunks_content_trgm"}
-MIGRATION_HEAD = "0009_audit_feedback"
+MIGRATION_HEAD = "0010_english_runtime"
 REQUIRED_EVENT_TABLES = {
     "admin_sessions",
     "admin_users",
@@ -110,6 +110,7 @@ def readiness(
     engine: Engine,
     *,
     expected_dataset_id: str,
+    expected_dataset_version: str,
     expected_embedding_model: str,
     expected_embedding_version: str,
     expected_embedding_dimensions: int,
@@ -208,12 +209,14 @@ def readiness(
             active["document_count"] > 0
             and active["chunk_count"] > 0
             and active["dataset_id"] == expected_dataset_id
+            and active["dataset_version"] == expected_dataset_version
         )
         checks["knowledge_base"] = {
             "status": "ready" if knowledge_ready else "not_ready",
             "dataset_id": active["dataset_id"],
             "dataset_version": active["dataset_version"],
             "expected_dataset_id": expected_dataset_id,
+            "expected_dataset_version": expected_dataset_version,
             "document_count": active["document_count"],
             "chunk_count": active["chunk_count"],
         }

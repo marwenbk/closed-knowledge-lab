@@ -54,7 +54,7 @@ function ChatFrame({ mode, parentOrigin }: Pick<ChatExperienceProps, "mode" | "p
         <div className="flex items-center gap-1">
           <ConversationActions />
           {mode === "widget" ? (
-            <Button aria-label="Fechar chat" onClick={requestClose} size="icon" variant="ghost">
+            <Button aria-label="Close chat" onClick={requestClose} size="icon" variant="ghost">
               <X className="size-4" />
             </Button>
           ) : null}

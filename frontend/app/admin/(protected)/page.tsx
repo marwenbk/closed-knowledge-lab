@@ -43,8 +43,8 @@ export default function AdminDashboardPage() {
   return (
     <>
       <PageHeading
-        title="Visão geral"
-        description="Estado operacional do atendimento, da base ativa e da qualidade das respostas."
+        title="Overview"
+        description="Operational state of support, active knowledge, and response quality."
         actions={
           <Button
             onClick={() => void query.refetch()}
@@ -58,23 +58,23 @@ export default function AdminDashboardPage() {
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Metric
-          detail={`${dashboard.conversations.assigned} atribuídos · ${dashboard.conversations.human_active} ativos`}
-          label="Conversas abertas"
+          detail={`${dashboard.conversations.assigned} assigned · ${dashboard.conversations.human_active} active`}
+          label="Open conversations"
           value={dashboard.conversations.open}
         />
         <Metric
           detail={`Mais antiga: ${formatDuration(dashboard.conversations.oldest_waiting_seconds)}`}
-          label="A aguardar pessoa"
+          label="Waiting pessoa"
           value={dashboard.conversations.waiting}
         />
         <Metric
           detail={`${dashboard.knowledge.chunk_count} blocos indexados`}
-          label="Documentos ativos"
+          label="Documentos active"
           value={dashboard.knowledge.document_count}
         />
         <Metric
-          detail="Do pedido à primeira atribuição"
-          label="Espera média"
+          detail="From request to first assignment"
+          label="Average wait"
           value={`${Math.round(dashboard.quality.average_handoff_wait_seconds)}s`}
         />
       </div>
@@ -83,9 +83,9 @@ export default function AdminDashboardPage() {
         <Panel className="mt-6 border-sky-200">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <h2 className="font-semibold">Respostas aguardando revisão</h2>
+              <h2 className="font-semibold">Responses awaiting review</h2>
               <p className="mt-1 text-sm text-slate-500">
-                Propostas verificadas permanecem privadas até uma decisão humana.
+                Verified proposals remain private until a human decision.
               </p>
             </div>
             <StatusBadge value={`${dashboard.pending_reviews.length} PENDING`} />
@@ -112,11 +112,11 @@ export default function AdminDashboardPage() {
         <Panel>
           <div className="mb-5 flex items-center gap-2">
             <Activity className="text-teal-700" size={20} />
-            <h2 className="font-semibold">Qualidade do assistente</h2>
+            <h2 className="font-semibold">Assistant quality</h2>
           </div>
           <dl className="grid grid-cols-2 gap-4 text-sm">
             <div>
-              <dt className="text-slate-500">Latência AI média</dt>
+              <dt className="text-slate-500">Average AI latency</dt>
               <dd className="mt-1 text-xl font-semibold">
                 {Math.round(dashboard.quality.average_ai_latency_ms)} ms
               </dd>
@@ -134,7 +134,7 @@ export default function AdminDashboardPage() {
               </dd>
             </div>
             <div>
-              <dt className="text-slate-500">Falhas de grounding</dt>
+              <dt className="text-slate-500">Grounding failures</dt>
               <dd className="mt-1 text-xl font-semibold">
                 {dashboard.quality.grounding_failure_rate_percent}%
               </dd>
@@ -152,11 +152,11 @@ export default function AdminDashboardPage() {
         <Panel>
           <div className="mb-5 flex items-center gap-2">
             <BookOpen className="text-teal-700" size={20} />
-            <h2 className="font-semibold">Versões em execução</h2>
+            <h2 className="font-semibold">Runtime versions</h2>
           </div>
           <dl className="grid gap-3 text-sm">
             <div className="flex items-center justify-between gap-4">
-              <dt className="text-slate-500">Base de conhecimento</dt>
+              <dt className="text-slate-500">Knowledge base</dt>
               <dd className="flex items-center gap-2 font-medium">
                 {dashboard.knowledge.dataset_id}:{dashboard.knowledge.dataset_version}
                 <StatusBadge value={dashboard.knowledge.status} />
@@ -179,7 +179,7 @@ export default function AdminDashboardPage() {
           </dl>
           <div className="mt-5 border-t border-slate-100 pt-4 text-sm">
             <div className="flex items-center gap-2 font-medium">
-              <Clock3 size={16} /> Última avaliação
+              <Clock3 size={16} /> Latest evaluation
             </div>
             {dashboard.latest_evaluation ? (
               <p className="mt-2 text-slate-600">
@@ -190,14 +190,14 @@ export default function AdminDashboardPage() {
                 />
               </p>
             ) : (
-              <p className="mt-2 text-slate-500">Ainda não há relatório local.</p>
+              <p className="mt-2 text-slate-500">No local report is available yet.</p>
             )}
           </div>
         </Panel>
       </div>
 
       <p className="mt-6 flex items-center gap-2 text-xs text-slate-500">
-        <MessagesSquare size={14} /> Atualização automática por eventos da fila.
+        <MessagesSquare size={14} /> Automatically updated from queue events.
       </p>
     </>
   );

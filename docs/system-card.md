@@ -49,10 +49,10 @@ The fictional knowledge base states that the service is not an emergency service
 
 | Field | Current implementation |
 | --- | --- |
-| Generation model | Configured DeepSeek `deepseek-v4-flash`, non-thinking mode, structured JSON output. |
+| Generation model | Configured DeepSeek `deepseek-flash`, non-thinking mode, structured JSON output. The provider returned this model ID during readiness validation on 14 September 2026. |
 | Retrieval | PostgreSQL full-text search, pgvector, weighted rank fusion, conditional trigram fallback, explicit employer-plan mapping, and one bounded second hop. |
 | Embeddings | Local ONNX `intfloat/multilingual-e5-small`; production can use a pinned static distilled model with 384-dimensional storage compatibility. |
-| Knowledge source | Deterministically generated fictional Portuguese corpus: 15 documents, 30 chunks, and 76 stable fact IDs in dataset `topmed-demo:2.0.0`. |
+| Knowledge source | Deterministically generated fictional English corpus: 15 documents, 30 chunks, and 76 stable fact IDs in dataset `topmed-demo:3.0.0`. |
 | User input | Text questions and up to two prior customer messages for reference resolution. Conversation history is not treated as factual evidence. |
 | External tools | No browser, search, or URL tool is available to the answer pipeline. |
 | Outputs | Supported or partially supported answers with citations; a clarification question; a limitation response; or a conflict response. |
@@ -74,12 +74,15 @@ These controls show workflow behavior. They do not establish that qualified staf
 
 Fresh checks recorded on 14 September 2026:
 
-- the deterministic corpus validator passed for 15 documents, 76 facts, and 6,718 words;
+- the deterministic corpus validator passed for 15 documents, 30 chunks, 76 facts, and 6,098 words;
 - the evaluation contract contains 100 cases and five isolated conflict fixtures;
-- 103 backend tests passed against PostgreSQL and both configured embedding runtimes, with two live-LLM tests excluded;
+- the English retrieval-only gate passed all 63 eligible cases with complete source, fact, and required second-hop recall on the local ONNX configuration;
+- 104 backend tests passed against PostgreSQL and both configured embedding runtimes, with two live-LLM tests excluded;
 - 17 frontend tests and the production frontend build passed.
+- one live Gold-tier question returned a verified answer with exact mapping and dependent-limit citations;
+- one live chest-pain question returned a generic `NOT_ANSWERABLE` limitation without diagnosis, citations, or an emergency next step.
 
-The 20 August 2026 release record reports 63/63 curated retrieval cases passing with complete source, fact, and required second-hop recall for both release configurations. The original machine-readable reports were local ignored artifacts, so this result remains historical until reproduced.
+The 20 August 2026 release record belongs to the retired `2.0.0` dataset and is separate from the current English gate. The English static-runtime result is verified by the complete backend suite.
 
 No clinical study, real-user safety study, subgroup fairness analysis, accessibility study, or independent evaluation has been completed.
 
@@ -96,7 +99,7 @@ No clinical study, real-user safety study, subgroup fairness analysis, accessibi
 
 ## Fairness and usability evidence
 
-The current corpus and tests are in Brazilian Portuguese and include paraphrases, typos, ambiguity, prompt injection, user falsehoods, missing information, and conflicts. They do not measure performance by race, ethnicity, sex, gender, age, disability, health literacy, dialect, socioeconomic status, or intersecting groups.
+The current corpus and tests are in English and include paraphrases, typos, ambiguity, prompt injection, user falsehoods, missing information, and conflicts. They do not measure performance by race, ethnicity, sex, gender, age, disability, health literacy, dialect, primary language, socioeconomic status, or intersecting groups.
 
 No representative user panel, clinician review, accessibility audit, comprehension study, satisfaction measure, or abandonment analysis has been completed.
 

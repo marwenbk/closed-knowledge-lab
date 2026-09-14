@@ -1,59 +1,61 @@
 ---
 document_id: specialties
-title: Especialidades por plano
-language: pt-BR
+title: Specialties by plan
+language: en-US
 dataset_id: topmed-demo
-dataset_version: "2.0.0"
+dataset_version: "3.0.0"
 ---
 
-# Especialidades por plano
+# Specialties by plan
 
-## Especialidades cadastradas
+## Registered specialties
 
-- Clínica geral
-- Psicologia
-- Nutrição
-- Dermatologia
-- Pediatria
-- Cardiologia
-- Endocrinologia
+- General practice
+- Psychology
+- Nutrition
+- Dermatology
+- Pediatrics
+- Cardiology
+- Endocrinology
 
-## Cobertura do plano Essencial
+## Essential plan coverage
 
-- Inclui clínica geral.
-- Não inclui as demais especialidades cadastradas.
+- Includes general practice.
+- Does not include the other registered specialties.
 
-## Cobertura do plano Família
+## Family plan coverage
 
-- Inclui clínica geral, pediatria e dermatologia.
-- A disponibilidade de cada atendimento continua sujeita aos horários do documento canônico de horários.
+- Includes general practice, pediatrics, and dermatology.
+- Each service remains subject to the hours in the canonical availability document.
 
-## Cobertura do plano Premium
+## Premium plan coverage
 
-- Inclui todas as especialidades cadastradas: clínica geral, psicologia, nutrição, dermatologia, pediatria, cardiologia e endocrinologia.
-- Inclui **1 consulta de psicologia por mês**.
-- Inclui **1 consulta de nutrição por mês**.
+- Includes all registered specialties: general practice, psychology, nutrition, dermatology, pediatrics, cardiology, and endocrinology.
+- Includes **1 psychology consultation per month**.
+- Includes **1 nutrition consultation per month**.
 
-Este documento define cobertura. Os horários são mantidos separadamente para que a presença de uma especialidade no plano não seja confundida com disponibilidade contínua.
+This document defines coverage. Hours remain separate so that a covered specialty is not confused with continuous availability.
 
-## Leitura por plano
+## Reading coverage by plan
 
-O plano Essencial concentra sua cobertura clínica na clínica geral. Isso significa que uma pergunta sobre outra especialidade não pode ser respondida afirmativamente apenas porque o usuário possui uma conta ativa.
+The Essential plan focuses its clinical coverage on general practice. An active account alone does not support an affirmative answer about another specialty.
 
-O plano Família acrescenta pediatria e dermatologia à clínica geral. Os limites de dependentes e as regras de cadastro familiar são mantidos em outro documento, mesmo que o nome do plano sugira uso por uma família.
+The Family plan adds pediatrics and dermatology to general practice. Dependent limits and family registration remain in another document even though the plan name suggests family use.
 
-O plano Premium reúne as sete especialidades cadastradas. Para psicologia e nutrição, a base também define uma quantidade mensal incluída. Essa quantidade é um benefício do plano e não significa que qualquer horário esteja disponível.
+The Premium plan contains all seven registered specialties. For psychology and nutrition, the knowledge base also defines a monthly included quantity. That quantity is a plan benefit, not a promise that every time slot is available.
 
-## Relação com planos empresariais
+## Employer plans
 
-Níveis empresariais não aparecem na lista de cobertura porque precisam ser traduzidos para o plano de consumidor correspondente. Depois dessa tradução, aplicam-se exatamente as especialidades do plano resultante. O assistente não deve associar um nível empresarial a uma especialidade sem recuperar também a correspondência aprovada.
+Employer tiers must first map to their consumer plan. The resulting plan supplies the specialty rules. The assistant must not associate an employer tier with a specialty without retrieving the approved mapping.
 
-## Exemplos de decisão
+## Decision examples
 
-Para saber se um usuário do Família pode usar dermatologia, esta página é suficiente para confirmar a cobertura. Para saber se pode usar dermatologia em um domingo, também é necessário consultar o documento de horários.
+This page can confirm that a Family user has dermatology coverage. Answering whether dermatology operates on Sunday also requires the hours document.
 
-Para saber se um usuário do Premium tem psicologia, esta página confirma tanto a presença da especialidade quanto a quantidade mensal incluída. Para informar quando a consulta pode ocorrer, a evidência de horário continua obrigatória.
+This page confirms both psychology coverage and the included monthly quantity for a Premium user. The schedule evidence remains necessary to say when a consultation can occur.
 
-## Limite das afirmações
+If a question combines plan coverage, a monthly allowance, and a requested day, each part needs its own supporting passage. The plan name alone cannot prove the quantity or the schedule. A complete response may therefore cite this document more than once and add the hours document without treating either source as a substitute for the other.
 
-Cobertura não garante prescrição, atendimento imediato ou decisão clínica. Também não autoriza o assistente a inventar especialidades além das sete cadastradas. Se uma pergunta mencionar um serviço que não consta desta página, a base não oferece evidência de que ele esteja incluído.
+## Claim limits
+
+Coverage does not guarantee a prescription, immediate care, or a clinical decision. It does not authorize the assistant to invent specialties beyond the seven listed here. If a requested service is absent, this knowledge base provides no evidence that the plan includes it.

@@ -5,7 +5,7 @@
 **Status:** Implementation-ready product specification  
 **Product:** Closed-Knowledge Lab
 **Product type:** Web-based, closed-knowledge conversational assistant  
-**Primary language of demo knowledge base:** Portuguese (Brazil), `pt-BR`  
+**Primary language of demo knowledge base:** English (United States), `en-US`
 **Primary timezone:** `America/Sao_Paulo`  
 
 ---
@@ -44,7 +44,7 @@ The implementation uses:
 - **PostgreSQL full-text search** for lexical retrieval;
 - **`pg_trgm`** as a low-confidence typo fallback;
 - **Server-Sent Events (SSE)** for widget and back-office updates;
-- a small provider interface backed initially by the official DeepSeek API and `deepseek-v4-flash` for evidence assessment, grounded generation, and verification.
+- a small provider interface backed initially by the official DeepSeek API and the configured non-thinking Flash model for evidence assessment, grounded generation, and verification.
 
 The system does not stream raw model tokens to customers. It may stream safe processing-state events, but a factual AI response is delivered only after citation validation and grounding verification succeed.
 
@@ -467,11 +467,11 @@ These rules are mandatory and testable.
 
 User:
 
-> Quantos dependentes o plano Família permite?
+> How many dependents does the Family plan allow?
 
 Expected:
 
-> O plano Família permite até três dependentes cadastrados.
+> The Family plan allows up to three registered dependents.
 
 The response displays the exact supporting evidence.
 
@@ -479,7 +479,7 @@ The response displays the exact supporting evidence.
 
 User:
 
-> Tenho o plano Gold pela empresa. Quantos dependentes posso cadastrar?
+> I have Gold through my employer. How many dependents can I register?
 
 Required chain:
 
@@ -495,7 +495,7 @@ Both rules are cited.
 
 User:
 
-> Posso pedir reembolso depois de dez dias sem consulta, e o dinheiro chega amanhã?
+> Can I request a refund after ten days with no consultation, and will the money arrive tomorrow?
 
 Expected:
 
@@ -507,17 +507,17 @@ Expected:
 
 User:
 
-> Qual é a capital da França?
+> What is the capital of France?
 
 Expected:
 
-> Não encontrei informações suficientes na base de conhecimento para responder a essa pergunta.
+> I could not find enough information in the knowledge base to answer that question.
 
 ### US-05 — Ambiguity
 
 User:
 
-> Posso adicionar alguém?
+> Can I add someone?
 
 Expected:
 
@@ -527,7 +527,7 @@ A concise clarification question rather than a guessed answer.
 
 User first asks about dependents, then asks:
 
-> Eles precisam ser cadastrados antes?
+> Must they be registered first?
 
 History resolves “eles,” but the registration rule is retrieved again from the KB.
 
@@ -535,7 +535,7 @@ History resolves “eles,” but the registration rule is retrieved again from t
 
 User:
 
-> O Premium permite dez dependentes, certo?
+> Premium allows ten dependents, right?
 
 Expected correction using the approved rule.
 
@@ -557,7 +557,7 @@ A plain HTML customer website adds the widget loader script. The launcher appear
 
 ### US-11 — Customer Requests a Human
 
-The customer clicks **Falar com uma pessoa**. The conversation moves to `HUMAN_REQUESTED`, appears in the Refine queue, and the widget displays the waiting status.
+The customer clicks **Talk to a person**. The conversation moves to `HUMAN_REQUESTED`, appears in the Refine queue, and the widget displays the waiting status.
 
 ### US-12 — Agent Takes Over
 
@@ -596,7 +596,7 @@ Example integration:
   src="https://chat.example/widget.js"
   data-assistant-key="topmed-demo"
   data-position="bottom-right"
-  data-locale="pt-BR"
+  data-locale="en-US"
 ></script>
 ```
 
@@ -641,7 +641,7 @@ The widget must provide:
 - unread-message indicator;
 - responsive mobile fullscreen mode;
 - keyboard navigation;
-- localized Portuguese copy;
+- localized English copy;
 - fictional-service and sensitive-data warning.
 
 #### FR-05 — Widget Session
@@ -1079,10 +1079,10 @@ Example metadata:
 {
   "chunk_id": "family-members__dependent-limits__001",
   "document_id": "family-members",
-  "document_title": "Familiares e dependentes",
+  "document_title": "Family members and dependents",
   "section": "Limites de dependentes",
-  "language": "pt-BR",
-  "dataset_version": "2.0.0",
+  "language": "en-US",
+  "dataset_version": "3.0.0",
   "content": "...",
   "source_path": "knowledge_base/05-family-members.md"
 }
@@ -1783,7 +1783,7 @@ Request:
 
 ```json
 {
-  "content": "Quantos dependentes um funcionário Gold pode cadastrar?",
+  "content": "How many dependents can an employee with Gold register?",
   "client_message_id": "uuid"
 }
 ```
@@ -1903,7 +1903,7 @@ Reports database connectivity, active KB/index readiness, event-store readiness,
   "message_id": "uuid",
   "rag_run_id": "uuid",
   "status": "ANSWERABLE",
-  "answer": "Funcionários Gold recebem acesso ao plano Família, que permite até três dependentes cadastrados.",
+  "answer": "Employees with Gold receive access to the Family plan, which allows up to three registered dependents.",
   "sender": {
     "type": "AI",
     "label": "Closed-Knowledge Lab"
@@ -1913,13 +1913,13 @@ Reports database connectivity, active KB/index readiness, event-store readiness,
       "citation_id": "c1",
       "document": "Planos empresariais",
       "section": "Gold",
-      "quote": "O nível Gold concede acesso equivalente ao plano Família."
+      "quote": "The Gold tier provides access equivalent to the Family plan."
     },
     {
       "citation_id": "c2",
-      "document": "Familiares e dependentes",
+      "document": "Family members and dependents",
       "section": "Limites de dependentes",
-      "quote": "O plano Família permite o cadastro de até três dependentes."
+      "quote": "The Family plan allows up to three registered dependents."
     }
   ]
 }
@@ -2456,7 +2456,7 @@ API_BASE_URL=
 # LLM and retrieval
 DEEPSEEK_BASE_URL=https://api.deepseek.com
 DEEPSEEK_API_KEY=
-CHAT_MODEL=deepseek-v4-flash
+CHAT_MODEL=deepseek-flash
 EMBEDDING_MODEL=
 EMBEDDING_VERSION=
 VECTOR_TOP_K=10
@@ -2470,7 +2470,7 @@ SECOND_HOP_ENABLED=true
 
 # Active versions
 ACTIVE_DATASET_ID=topmed-demo
-ACTIVE_DATASET_VERSION=2.0.0
+ACTIVE_DATASET_VERSION=3.0.0
 PROMPT_VERSION=1.0.0
 SETTINGS_VERSION=1.0.0
 
@@ -2555,7 +2555,7 @@ The demo should include a plain HTML embed fixture proving that the widget works
 1. Finalize canonical facts and intentional gaps.
 2. Generate and validate the 15 documents.
 3. Generate evaluation cases.
-4. Freeze dataset version `2.0.0`.
+4. Freeze dataset version `3.0.0`.
 
 ### Phase 1 — Persistence and Indexing
 

@@ -19,7 +19,7 @@ class RetrievalError(RuntimeError):
     pass
 
 
-LEXICAL_TERM_PATTERN = re.compile(r"\b[\wÀ-ÿ]+(?:-[\wÀ-ÿ]+)*\b", re.UNICODE)
+LEXICAL_TERM_PATTERN = re.compile(r"\b\w+(?:-\w+)*\b", re.UNICODE)
 MAX_BROAD_LEXICAL_TERMS = 32
 CHANNEL_WEIGHTS = {
     "lexical_broad": 0.5,
@@ -134,13 +134,16 @@ def _base_columns() -> tuple[Any, ...]:
 def _topic_companion_document_keys(query: str) -> set[str]:
     normalized = normalize_content(query).casefold()
     document_keys: set[str] = set()
-    if "dermatolog" in normalized and any(
-        term in normalized
-        for term in ("domingo", "sábado", "sabado", "noite", "horário", "horario", "funciona")
-    ):
+    scheduled_specialty = any(
+        specialty in normalized for specialty in ("dermatolog", "psycholog", "nutrition")
+    )
+    asks_about_hours = any(
+        term in normalized for term in ("sunday", "saturday", "night", "hours", "open", "operate")
+    )
+    if scheduled_specialty and asks_about_hours:
         document_keys.update(("consultation-hours", "specialties"))
     if "cancel" in normalized and any(
-        term in normalized for term in ("receb", "pague", "reembols", "devolu")
+        term in normalized for term in ("receive", "paid", "refund", "return")
     ):
         document_keys.update(("cancellation", "refund-policy"))
     if _mentioned_employer_tier(query) and "dependent" in normalized:
@@ -240,7 +243,7 @@ def _lexical_channels(
     strict = _lexical_candidates_for_tsquery(
         session,
         version_id,
-        func.websearch_to_tsquery("portuguese", query),
+        func.websearch_to_tsquery("english", query),
         settings.lexical_top_k,
     )
     remaining = settings.lexical_top_k - len(strict)
@@ -250,7 +253,7 @@ def _lexical_channels(
     broad = _lexical_candidates_for_tsquery(
         session,
         version_id,
-        func.websearch_to_tsquery("portuguese", broad_query),
+        func.websearch_to_tsquery("english", broad_query),
         remaining,
         excluded_chunk_ids={candidate.chunk_id for candidate in strict},
     )
@@ -381,25 +384,28 @@ def _fuse(
 EMPLOYER_TIER_PATTERN = re.compile(r"\b(silver|gold|platinum)\b", re.IGNORECASE)
 MAPPING_PATTERN = re.compile(
     r"\b(silver|gold|platinum)\b\s*(?:\*\*)?\s*"
-    r"(?:→|->|corresponde(?:\s+ao)?(?:\s+plano)?|usa\s+as\s+regras\s+do)\s*"
-    r"(?:\*\*)?\s*(essencial|família|premium)\b",
+    r"(?:→|->|maps?\s+to|corresponds?\s+to|uses?\s+(?:the\s+)?(?:rules\s+of\s+)?)\s*"
+    r"(?:\*\*)?\s*(essential|family|premium)\b",
     re.IGNORECASE,
 )
 SECOND_HOP_TOPICS: tuple[tuple[re.Pattern[str], str], ...] = (
-    (re.compile(r"dependen", re.IGNORECASE), "limite de dependentes"),
+    (re.compile(r"dependen", re.IGNORECASE), "dependent limit"),
     (
-        re.compile(r"quant(?:as|idade)?\s+(?:de\s+)?consult|consultas?.*mens", re.IGNORECASE),
-        "limite mensal de consultas",
+        re.compile(
+            r"how\s+many(?:\s+\w+){0,3}\s+consult|consultations?.*(?:month|monthly)",
+            re.IGNORECASE,
+        ),
+        "monthly consultation allowance",
     ),
     (
         re.compile(
-            r"especial|cobertura|dermat|psicolog|pediatr|nutri|cardio|gineco",
+            r"special|coverage|dermat|psych|pediatr|nutri|cardio|endocr",
             re.IGNORECASE,
         ),
-        "especialidades incluídas",
+        "included specialties",
     ),
-    (re.compile(r"preç|valor|custa|custo|mensalidade", re.IGNORECASE), "preço mensal"),
-    (re.compile(r"horár|disponib|quando|sábado|domingo", re.IGNORECASE), "horários"),
+    (re.compile(r"price|cost|monthly fee", re.IGNORECASE), "monthly price"),
+    (re.compile(r"hours|availab|when|saturday|sunday", re.IGNORECASE), "hours"),
 )
 
 
@@ -446,7 +452,7 @@ def _second_hop_query(query: str, evidence: list[RetrievalMatch]) -> str | None:
         for mapping in MAPPING_PATTERN.finditer(match.content):
             if normalize_content(mapping.group(1)) == mentioned_tier:
                 consumer_plan = mapping.group(2)
-                return f"{' e '.join(topics)} do plano {consumer_plan}"
+                return f"{' and '.join(topics)} for the {consumer_plan} plan"
     return None
 
 

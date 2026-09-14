@@ -523,7 +523,7 @@ def _persist_customer_message(
         "message.created",
         {
             "message_id": str(message.id),
-            "sender": {"type": "CUSTOMER", "label": "Você"},
+            "sender": {"type": "CUSTOMER", "label": "You"},
             "content": content,
             "citations": [],
             "created_at": created_at.isoformat(),

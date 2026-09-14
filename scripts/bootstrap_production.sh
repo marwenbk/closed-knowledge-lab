@@ -20,7 +20,8 @@ alembic -c "${TOPMED_PROJECT_ROOT}/backend/alembic.ini" upgrade head
 python -m app.cli admin bootstrap
 python -m app.cli kb import --manifest "${TOPMED_PROJECT_ROOT}/knowledge_base/manifest.json"
 python -m app.cli kb embed
-if ! python -m app.cli kb status >/dev/null 2>&1; then
+if ! python -m app.cli kb status 2>/dev/null | python -c \
+  'import json, sys; raise SystemExit(0 if json.load(sys.stdin).get("language") == "en-US" else 1)'; then
   python -m app.cli kb activate
 fi
 python -m app.cli system ready

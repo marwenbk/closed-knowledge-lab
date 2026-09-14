@@ -1,54 +1,52 @@
 ---
 document_id: consultation-hours
-title: Horários de consultas e suporte
+title: Consultation and support hours
 language: {{ seed.dataset.language }}
 dataset_id: {{ seed.dataset.id }}
 dataset_version: "{{ seed.dataset.version }}"
 ---
 
-# Horários de consultas e suporte
+# Consultation and support hours
 
-Todos os horários seguem o fuso **{{ seed.service_hours.timezone }}**, apresentado ao usuário como horário de Brasília.
+All hours use the **{{ seed.service_hours.timezone }}** time zone, presented to users as Brasília time.
 
-## Consultas
+## Consultations
 
-| Serviço | Dias | Horário |
+| Service | Days | Hours |
 |---|---|---|
-| {{ seed.specialties.general_practice.name }} | {{ seed.service_hours.general_practice.days | day_range_pt }} | 24 horas |
-| {{ seed.specialties.psychology.name }} | {{ seed.service_hours.psychology.days | day_range_pt }} | {{ seed.service_hours.psychology.opens_at }}–{{ seed.service_hours.psychology.closes_at }} |
-| {{ seed.specialties.nutrition.name }} | {{ seed.service_hours.nutrition.days | day_range_pt }} | {{ seed.service_hours.nutrition.opens_at }}–{{ seed.service_hours.nutrition.closes_at }} |
-| {{ seed.specialties.dermatology.name }} | {{ seed.service_hours.dermatology.days | day_range_pt }} | {{ seed.service_hours.dermatology.opens_at }}–{{ seed.service_hours.dermatology.closes_at }} |
+| {{ seed.specialties.general_practice.name }} | {{ seed.service_hours.general_practice.days | day_range_en }} | 24 hours |
+| {{ seed.specialties.psychology.name }} | {{ seed.service_hours.psychology.days | day_range_en }} | {{ seed.service_hours.psychology.opens_at }}–{{ seed.service_hours.psychology.closes_at }} |
+| {{ seed.specialties.nutrition.name }} | {{ seed.service_hours.nutrition.days | day_range_en }} | {{ seed.service_hours.nutrition.opens_at }}–{{ seed.service_hours.nutrition.closes_at }} |
+| {{ seed.specialties.dermatology.name }} | {{ seed.service_hours.dermatology.days | day_range_en }} | {{ seed.service_hours.dermatology.opens_at }}–{{ seed.service_hours.dermatology.closes_at }} |
 
-- **{{ seed.specialties.general_practice.name }}:** atendimento 24 horas, todos os dias.
-- **{{ seed.specialties.psychology.name }}:** {{ seed.service_hours.psychology.days | day_range_pt }}, das {{ seed.service_hours.psychology.opens_at }} às {{ seed.service_hours.psychology.closes_at }}.
-- **{{ seed.specialties.nutrition.name }}:** {{ seed.service_hours.nutrition.days | day_range_pt }}, das {{ seed.service_hours.nutrition.opens_at }} às {{ seed.service_hours.nutrition.closes_at }}.
-- **{{ seed.specialties.dermatology.name }}:** {{ seed.service_hours.dermatology.days | day_range_pt }}, das {{ seed.service_hours.dermatology.opens_at }} às {{ seed.service_hours.dermatology.closes_at }}.
+- **{{ seed.specialties.general_practice.name }}:** available 24 hours every day.
+- **{{ seed.specialties.psychology.name }}:** {{ seed.service_hours.psychology.days | day_range_en }}, {{ seed.service_hours.psychology.opens_at }}–{{ seed.service_hours.psychology.closes_at }}.
+- **{{ seed.specialties.nutrition.name }}:** {{ seed.service_hours.nutrition.days | day_range_en }}, {{ seed.service_hours.nutrition.opens_at }}–{{ seed.service_hours.nutrition.closes_at }}.
+- **{{ seed.specialties.dermatology.name }}:** {{ seed.service_hours.dermatology.days | day_range_en }}, {{ seed.service_hours.dermatology.opens_at }}–{{ seed.service_hours.dermatology.closes_at }}.
 
-A clínica geral funciona continuamente. As demais especialidades listadas acima têm janelas específicas e não devem ser tratadas como atendimento 24 horas.
+General practice operates continuously. The other specialties listed above have specific service windows and must not be described as available around the clock.
 
-## Suporte
+## Support
 
-- **Suporte geral e técnico:** {{ seed.service_hours.general_support.days | day_range_pt }}, das {{ seed.service_hours.general_support.opens_at }} às {{ seed.service_hours.general_support.closes_at }}.
-- **Suporte de cobrança:** {{ seed.service_hours.billing_support.days | day_range_pt }}, das {{ seed.service_hours.billing_support.opens_at }} às {{ seed.service_hours.billing_support.closes_at }}.
+- **General and technical support:** {{ seed.service_hours.general_support.days | day_range_en }}, {{ seed.service_hours.general_support.opens_at }}–{{ seed.service_hours.general_support.closes_at }}.
+- **Billing support:** {{ seed.service_hours.billing_support.days | day_range_en }}, {{ seed.service_hours.billing_support.opens_at }}–{{ seed.service_hours.billing_support.closes_at }}.
 
-## Como interpretar os horários
+## How to interpret hours
 
-O fato de um plano incluir uma especialidade não muda o horário dela. Para responder se uma pessoa pode usar determinado atendimento em um dia ou horário, é preciso combinar a cobertura do plano com esta tabela de disponibilidade.
+A plan including a specialty does not change that specialty's hours. To answer whether someone can use a service on a specific day or at a specific time, combine plan coverage with this availability table.
 
-## Exemplos de combinação
+## Combination examples
 
-Uma pessoa pode ter uma especialidade incluída no plano e, ainda assim, precisar aguardar a próxima janela de funcionamento. Por exemplo, a cobertura de dermatologia não transforma esse serviço em atendimento contínuo. A resposta correta combina o documento de especialidades com o intervalo de {{ seed.service_hours.dermatology.opens_at }} a {{ seed.service_hours.dermatology.closes_at }} nos dias indicados acima.
+A person may have a covered specialty and still need to wait for its next operating window. Dermatology coverage, for example, does not make dermatology continuously available. A supported answer combines the specialties document with the {{ seed.service_hours.dermatology.opens_at }}–{{ seed.service_hours.dermatology.closes_at }} window on the days listed above.
 
-Para psicologia, a janela termina às {{ seed.service_hours.psychology.closes_at }} e inclui o sábado. Para nutrição, o atendimento termina às {{ seed.service_hours.nutrition.closes_at }} e ocorre somente nos dias úteis definidos. A clínica geral é a única especialidade desta tabela descrita como disponível durante todo o dia em todos os dias.
+Psychology ends at {{ seed.service_hours.psychology.closes_at }} and includes Saturday. Nutrition ends at {{ seed.service_hours.nutrition.closes_at }} and operates only on the defined weekdays. General practice is the only specialty in this table described as available all day, every day.
 
-## Consultas e suporte são agendas diferentes
+## Consultations and support use different schedules
 
-Os horários de suporte não controlam os horários clínicos. Um usuário pode encontrar clínica geral disponível quando o suporte de cobrança estiver fechado. Da mesma forma, a equipe de suporte geral pode estar disponível sem que uma especialidade agendada esteja em funcionamento.
+Support hours do not control clinical-service hours. General practice may be available while billing support is closed. General support may be open while a scheduled specialty is unavailable.
 
-Questões de cobrança devem considerar a janela específica que começa às {{ seed.service_hours.billing_support.opens_at }} e termina às {{ seed.service_hours.billing_support.closes_at }}. Questões gerais ou técnicas utilizam a janela mais ampla, entre {{ seed.service_hours.general_support.opens_at }} e {{ seed.service_hours.general_support.closes_at }}.
+Billing questions use the window from {{ seed.service_hours.billing_support.opens_at }} to {{ seed.service_hours.billing_support.closes_at }}. General and technical questions use the wider window from {{ seed.service_hours.general_support.opens_at }} to {{ seed.service_hours.general_support.closes_at }}.
 
-## Interpretação segura
+## Safe interpretation
 
-O assistente não deve converter os horários para outro fuso sem uma regra aprovada. Todos os valores desta base usam {{ seed.service_hours.timezone }}. Também não deve inferir disponibilidade de pediatria, cardiologia ou endocrinologia a partir das janelas de outras especialidades; esta página só fornece horários explícitos para os serviços listados.
-
-Quando a pergunta contém apenas “depois do horário” ou “no fim de semana”, é necessário identificar qual serviço está em discussão. Sem esse contexto, uma resposta única poderia confundir clínica geral, especialidades agendadas e categorias de suporte.
+The assistant must not convert these hours to another time zone without an approved rule. It also must not infer hours for pediatrics, cardiology, or endocrinology from other specialties. If a question says only “after hours” or “on the weekend,” the assistant must identify the service before selecting a schedule.

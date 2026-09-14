@@ -27,12 +27,9 @@ AnswerabilityStatus = Literal[
 ]
 VerificationStatus = Literal["VERIFIED", "NOT_REQUIRED", "FAILED_CLOSED"]
 
-LIMITATION_ANSWER = (
-    "Não encontrei informações suficientes na base de conhecimento desta "
-    "demonstração para responder."
-)
+LIMITATION_ANSWER = "I could not find enough information in this knowledge base to answer."
 CONFLICT_ANSWER = (
-    "Encontrei informações conflitantes nesta base e não posso confirmar uma resposta."
+    "I found conflicting information in this knowledge base and cannot confirm an answer."
 )
 
 
@@ -126,7 +123,7 @@ def contextualize_query(query: str, prior_customer_messages: Sequence[str]) -> s
     if not prior_customer_messages:
         return query
     previous = prior_customer_messages[-1].strip()[:500]
-    return f"Pergunta atual: {query}\nContexto anterior do cliente: {previous}"
+    return f"Current question: {query}\nPrevious customer context: {previous}"
 
 
 def _gate_messages(
@@ -448,7 +445,9 @@ def answer_knowledge_with_trace(
                 verification_status="VERIFIED",
                 regenerated=attempt == 1,
             )
-        repair_issues = verification.issues or ["A resposta não está totalmente fundamentada."]
+        repair_issues = verification.issues or [
+            "The answer is not fully supported by the evidence."
+        ]
 
     return finish(
         "NOT_ANSWERABLE",

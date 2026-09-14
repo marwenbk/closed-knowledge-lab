@@ -101,7 +101,7 @@ def validate_seed_contract(seed: Mapping[str, Any]) -> None:
     require_keys(plans, ("consumer", "employer_tiers", "employer_rules"), "seed.plans")
     consumer = require_mapping(plans["consumer"], "seed.plans.consumer")
     employer = require_mapping(plans["employer_tiers"], "seed.plans.employer_tiers")
-    require_keys(consumer, ("essencial", "familia", "premium"), "seed.plans.consumer")
+    require_keys(consumer, ("essential", "family", "premium"), "seed.plans.consumer")
     require_keys(employer, ("silver", "gold", "platinum"), "seed.plans.employer_tiers")
 
     if not isinstance(seed["intentional_gaps"], list) or not seed["intentional_gaps"]:
@@ -128,7 +128,7 @@ def combined_checksum(paths: Iterable[Path], relative_to: Path) -> str:
 
 
 def word_count(value: str) -> int:
-    return len(re.findall(r"\b[\wÀ-ÿ]+(?:[-'][\wÀ-ÿ]+)*\b", value, flags=re.UNICODE))
+    return len(re.findall(r"\b\w+(?:[-']\w+)*\b", value, flags=re.UNICODE))
 
 
 def section_count(value: str) -> int:
@@ -155,14 +155,14 @@ def parse_front_matter(value: str, path: Path) -> tuple[dict[str, Any], str]:
 
 
 def money_brl(value: Any) -> str:
-    return str(value).replace(".", ",")
+    return str(value)
 
 
-def day_range_pt(value: str) -> str:
+def day_range_en(value: str) -> str:
     labels = {
-        "every_day": "todos os dias",
-        "monday_to_friday": "de segunda a sexta-feira",
-        "monday_to_saturday": "de segunda-feira a sábado",
+        "every_day": "every day",
+        "monday_to_friday": "Monday through Friday",
+        "monday_to_saturday": "Monday through Saturday",
     }
     try:
         return labels[value]
@@ -170,15 +170,15 @@ def day_range_pt(value: str) -> str:
         raise DataToolError(f"Unsupported day range: {value}") from exc
 
 
-def consultation_step_pt(value: str) -> str:
+def consultation_step_en(value: str) -> str:
     labels = {
-        "sign_in": "Entrar na conta",
-        "choose_service": "Escolher o serviço",
-        "confirm_profile": "Confirmar o perfil que será atendido",
-        "enter_queue_or_choose_appointment": "Entrar na fila imediata ou escolher um horário",
-        "complete_consultation": "Realizar a consulta",
-        "store_consultation_summary": "Armazenar o resumo da consulta",
-        "arrange_follow_up_when_available": "Organizar o acompanhamento quando disponível",
+        "sign_in": "Sign in to the account",
+        "choose_service": "Choose the service",
+        "confirm_profile": "Confirm the profile that will receive care",
+        "enter_queue_or_choose_appointment": "Join the immediate queue or choose a time",
+        "complete_consultation": "Complete the consultation",
+        "store_consultation_summary": "Store the consultation summary",
+        "arrange_follow_up_when_available": "Arrange follow-up when available",
     }
     try:
         return labels[value]

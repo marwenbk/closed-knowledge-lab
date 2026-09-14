@@ -25,9 +25,9 @@ from app.tuning import PromptBundle
 from pydantic import BaseModel
 
 PROMPTS = PromptBundle(
-    answerability_prompt="Classifique somente pelas evidências fornecidas. " * 3,
-    generation_prompt="Responda somente pelas evidências e cite cada afirmação. " * 3,
-    verification_prompt="Verifique cada afirmação somente contra as evidências. " * 3,
+    answerability_prompt="Classify using only the supplied evidence. " * 3,
+    generation_prompt="Answer only from the evidence and cite every claim. " * 3,
+    verification_prompt="Verify every claim only against the evidence. " * 3,
 )
 
 
@@ -60,12 +60,12 @@ def _match() -> RetrievalMatch:
         chunk_id=UUID(int=1),
         stable_chunk_key="family-members__limits__001",
         document_key="family-members",
-        document_title="Membros da família e dependentes",
+        document_title="Family members and dependents",
         source_path="knowledge_base/05-family-members.md",
-        section="Limites de dependentes",
-        section_path=("Membros da família e dependentes", "Limites de dependentes"),
+        section="Dependent limits",
+        section_path=("Family members and dependents", "Dependent limits"),
         ordinal=1,
-        content="O plano Família permite o cadastro de **até 3 dependentes**.",
+        content="The Family plan allows **up to 3 dependents**.",
         rrf_score=1.0,
         signals={},
     )
@@ -73,9 +73,9 @@ def _match() -> RetrievalMatch:
 
 def _retrieval() -> RetrievalResult:
     return RetrievalResult(
-        query="Quantos dependentes o plano Família permite?",
+        query="How many dependents does the Family plan allow?",
         dataset_id="topmed-demo",
-        dataset_version="2.0.0",
+        dataset_version="3.0.0",
         embedding_model="test/embedding",
         embedding_version="a" * 40,
         matches=(_match(),),
@@ -95,29 +95,29 @@ def _multi_hop_retrieval() -> RetrievalResult:
         section="Gold",
         section_path=("Planos empresariais", "Gold"),
         ordinal=1,
-        content="O nível Gold corresponde ao plano Família.",
+        content="The Gold tier maps to the Family plan.",
         rrf_score=1.0,
         signals={},
     )
     return RetrievalResult(
         query="Tenho Gold. Quantos dependentes posso cadastrar?",
         dataset_id="topmed-demo",
-        dataset_version="2.0.0",
+        dataset_version="3.0.0",
         embedding_model="test/embedding",
         embedding_version="a" * 40,
         matches=(mapping, _match()),
         trigram_fallback_used=False,
-        second_hop_query="plano Família limite de dependentes",
+        second_hop_query="dependent limit for the Family plan",
         duration_ms=1.0,
     )
 
 
 def _draft(quote: str) -> AnswerDraft:
     return AnswerDraft(
-        answer="O plano Família permite até 3 dependentes.",
+        answer="The Family plan allows up to 3 dependents.",
         claims=[
             DraftClaim(
-                text="O plano Família permite até 3 dependentes.",
+                text="The Family plan allows up to 3 dependents.",
                 evidence=[EvidenceReference(chunk_id=str(UUID(int=1)), quote=quote)],
             )
         ],
@@ -132,7 +132,7 @@ def _run(monkeypatch: pytest.MonkeyPatch, provider: StubLLMProvider) -> Any:
         provider,
         Settings(_env_file=None),
         PROMPTS,
-        "Quantos dependentes o plano Família permite?",
+        "How many dependents does the Family plan allow?",
     )
 
 
@@ -146,7 +146,7 @@ def test_answer_pipeline_returns_only_verified_exact_citations(
                 selected_chunk_ids=[str(UUID(int=1))],
                 unsupported_aspects=[],
             ),
-            _draft("O plano Família permite o cadastro de até 3 dependentes."),
+            _draft("The Family plan allows up to 3 dependents."),
             VerificationDecision(supported=True, issues=[]),
         ]
     )
@@ -171,7 +171,7 @@ def test_answer_pipeline_exposes_only_structured_operational_trace(
                 selected_chunk_ids=[str(UUID(int=1))],
                 unsupported_aspects=[],
             ),
-            _draft("O plano Família permite o cadastro de até 3 dependentes."),
+            _draft("The Family plan allows up to 3 dependents."),
             VerificationDecision(supported=True, issues=[]),
         ]
     )
@@ -183,7 +183,7 @@ def test_answer_pipeline_exposes_only_structured_operational_trace(
         provider,
         Settings(_env_file=None),
         PROMPTS,
-        "Quantos dependentes o plano Família permite?",
+        "How many dependents does the Family plan allow?",
     )
 
     assert execution.answer.verification_status == "VERIFIED"
@@ -228,8 +228,8 @@ def test_invalid_citation_is_regenerated_once(monkeypatch: pytest.MonkeyPatch) -
                 selected_chunk_ids=[str(UUID(int=1))],
                 unsupported_aspects=[],
             ),
-            _draft("O plano Família permite dez dependentes."),
-            _draft("O plano Família permite o cadastro de até 3 dependentes."),
+            _draft("The Family plan allows ten dependents."),
+            _draft("The Family plan allows up to 3 dependents."),
             VerificationDecision(supported=True, issues=[]),
         ]
     )
@@ -245,18 +245,18 @@ def test_multi_hop_answer_requires_the_mapping_citation(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repaired_draft = AnswerDraft(
-        answer="O nível Gold segue o plano Família, que permite até 3 dependentes.",
+        answer="The Gold tier maps to the Family plan, which allows up to 3 dependents.",
         claims=[
             DraftClaim(
-                text="O nível Gold segue o plano Família, que permite até 3 dependentes.",
+                text="The Gold tier maps to the Family plan, which allows up to 3 dependents.",
                 evidence=[
                     EvidenceReference(
                         chunk_id=str(UUID(int=2)),
-                        quote="O nível Gold corresponde ao plano Família.",
+                        quote="The Gold tier maps to the Family plan.",
                     ),
                     EvidenceReference(
                         chunk_id=str(UUID(int=1)),
-                        quote="O plano Família permite o cadastro de até 3 dependentes.",
+                        quote="The Family plan allows up to 3 dependents.",
                     ),
                 ],
             )
@@ -269,7 +269,7 @@ def test_multi_hop_answer_requires_the_mapping_citation(
                 selected_chunk_ids=[str(UUID(int=1))],
                 unsupported_aspects=[],
             ),
-            _draft("O plano Família permite o cadastro de até 3 dependentes."),
+            _draft("The Family plan allows up to 3 dependents."),
             repaired_draft,
             VerificationDecision(supported=True, issues=[]),
         ]
@@ -302,7 +302,7 @@ def test_normalized_exact_citation_is_accepted_without_regeneration(
                 selected_chunk_ids=[str(UUID(int=1))],
                 unsupported_aspects=[],
             ),
-            _draft("O plano Família permite o cadastro de até  3 dependentes."),
+            _draft("The Family plan allows up to  3 dependents."),
             VerificationDecision(supported=True, issues=[]),
         ]
     )
@@ -323,8 +323,8 @@ def test_second_grounding_failure_returns_safe_limitation(
                 selected_chunk_ids=[str(UUID(int=1))],
                 unsupported_aspects=[],
             ),
-            _draft("O plano Família permite dez dependentes."),
-            _draft("O plano Família permite onze dependentes."),
+            _draft("The Family plan allows ten dependents."),
+            _draft("The Family plan allows eleven dependents."),
         ]
     )
 
@@ -361,7 +361,7 @@ def test_ambiguous_answer_is_one_clarification_question(
                 status="AMBIGUOUS",
                 selected_chunk_ids=[],
                 unsupported_aspects=[],
-                clarification_question="Qual é o seu plano ou nível empresarial?",
+                clarification_question="What is your plan or employer tier?",
             )
         ]
     )
@@ -369,5 +369,5 @@ def test_ambiguous_answer_is_one_clarification_question(
     result = _run(monkeypatch, provider)
 
     assert result.status == "AMBIGUOUS"
-    assert result.answer == "Qual é o seu plano ou nível empresarial?"
+    assert result.answer == "What is your plan or employer tier?"
     assert result.citations == ()

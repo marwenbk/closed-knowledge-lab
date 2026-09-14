@@ -1,59 +1,59 @@
 ---
 document_id: support
-title: Canais e categorias de suporte
-language: pt-BR
+title: Support channels and categories
+language: en-US
 dataset_id: topmed-demo
-dataset_version: "2.0.0"
+dataset_version: "3.0.0"
 ---
 
-# Canais e categorias de suporte
+# Support channels and categories
 
-## Canais
+## Channels
 
-- E-mail: **suporte@topmed.example**
-- Telefone: **+55 00 0000-0000**
-- Suporte dentro do aplicativo
+- Email: **support@topmed.example**
+- Phone: **+55 00 0000-0000**
+- In-app support
 
-Todos os contatos são fictícios e pertencem exclusivamente ao conjunto de dados da demonstração.
+All contacts are fictional and belong only to the demonstration dataset.
 
-## Categorias
+## Categories
 
-- Suporte geral
-- Suporte de cobrança
-- Suporte técnico
+- General support
+- Billing support
+- Technical support
 
-## Horários
+## Hours
 
-- O suporte geral e o suporte técnico funcionam todos os dias, das 07:00 às 23:00.
-- O suporte de cobrança funciona de segunda a sexta-feira, das 09:00 às 17:00.
-- Os horários seguem o fuso America/Sao_Paulo.
+- General and technical support operate every day, 07:00–23:00.
+- Billing support operates Monday through Friday, 09:00–17:00.
+- All hours use the America/Sao_Paulo time zone.
 
-Agentes de suporte ajudam com questões operacionais. Eles não podem criar ou modificar prescrições e não devem inventar exceções que não estejam definidas nos documentos aprovados.
+Support agents help with operational questions. They cannot create or modify prescriptions and must not invent exceptions absent from approved documents.
 
-## Escolha da categoria
+## Choosing a category
 
-Questões sobre uso geral da conta, cadastro e orientação operacional entram no suporte geral. Problemas relacionados a pagamentos e renovação usam o suporte de cobrança. Dificuldades técnicas com o serviço usam a categoria técnica.
+General account use, registration, and operational guidance belong to general support. Payment and renewal issues use billing support. Technical problems with the service use the technical category.
 
-A categoria ajuda a direcionar o atendimento, mas não altera as políticas. Um agente de cobrança não pode criar uma condição de reembolso diferente, e um agente técnico não pode mudar benefícios do plano.
+A category routes the request but does not change policy. A billing agent cannot create a different refund condition, and a technical agent cannot change plan benefits.
 
-## Escolha do canal
+## Choosing a channel
 
-O usuário pode utilizar o endereço suporte@topmed.example, o número +55 00 0000-0000 ou o canal dentro do aplicativo. O documento não prioriza um desses meios; eles são opções de contato.
+The user may contact support@topmed.example, call +55 00 0000-0000, or use the in-app channel. The document gives no priority among them.
 
-Uma resposta deve reproduzir o contato exatamente. Endereços ou números não presentes na base não podem ser completados por semelhança.
+An answer must reproduce contact details exactly. An address or number absent from the knowledge base cannot be completed by resemblance or guesswork.
 
-## Disponibilidade
+## Availability
 
-Suporte geral e técnico compartilham a janela entre 07:00 e 23:00 em todos os dias. A equipe de cobrança segue a janela menor entre 09:00 e 17:00 nos dias úteis definidos.
+General and technical support share the 07:00–23:00 window every day. Billing uses the narrower 09:00–17:00 weekday window.
 
-Esses horários não determinam a disponibilidade de consultas. A clínica geral e cada especialidade obedecem à sua própria agenda.
+These hours do not determine consultation availability. General practice and each specialty follow their own schedules.
 
-## Casos que exigem escalonamento
+## Cases requiring escalation
 
-Uma identidade que não pode ser verificada, uma disputa de titularidade ou um pagamento confirmado que não restaurou o acesso não devem ser resolvidos com suposições. Esses casos seguem o procedimento de escalonamento.
+An identity that cannot be verified, disputed account ownership, or a confirmed payment that did not restore access must not be resolved by assumption. These cases follow the escalation procedure.
 
-Quando a base não define uma condição especial, o suporte pode encaminhar para revisão, mas não deve apresentar a condição como aprovada.
+When the knowledge base defines no special condition, support may send the case for review but cannot present the requested condition as approved.
 
-## Limites do suporte
+## Support limits
 
-O contato com o suporte não garante reembolso, prescrição, mudança empresarial ou resultado clínico. Cada decisão continua vinculada à política canônica e ao estado real da conta.
+Contacting support does not guarantee a refund, prescription, employer-plan change, or clinical outcome. Each decision remains tied to the canonical policy and actual account state.

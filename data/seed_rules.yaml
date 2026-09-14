@@ -2,14 +2,14 @@ schema_version: "1.0.0"
 
 dataset:
   id: topmed-demo
-  version: "2.0.0"
-  generator_version: "1.0.0"
-  language: pt-BR
+  version: "3.0.0"
+  generator_version: "2.0.0"
+  language: en-US
   timezone: America/Sao_Paulo
   currency: BRL
 
 service:
-  name: TopMed Saúde
+  name: TopMed Health
   fictional: true
   assistant_scope:
     - operations
@@ -21,8 +21,8 @@ service:
 
 plans:
   consumer:
-    essencial:
-      name: Essencial
+    essential:
+      name: Essential
       account_holders: 1
       max_dependents: 0
       monthly_price: "29.90"
@@ -31,8 +31,8 @@ plans:
       support_level: standard
       monthly_included_consultations: {}
 
-    familia:
-      name: Família
+    family:
+      name: Family
       account_holders: 1
       max_dependents: 3
       monthly_price: "49.90"
@@ -64,10 +64,10 @@ plans:
   employer_tiers:
     silver:
       name: Silver
-      consumer_plan: essencial
+      consumer_plan: essential
     gold:
       name: Gold
-      consumer_plan: familia
+      consumer_plan: family
       policy_id: TM-EMP-GOLD
     platinum:
       name: Platinum
@@ -80,19 +80,19 @@ plans:
 
 specialties:
   general_practice:
-    name: Clínica geral
+    name: General practice
   psychology:
-    name: Psicologia
+    name: Psychology
   nutrition:
-    name: Nutrição
+    name: Nutrition
   dermatology:
-    name: Dermatologia
+    name: Dermatology
   pediatrics:
-    name: Pediatria
+    name: Pediatrics
   cardiology:
-    name: Cardiologia
+    name: Cardiology
   endocrinology:
-    name: Endocrinologia
+    name: Endocrinology
 
 service_hours:
   timezone: America/Sao_Paulo
@@ -192,7 +192,7 @@ privacy:
   profile_correction_available_through_support: true
 
 support:
-  email: suporte@topmed.example
+  email: support@topmed.example
   phone: "+55 00 0000-0000"
   in_app: true
   categories:

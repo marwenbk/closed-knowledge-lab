@@ -52,7 +52,7 @@ describe("admin client", () => {
               assigned_agent_id: null,
               claimed_at: null,
               waiting_seconds: 10,
-              latest_customer_message: "Preciso de ajuda",
+              latest_customer_message: "I need help",
               assigned_agent_name: null,
               answerability_status: "CONFLICTING_EVIDENCE",
             },
@@ -83,7 +83,7 @@ describe("admin client", () => {
             {
               id: "version-id",
               dataset_id: "topmed-demo",
-              dataset_version: "2.0.1",
+              dataset_version: "3.0.1",
               status: "DRAFT",
             },
           ],

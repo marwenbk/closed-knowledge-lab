@@ -25,8 +25,8 @@ export default function AdminLoginPage() {
             <LockKeyhole aria-hidden size={22} />
           </span>
           <div>
-            <h1 className="text-2xl font-bold">Closed-Knowledge Lab Operações</h1>
-            <p className="text-sm text-slate-500">Acesso reservado à equipa de atendimento.</p>
+            <h1 className="text-2xl font-bold">Closed-Knowledge Lab Operations</h1>
+            <p className="text-sm text-slate-500">Access is restricted to the operations team.</p>
           </div>
         </div>
 
@@ -69,7 +69,7 @@ export default function AdminLoginPage() {
             disabled={login.isPending}
             type="submit"
           >
-            {login.isPending ? "A autenticar…" : "Entrar"}
+            {login.isPending ? "Signing in…" : "Sign in"}
           </Button>
         </form>
       </section>

@@ -46,12 +46,12 @@
   frameShell.className = "tm-frame";
   frameShell.dataset.open = "false";
   var iframe = document.createElement("iframe");
-  iframe.title = "Atendimento Closed-Knowledge Lab";
+  iframe.title = "Closed-Knowledge Lab assistant";
   iframe.loading = "lazy";
   iframe.referrerPolicy = "strict-origin-when-cross-origin";
   var widgetUrl = new URL("/widget", chatUrl.origin);
   widgetUrl.searchParams.set("assistantKey", assistantKey);
-  widgetUrl.searchParams.set("locale", script.dataset.locale || "pt-BR");
+  widgetUrl.searchParams.set("locale", script.dataset.locale || "en-US");
   if (apiUrl) widgetUrl.searchParams.set("apiBaseUrl", apiUrl.origin);
   if (/^https?:$/.test(window.location.protocol)) {
     widgetUrl.searchParams.set("parentOrigin", window.location.origin);
@@ -63,7 +63,7 @@
   launcher.className = "tm-launcher";
   launcher.type = "button";
   launcher.setAttribute("aria-expanded", "false");
-  launcher.setAttribute("aria-label", "Abrir atendimento Closed-Knowledge Lab");
+  launcher.setAttribute("aria-label", "Open Closed-Knowledge Lab");
   launcher.innerHTML = '<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/><path d="M8 9h8M8 13h5"/></svg>';
 
   var unread = 0;
@@ -76,7 +76,7 @@
     if (!badge) {
       badge = document.createElement("span");
       badge.className = "tm-badge";
-      badge.setAttribute("aria-label", "mensagens não lidas");
+      badge.setAttribute("aria-label", "unread messages");
       launcher.appendChild(badge);
     }
     badge.textContent = unread > 9 ? "9+" : String(unread);
@@ -90,7 +90,7 @@
   function setOpen(open) {
     frameShell.dataset.open = String(open);
     launcher.setAttribute("aria-expanded", String(open));
-    launcher.setAttribute("aria-label", open ? "Fechar atendimento Closed-Knowledge Lab" : "Abrir atendimento Closed-Knowledge Lab");
+    launcher.setAttribute("aria-label", open ? "Close Closed-Knowledge Lab" : "Open Closed-Knowledge Lab");
     if (open) {
       unread = 0;
       renderUnread();

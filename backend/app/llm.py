@@ -107,7 +107,7 @@ class DeepSeekProvider:
         schema = json.dumps(response_model.model_json_schema(), ensure_ascii=False)
         prepared_messages = [dict(message) for message in messages]
         prepared_messages[0]["content"] += (
-            " Responda somente com um objeto JSON válido que corresponda exatamente a este "
+            " Respond only with a valid JSON object that exactly matches this "
             f"JSON Schema: {schema}"
         )
         for attempt in range(2):
@@ -139,7 +139,7 @@ class DeepSeekProvider:
             except (ValueError, ValidationError) as exc:
                 if attempt == 0:
                     prepared_messages[0]["content"] += (
-                        " Garanta JSON sintaticamente válido, com strings curtas e aspas escapadas."
+                        " Return syntactically valid JSON with concise strings and escaped quotes."
                     )
                     continue
                 raise LLMError("DeepSeek returned an invalid structured response") from exc

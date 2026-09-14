@@ -13,9 +13,9 @@ import type { AdminIdentity, PromptBundle, PromptVersion } from "@/lib/admin-typ
 const EDITOR_ROLES = new Set(["ADMIN", "SUPERVISOR", "KNOWLEDGE_EDITOR"]);
 const PUBLISHER_ROLES = new Set(["ADMIN", "SUPERVISOR"]);
 const labels: Record<keyof PromptBundle, string> = {
-  answerability_prompt: "Classificação de resposta",
-  generation_prompt: "Geração fundamentada",
-  verification_prompt: "Verificação final",
+  answerability_prompt: "Answerability classification",
+  generation_prompt: "Grounded generation",
+  verification_prompt: "Final verification",
 };
 
 export default function PromptVersionPage() {
@@ -43,21 +43,21 @@ export default function PromptVersionPage() {
       url: `/api/v1/admin/prompts/${id}`,
       method: "put",
       values: prompts,
-      successNotification: { message: "Nova revisão do prompt salva.", type: "success" },
-      errorNotification: (error) => ({ message: "Não foi possível salvar.", description: error?.message, type: "error" }),
+      successNotification: { message: "New prompt revision saved.", type: "success" },
+      errorNotification: (error) => ({ message: "Could not save.", description: error?.message, type: "error" }),
     });
     await refresh();
   }
 
   async function run(action: "EVALUATE" | "ACTIVATE" | "ROLLBACK") {
-    if (action === "EVALUATE" && !window.confirm("Esta avaliação executa 100 casos no DeepSeek e pode executar mais 100 para criar a linha de base. Ela consome crédito e pode demorar vários minutos. Continuar?")) return;
-    if (action !== "EVALUATE" && !window.confirm("Confirmar a troca do prompt ativo? A versão anterior será preservada para rollback.")) return;
+    if (action === "EVALUATE" && !window.confirm("This evaluation runs 100 DeepSeek cases and may run 100 more to create a baseline. It uses API credit and can take several minutes. Continue?")) return;
+    if (action !== "EVALUATE" && !window.confirm("Replace the active prompt? The previous version will remain available for rollback.")) return;
     await mutation.mutateAsync({
       url: `/api/v1/admin/prompts/${id}/actions`,
       method: "post",
       values: { action, confirm_live_cost: action === "EVALUATE" },
-      successNotification: { message: action === "EVALUATE" ? "Avaliação concluída." : "Prompt ativo atualizado.", type: "success" },
-      errorNotification: (error) => ({ message: "A ação não foi concluída.", description: error?.message, type: "error" }),
+      successNotification: { message: action === "EVALUATE" ? "Evaluation completed." : "Active prompt updated.", type: "success" },
+      errorNotification: (error) => ({ message: "The action could not be completed.", description: error?.message, type: "error" }),
     });
     await refresh();
   }
@@ -73,17 +73,17 @@ export default function PromptVersionPage() {
       <PageHeading
         title={`Prompt ${version.version}`}
         description={`${version.content_checksum.slice(0, 16)}… · atualizado ${formatDate(version.updated_at)}`}
-        actions={<Link className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" href="/admin/tuning"><ArrowLeft size={16} /> Ajustes</Link>}
+        actions={<Link className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" href="/admin/tuning"><ArrowLeft size={16} /> Tuning</Link>}
       />
       <Panel className="mb-4">
         <div className="flex flex-wrap items-center gap-2">
           <StatusBadge value={version.status} />
           <StatusBadge value={version.evaluation?.status ?? "NOT_EVALUATED"} />
-          {version.evaluation?.baseline_run_id ? <span className="text-xs text-slate-500">comparação vinculada</span> : null}
+          {version.evaluation?.baseline_run_id ? <span className="text-xs text-slate-500">linked comparison</span> : null}
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
-          {mutable ? <Button disabled={busy} onClick={() => void save()} type="button" variant="outline"><Save size={16} /> Salvar revisão</Button> : null}
-          {canPublish && version.status !== "ACTIVE" ? <Button disabled={busy} onClick={() => void run("EVALUATE")} type="button" variant="outline"><FlaskConical size={16} /> {busy ? "A avaliar…" : "Avaliar 100 casos"}</Button> : null}
+          {mutable ? <Button disabled={busy} onClick={() => void save()} type="button" variant="outline"><Save size={16} /> Save revision</Button> : null}
+          {canPublish && version.status !== "ACTIVE" ? <Button disabled={busy} onClick={() => void run("EVALUATE")} type="button" variant="outline"><FlaskConical size={16} /> {busy ? "Evaluating…" : "Evaluate 100 cases"}</Button> : null}
           {canPublish && version.status === "EVALUATED" ? <Button disabled={busy} onClick={() => void run("ACTIVATE")} type="button"><ShieldCheck size={16} /> Ativar</Button> : null}
           {canPublish && version.status === "RETIRED" ? <Button disabled={busy} onClick={() => void run("ROLLBACK")} type="button"><RotateCcw size={16} /> Rollback</Button> : null}
         </div>
@@ -103,7 +103,7 @@ export default function PromptVersionPage() {
           </Panel>
         ))}
       </div>
-      {version.evaluation ? <Panel className="mt-4"><h2 className="font-semibold">Última avaliação</h2><pre className="mt-3 max-h-96 overflow-auto rounded-xl bg-slate-950 p-4 text-xs text-slate-100">{JSON.stringify(version.evaluation.metrics, null, 2)}</pre></Panel> : null}
+      {version.evaluation ? <Panel className="mt-4"><h2 className="font-semibold">Latest evaluation</h2><pre className="mt-3 max-h-96 overflow-auto rounded-xl bg-slate-950 p-4 text-xs text-slate-100">{JSON.stringify(version.evaluation.metrics, null, 2)}</pre></Panel> : null}
     </>
   );
 }

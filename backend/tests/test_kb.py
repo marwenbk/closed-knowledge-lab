@@ -29,7 +29,7 @@ def test_manifest_and_chunking_match_the_canonical_contract() -> None:
     chunks = [chunk for document in documents for chunk in document.chunks]
 
     assert manifest.dataset_id == "topmed-demo"
-    assert manifest.dataset_version == "2.0.0"
+    assert manifest.dataset_version == "3.0.0"
     assert len(documents) == 15
     assert len(chunks) == 30
     assert len({chunk.stable_chunk_key for chunk in chunks}) == len(chunks)
@@ -64,14 +64,14 @@ def test_chunk_keys_include_document_section_path_and_ordinal() -> None:
             word_count=1,
             section_count=1,
         ),
-        title="Documento Sintético",
-        language="pt-BR",
+        title="Synthetic Document",
+        language="en-US",
         front_matter={},
         content_markdown="",
         units=(
             SourceUnit(
-                section_path=("Documento Sintético", "Regras", "Detalhes"),
-                content="### Detalhes\n\n" + "regra confirmada. " * 90,
+                section_path=("Synthetic Document", "Rules", "Details"),
+                content="### Details\n\n" + "confirmed rule. " * 90,
                 source_order=1,
             ),
         ),
@@ -79,14 +79,12 @@ def test_chunk_keys_include_document_section_path_and_ordinal() -> None:
 
     chunks: tuple[ChunkSpec, ...] = chunk_document(parsed)
 
-    assert chunks[0].stable_chunk_key == (
-        "sample-document__documento-sintetico-regras-detalhes__001"
-    )
-    assert chunks[0].section_path == ("Documento Sintético", "Regras", "Detalhes")
+    assert chunks[0].stable_chunk_key == ("sample-document__synthetic-document-rules-details__001")
+    assert chunks[0].section_path == ("Synthetic Document", "Rules", "Details")
 
 
 def test_oversized_sections_split_deterministically_within_the_maximum() -> None:
-    paragraphs = [f"Parágrafo {index}: " + "conteúdo verificável. " * 100 for index in range(5)]
+    paragraphs = [f"Paragraph {index}: " + "verifiable content. " * 100 for index in range(5)]
     parsed = ParsedDocument(
         manifest_document=ManifestDocument(
             document_id="oversized",
@@ -95,14 +93,14 @@ def test_oversized_sections_split_deterministically_within_the_maximum() -> None
             word_count=1,
             section_count=1,
         ),
-        title="Documento Extenso",
-        language="pt-BR",
+        title="Long Document",
+        language="en-US",
         front_matter={},
         content_markdown="",
         units=(
             SourceUnit(
-                section_path=("Documento Extenso", "Seção longa"),
-                content="## Seção longa\n\n" + "\n\n".join(paragraphs),
+                section_path=("Long Document", "Long section"),
+                content="## Long section\n\n" + "\n\n".join(paragraphs),
                 source_order=1,
             ),
         ),
@@ -123,7 +121,7 @@ def test_lists_and_tables_remain_markdown_in_chunks() -> None:
     )
     content = "\n".join(chunk.content for chunk in chunk_document(parse_document(manifest, item)))
 
-    assert "| Serviço |" in content
+    assert "| Service |" in content
     assert "- " in content
 
 
@@ -164,7 +162,7 @@ def test_unsafe_yaml_front_matter_is_rejected(tmp_path: Path) -> None:
     shutil.copytree(MANIFEST_PATH.parent, copied_kb)
     document_path = copied_kb / "01-service-overview.md"
     content = document_path.read_text(encoding="utf-8").replace(
-        "title: Visão geral do serviço",
+        "title: Service overview",
         "title: !!python/object/apply:os.system ['echo unsafe']",
         1,
     )

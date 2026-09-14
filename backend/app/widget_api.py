@@ -64,7 +64,7 @@ def _safe_text(value: str) -> str:
 class WidgetSessionRequest(StrictRequest):
     assistant_key: SecretStr
     anonymous_subject: str | None = Field(default=None, min_length=1, max_length=100)
-    locale: str = Field(default="pt-BR", pattern=r"^[a-z]{2}(?:-[A-Z]{2})?$")
+    locale: str = Field(default="en-US", pattern=r"^[a-z]{2}(?:-[A-Z]{2})?$")
 
     @field_validator("anonymous_subject")
     @classmethod
@@ -197,7 +197,7 @@ WidgetPrincipalDep = Annotated[WidgetPrincipal, Depends(_principal)]
 
 
 def _sender(sender_type: str, assistant_label: str) -> SenderResponse:
-    labels = {"CUSTOMER": "Você", "AI": assistant_label, "HUMAN": "Atendimento humano"}
+    labels = {"CUSTOMER": "You", "AI": assistant_label, "HUMAN": "Human support"}
     return SenderResponse(type=sender_type, label=labels.get(sender_type, assistant_label))
 
 

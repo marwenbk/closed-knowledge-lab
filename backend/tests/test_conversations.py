@@ -87,7 +87,7 @@ def _settings() -> Settings:
 def _answer() -> GroundedAnswer:
     return GroundedAnswer(
         status="ANSWERABLE",
-        answer="O plano Família permite até três dependentes.",
+        answer="The Family plan allows up to three dependents.",
         citations=(
             Citation(
                 citation_id="c1",
@@ -95,12 +95,12 @@ def _answer() -> GroundedAnswer:
                 stable_chunk_key="family-members__limits__001",
                 document_key="family-members",
                 document="Familiares e dependentes",
-                section="Limites de dependentes",
-                quote="O plano Família permite o cadastro de até três dependentes.",
+                section="Dependent limits",
+                quote="The Family plan allows up to three dependents.",
             ),
         ),
         dataset_id="topmed-demo",
-        dataset_version="2.0.0",
+        dataset_version="3.0.0",
         model=ModelIdentity(
             provider="test",
             name="deepseek-v4-flash",
@@ -119,9 +119,9 @@ def _seed_active_version(engine: Engine) -> None:
             KnowledgeBaseVersion(
                 id=uuid4(),
                 dataset_id="topmed-demo",
-                dataset_version="2.0.0",
+                dataset_version="3.0.0",
                 generator_version="1.0.0",
-                language="pt-BR",
+                language="en-US",
                 seed_checksum="a" * 64,
                 template_checksum="b" * 64,
                 manifest_checksum="c" * 64,
@@ -159,13 +159,13 @@ def test_conversation_transition_graph_is_explicit_and_terminal() -> None:
 
 def test_conversation_context_resolves_references_without_becoming_evidence() -> None:
     query = contextualize_query(
-        "E quantos dependentes ele permite?",
-        ["Tenho o benefício Gold da empresa."],
+        "And how many dependents does it allow?",
+        ["I have the employer Gold benefit."],
     )
 
-    assert query.startswith("Pergunta atual: E quantos dependentes ele permite?")
-    assert query.endswith("Contexto anterior do cliente: Tenho o benefício Gold da empresa.")
-    assert contextualize_query("Qual é o preço?", []) == "Qual é o preço?"
+    assert query.startswith("Current question: And how many dependents does it allow?")
+    assert query.endswith("Previous customer context: I have the employer Gold benefit.")
+    assert contextualize_query("What is the price?", []) == "What is the price?"
 
 
 def test_event_stream_emits_keepalive(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -250,7 +250,7 @@ def test_widget_conversation_persistence_idempotency_and_replay(
             f"/api/v1/widget/conversations/{conversation_id}/messages",
             headers=headers,
             json={
-                "content": "Quantos dependentes o plano Família permite?",
+                "content": "How many dependents does the Family plan allow?",
                 "client_message_id": client_message_id,
             },
         )
@@ -258,14 +258,14 @@ def test_widget_conversation_persistence_idempotency_and_replay(
             f"/api/v1/widget/conversations/{conversation_id}/messages",
             headers=headers,
             json={
-                "content": "Quantos dependentes o plano Família permite?",
+                "content": "How many dependents does the Family plan allow?",
                 "client_message_id": client_message_id,
             },
         )
         reused_with_different_content = client.post(
             f"/api/v1/widget/conversations/{conversation_id}/messages",
             headers=headers,
-            json={"content": "Conteúdo diferente", "client_message_id": client_message_id},
+            json={"content": "Different content", "client_message_id": client_message_id},
         )
         restored = client.post(
             "/api/v1/widget/conversations",
@@ -280,7 +280,7 @@ def test_widget_conversation_persistence_idempotency_and_replay(
         after_close = client.post(
             f"/api/v1/widget/conversations/{conversation_id}/messages",
             headers=headers,
-            json={"content": "Outra pergunta", "client_message_id": str(uuid4())},
+            json={"content": "Another question", "client_message_id": str(uuid4())},
         )
 
     assert invalid_key.status_code == 401
@@ -293,7 +293,7 @@ def test_widget_conversation_persistence_idempotency_and_replay(
     assert first.json() == repeated.json()
     assert reused_with_different_content.status_code == 409
     assert reused_with_different_content.json()["error"]["code"] == "IDEMPOTENCY_KEY_REUSED"
-    assert calls == ["Quantos dependentes o plano Família permite?"]
+    assert calls == ["How many dependents does the Family plan allow?"]
     assert restored.status_code == 200
     assert read.status_code == 200
     assert [message["sender"]["type"] for message in read.json()["messages"]] == [
@@ -386,7 +386,7 @@ def test_failed_generation_is_persisted_and_not_retried(
         headers = _auth(session_data["token"])
         conversation = client.post("/api/v1/widget/conversations", headers=headers, json={}).json()
         message_id = str(uuid4())
-        payload = {"content": "Falhe com segurança", "client_message_id": message_id}
+        payload = {"content": "Fail safely", "client_message_id": message_id}
         first = client.post(
             f"/api/v1/widget/conversations/{conversation['conversation_id']}/messages",
             headers=headers,

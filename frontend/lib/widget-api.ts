@@ -28,7 +28,7 @@ type RequestOptions = {
 export function normalizeApiBaseUrl(value: string): string {
   const url = new URL(value);
   if (!["http:", "https:"].includes(url.protocol) || url.username || url.password) {
-    throw new Error("A URL da API do widget é inválida.");
+    throw new Error("The widget API URL is invalid.");
   }
   url.pathname = url.pathname.replace(/\/$/, "");
   url.search = "";
@@ -62,7 +62,7 @@ async function request<T>(
     throw new WidgetApiError(
       response.status,
       body.error?.code ?? "REQUEST_FAILED",
-      body.error?.message ?? "Não foi possível concluir a solicitação.",
+      body.error?.message ?? "The request could not be completed.",
       body.error?.request_id,
     );
   }

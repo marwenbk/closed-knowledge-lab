@@ -40,17 +40,17 @@ export default function AuditPage() {
   return (
     <>
       <PageHeading
-        title="Auditoria e feedback"
-        description="Histórico append-only de decisões operacionais e avaliações humanas, sem segredos nem raciocínio interno do modelo."
+        title="Audit e feedback"
+        description="Append-only history of operational decisions and human evaluations, without secrets or internal model reasoning."
       />
       <div className="grid gap-5 xl:grid-cols-[1.35fr_.65fr]">
         <Panel>
-          <h2 className="text-lg font-semibold">Eventos de auditoria</h2>
+          <h2 className="text-lg font-semibold">Audit events</h2>
           <div className="mt-4 grid gap-2 sm:grid-cols-3">
             {[
-              ["Tipo de evento", eventType, setEventType],
-              ["Tipo de ator", actorType, setActorType],
-              ["Tipo de recurso", resourceType, setResourceType],
+              ["Event type", eventType, setEventType],
+              ["Actor type", actorType, setActorType],
+              ["Resource type", resourceType, setResourceType],
             ].map(([label, value, setter]) => (
               <label className="grid gap-1 text-xs font-medium" key={label as string}>
                 {label as string}
@@ -77,7 +77,7 @@ export default function AuditPage() {
           <label className="mt-4 grid gap-1 text-xs font-medium">
             Categoria
             <select className="rounded-lg border border-slate-300 px-3 py-2 text-sm" onChange={(event) => setCategory(event.target.value)} value={category}>
-              <option value="">Todas</option>
+              <option value="">All</option>
               {categories.map((value) => <option key={value} value={value}>{value}</option>)}
             </select>
           </label>
@@ -88,7 +88,7 @@ export default function AuditPage() {
               <article className="rounded-xl border border-slate-200 p-3 text-sm" key={item.id}>
                 <div className="flex flex-wrap items-center justify-between gap-2"><StatusBadge value={item.category} /><span className="text-xs text-slate-500">{formatDate(item.created_at)}</span></div>
                 {item.note ? <p className="mt-2 text-slate-700">{item.note}</p> : null}
-                <Link className="mt-2 inline-block text-xs font-semibold text-teal-700" href={`/admin/conversations/${item.conversation_id}`}>Abrir conversa</Link>
+                <Link className="mt-2 inline-block text-xs font-semibold text-teal-700" href={`/admin/conversations/${item.conversation_id}`}>Open conversation</Link>
               </article>
             ))}
           </div>

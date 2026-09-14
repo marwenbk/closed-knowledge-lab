@@ -1,6 +1,6 @@
 schema_version: "1.0.0"
 dataset_id: topmed-demo
-dataset_version: "2.0.0"
+dataset_version: "3.0.0"
 
 # These documents are evaluation-only contradictions. They must be indexed in
 # their declared isolated namespace and must never enter the canonical corpus.
@@ -10,37 +10,37 @@ fixtures:
     conflicts_with_fact_id: PLAN_FAMILY_MAX_DEPENDENTS
     document:
       document_id: fixture-family-dependents
-      title: Limite alternativo de dependentes
-      content: "O plano Família permite o cadastro de até quatro dependentes."
+      title: Alternative dependent limit
+      content: "The Family plan allows up to four dependents."
 
   - id: conflict_refund_window
     namespace: eval-conflict-refund-window
     conflicts_with_fact_id: REFUND_REQUEST_WINDOW
     document:
       document_id: fixture-refund-window
-      title: Prazo alternativo de reembolso
-      content: "O pedido de reembolso pode ser enviado em até trinta dias corridos após o pagamento inicial."
+      title: Alternative refund window
+      content: "A refund request may be submitted within thirty calendar days after initial payment."
 
   - id: conflict_gold_mapping
     namespace: eval-conflict-gold-mapping
     conflicts_with_fact_id: EMPLOYER_GOLD_MAPS_FAMILY
     document:
       document_id: fixture-gold-mapping
-      title: Correspondência alternativa do nível Gold
-      content: "O nível empresarial Gold corresponde ao plano Premium."
+      title: Alternative Gold-tier mapping
+      content: "The employer Gold tier maps to the Premium plan."
 
   - id: conflict_dermatology_hours
     namespace: eval-conflict-dermatology-hours
     conflicts_with_fact_id: DERMATOLOGY_HOURS
     document:
       document_id: fixture-dermatology-hours
-      title: Horário alternativo de dermatologia
-      content: "A dermatologia atende vinte e quatro horas por dia, todos os dias."
+      title: Alternative dermatology hours
+      content: "Dermatology operates 24 hours a day, every day."
 
   - id: conflict_billing_grace
     namespace: eval-conflict-billing-grace
     conflicts_with_fact_id: BILLING_FAILED_PAYMENT_GRACE_PERIOD
     document:
       document_id: fixture-billing-grace
-      title: Carência alternativa de pagamento
-      content: "Depois de uma falha na renovação, o período de carência é de sete dias."
+      title: Alternative payment grace period
+      content: "After a failed renewal, the grace period is seven days."

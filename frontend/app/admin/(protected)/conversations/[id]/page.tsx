@@ -42,11 +42,11 @@ function RagInspector({ runId }: { runId: string }) {
       </div>
       <dl className="grid gap-3 text-sm sm:grid-cols-2">
         <div>
-          <dt className="text-slate-500">Consulta original</dt>
+          <dt className="text-slate-500">Original question</dt>
           <dd className="mt-1 font-medium">{result.original_query}</dd>
         </div>
         <div>
-          <dt className="text-slate-500">Consulta de recuperação</dt>
+          <dt className="text-slate-500">Retrieval query</dt>
           <dd className="mt-1 font-medium">{result.retrieval_query}</dd>
         </div>
         <div>
@@ -56,23 +56,23 @@ function RagInspector({ runId }: { runId: string }) {
           </dd>
         </div>
         <div>
-          <dt className="text-slate-500">Base</dt>
+          <dt className="text-slate-500">Knowledge base</dt>
           <dd className="mt-1 font-mono text-xs">
             {result.knowledge.dataset_id}:{result.knowledge.dataset_version}
           </dd>
         </div>
         <div>
-          <dt className="text-slate-500">Latência</dt>
+          <dt className="text-slate-500">Latency</dt>
           <dd className="mt-1 font-medium">
             {result.latency_ms === null ? "—" : `${Math.round(result.latency_ms)} ms`}
           </dd>
         </div>
         <div>
-          <dt className="text-slate-500">Citações entregues</dt>
+          <dt className="text-slate-500">Delivered citations</dt>
           <dd className="mt-1 font-medium">{result.citations.length}</dd>
         </div>
         <div>
-          <dt className="text-slate-500">Prompt / configuração</dt>
+          <dt className="text-slate-500">Prompt / settings</dt>
           <dd className="mt-1 font-mono text-xs">
             {result.model.prompt_version} / {result.model.settings_version}
           </dd>
@@ -84,14 +84,14 @@ function RagInspector({ runId }: { runId: string }) {
       </dl>
       <details className="rounded-xl border border-slate-200">
         <summary className="cursor-pointer px-4 py-3 text-sm font-semibold">
-          Traço operacional estruturado
+          Structured operational trace
         </summary>
         <pre className="max-h-[32rem] overflow-auto border-t border-slate-200 bg-slate-950 p-4 text-xs leading-5 text-slate-100">
           {JSON.stringify(result.trace, null, 2)}
         </pre>
       </details>
       <p className="text-xs text-slate-500">
-        O traço contém resultados e decisões verificáveis, não raciocínio interno do modelo.
+        The trace contains verifiable results and decisions, not internal model reasoning.
       </p>
     </div>
   );
@@ -129,7 +129,7 @@ export default function AdminConversationPage() {
       values,
       successNotification: { message: success, type: "success" },
       errorNotification: (error) => ({
-        message: "A operação não foi concluída.",
+        message: "The operation could not be completed.",
         description: error?.message,
         type: "error",
       }),
@@ -142,7 +142,7 @@ export default function AdminConversationPage() {
     await mutate(
       "messages",
       { content, visibility, client_message_id: crypto.randomUUID() },
-      visibility === "PUBLIC" ? "Resposta enviada." : "Nota interna guardada.",
+      visibility === "PUBLIC" ? "Response sent." : "Internal note saved.",
     );
     setContent("");
   }
@@ -152,8 +152,8 @@ export default function AdminConversationPage() {
       url: `/api/v1/admin/messages/${messageId}/review`,
       method: "post",
       values: { action: reviewAction, content: edited || null, note: null },
-      successNotification: { message: "Decisão de revisão registada.", type: "success" },
-      errorNotification: (error) => ({ message: "A revisão não foi concluída.", description: error?.message, type: "error" }),
+      successNotification: { message: "Review decision recorded.", type: "success" },
+      errorNotification: (error) => ({ message: "The review could not be completed.", description: error?.message, type: "error" }),
     });
     setReviewContent("");
     await refresh();
@@ -166,8 +166,8 @@ export default function AdminConversationPage() {
       url: "/api/v1/admin/feedback",
       method: "post",
       values: { rag_run_id: activeRun, category: feedbackCategory, note: feedbackNote || null },
-      successNotification: { message: "Feedback registado sem alterar o sistema automaticamente.", type: "success" },
-      errorNotification: (error) => ({ message: "O feedback não foi registado.", description: error?.message, type: "error" }),
+      successNotification: { message: "Feedback recorded without changing the system automatically.", type: "success" },
+      errorNotification: (error) => ({ message: "The feedback was not recorded.", description: error?.message, type: "error" }),
     });
     setFeedbackNote("");
     await invalidate({ resource: "feedback", invalidates: ["list"] });
@@ -183,7 +183,7 @@ export default function AdminConversationPage() {
   return (
     <>
       <PageHeading
-        title="Conversa"
+        title="Conversation"
         description={`Aberta em ${formatDate(conversation.created_at)} · ${conversation.conversation_id}`}
         actions={
           <div className="flex flex-wrap gap-2">
@@ -198,7 +198,7 @@ export default function AdminConversationPage() {
           {proposal ? (
             <Panel className="border-sky-200 bg-sky-50/40">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <h2 className="font-semibold">Resposta aguardando revisão</h2>
+                <h2 className="font-semibold">Response awaiting review</h2>
                 <StatusBadge value={proposal.review_status} />
               </div>
               <textarea
@@ -207,23 +207,23 @@ export default function AdminConversationPage() {
                 onChange={(event) => setReviewContent(event.target.value)}
                 value={reviewContent || proposal.content}
               />
-              <p className="mt-2 text-xs text-slate-500">Qualquer edição é verificada novamente contra as citações antes da entrega.</p>
+              <p className="mt-2 text-xs text-slate-500">Every edit is checked against the citations again before delivery.</p>
               {canReview ? (
                 <div className="mt-4 flex flex-wrap gap-2">
                   <Button disabled={action.mutation.isPending} onClick={() => void review(proposal.message_id, "APPROVE")} type="button"><Check size={16} /> Aprovar</Button>
                   <Button disabled={action.mutation.isPending} onClick={() => void review(proposal.message_id, "EDIT_AND_SEND", reviewContent || proposal.content)} type="button" variant="outline">Editar e enviar</Button>
-                  <Button disabled={action.mutation.isPending || proposal.review_regeneration_count >= 1} onClick={() => void review(proposal.message_id, "REJECT_AND_REGENERATE")} type="button" variant="outline"><RefreshCw size={16} /> Regenerar uma vez</Button>
-                  <Button disabled={action.mutation.isPending} onClick={() => void review(proposal.message_id, "REJECT_AND_TAKEOVER")} type="button" variant="outline"><UserRoundX size={16} /> Enviar ao suporte</Button>
-                  <Button disabled={action.mutation.isPending} onClick={() => void review(proposal.message_id, "CLOSE")} type="button" variant="danger">Fechar sem enviar</Button>
+                  <Button disabled={action.mutation.isPending || proposal.review_regeneration_count >= 1} onClick={() => void review(proposal.message_id, "REJECT_AND_REGENERATE")} type="button" variant="outline"><RefreshCw size={16} /> Regenerate once</Button>
+                  <Button disabled={action.mutation.isPending} onClick={() => void review(proposal.message_id, "REJECT_AND_TAKEOVER")} type="button" variant="outline"><UserRoundX size={16} /> Send to support</Button>
+                  <Button disabled={action.mutation.isPending} onClick={() => void review(proposal.message_id, "CLOSE")} type="button" variant="danger">Close without sending</Button>
                 </div>
               ) : null}
             </Panel>
           ) : null}
           <Panel>
             <div className="mb-4 flex items-center justify-between gap-3">
-              <h2 className="font-semibold">Histórico público</h2>
+              <h2 className="font-semibold">Public history</h2>
               <span className="text-xs text-slate-500">
-                {conversation.assigned_agent_name ?? "Sem agente atribuído"}
+                {conversation.assigned_agent_name ?? "No assigned agent"}
               </span>
             </div>
             <div className="grid max-h-[36rem] gap-3 overflow-y-auto pr-1">
@@ -244,7 +244,7 @@ export default function AdminConversationPage() {
                       <p className="mb-1 flex items-center gap-1.5 text-xs font-semibold opacity-75">
                         {assistant ? <Bot size={13} /> : <CircleUserRound size={13} />}
                         {message.sender_label}
-                        {operator ? " · atendimento humano" : ""}
+                        {operator ? " · human support" : ""}
                       </p>
                       <p className="whitespace-pre-wrap leading-6">{message.content}</p>
                       <p className="mt-1 text-[11px] opacity-65">{formatDate(message.created_at)}</p>
@@ -267,7 +267,7 @@ export default function AdminConversationPage() {
                     onClick={() => setVisibility(mode)}
                     type="button"
                   >
-                    {mode === "PUBLIC" ? "Resposta pública" : "Nota interna"}
+                    {mode === "PUBLIC" ? "Public response" : "Internal note"}
                   </button>
                 ))}
               </div>
@@ -279,8 +279,8 @@ export default function AdminConversationPage() {
                 onChange={(event) => setContent(event.target.value)}
                 placeholder={
                   visibility === "PUBLIC"
-                    ? "Escreva a resposta para a pessoa…"
-                    : "Registe contexto apenas para a equipa…"
+                    ? "Write the response to the customer…"
+                    : "Record context for the team only…"
                 }
                 required
                 value={content}
@@ -289,14 +289,14 @@ export default function AdminConversationPage() {
                 <p className="flex items-center gap-1.5 text-xs text-slate-500">
                   {visibility === "INTERNAL" ? <LockKeyhole size={13} /> : <MessageSquareText size={13} />}
                   {visibility === "INTERNAL"
-                    ? "Nunca aparece no widget nem no contexto do modelo."
-                    : "Visível no widget assim que for entregue."}
+                    ? "Never appears in the widget or model context."
+                    : "Visible in the widget after delivery."}
                 </p>
                 <Button
                   disabled={action.mutation.isPending || !content.trim()}
                   type="submit"
                 >
-                  {visibility === "PUBLIC" ? "Enviar" : "Guardar nota"}
+                  {visibility === "PUBLIC" ? "Send" : "Save note"}
                 </Button>
               </div>
             </form>
@@ -305,7 +305,7 @@ export default function AdminConversationPage() {
 
         <div className="grid content-start gap-5">
           <Panel>
-            <h2 className="mb-4 font-semibold">Controlo do atendimento</h2>
+            <h2 className="mb-4 font-semibold">Conversation control</h2>
             <dl className="grid gap-3 text-sm">
               <div>
                 <dt className="text-slate-500">Motivo</dt>
@@ -319,28 +319,28 @@ export default function AdminConversationPage() {
             <div className="mt-5 grid gap-2 sm:grid-cols-3 xl:grid-cols-1">
               {conversation.state === "HUMAN_REQUESTED" ? (
                 <Button
-                  onClick={() => void mutate("claim", {}, "Atendimento atribuído.")}
+                  onClick={() => void mutate("claim", {}, "Handoff assigned.")}
                   type="button"
                 >
-                  Assumir atendimento
+                  Claim handoff
                 </Button>
               ) : null}
               {!["RETURNED_TO_AI", "CLOSED"].includes(conversation.state) ? (
                 <Button
-                  onClick={() => void mutate("return-to-ai", {}, "Conversa devolvida à IA.")}
+                  onClick={() => void mutate("return-to-ai", {}, "Conversation returned to AI.")}
                   type="button"
                   variant="outline"
                 >
-                  Devolver à IA
+                  Return to AI
                 </Button>
               ) : null}
               {conversation.state !== "CLOSED" ? (
                 <Button
-                  onClick={() => void mutate("close", {}, "Conversa encerrada.")}
+                  onClick={() => void mutate("close", {}, "Conversation closed.")}
                   type="button"
                   variant="danger"
                 >
-                  Encerrar conversa
+                  Close conversation
                 </Button>
               ) : null}
             </div>
@@ -354,7 +354,7 @@ export default function AdminConversationPage() {
             <div className="grid gap-3">
               {conversation.messages.filter((message) => message.sender_type === "INTERNAL").length ===
               0 ? (
-                <p className="text-sm text-slate-500">Sem notas internas.</p>
+                <p className="text-sm text-slate-500">No internal notes.</p>
               ) : (
                 conversation.messages
                   .filter((message) => message.sender_type === "INTERNAL")
@@ -394,19 +394,19 @@ export default function AdminConversationPage() {
           <div className="grid gap-5">
             <RagInspector runId={activeRun} />
             <form className="grid gap-3 rounded-xl border border-slate-200 p-4" onSubmit={(event) => void submitFeedback(event)}>
-              <h3 className="font-semibold">Classificar esta resposta</h3>
+              <h3 className="font-semibold">Classify this response</h3>
               <div className="grid gap-3 md:grid-cols-[minmax(14rem,.45fr)_1fr_auto]">
                 <select className="rounded-xl border border-slate-300 px-3 py-2 text-sm" onChange={(event) => setFeedbackCategory(event.target.value as FeedbackCategory)} value={feedbackCategory}>
                   {FEEDBACK_CATEGORIES.map((category) => <option key={category} value={category}>{category}</option>)}
                 </select>
-                <input className="rounded-xl border border-slate-300 px-3 py-2 text-sm" maxLength={2000} onChange={(event) => setFeedbackNote(event.target.value)} placeholder="Nota opcional" value={feedbackNote} />
-                <Button disabled={action.mutation.isPending} type="submit">Registar feedback</Button>
+                <input className="rounded-xl border border-slate-300 px-3 py-2 text-sm" maxLength={2000} onChange={(event) => setFeedbackNote(event.target.value)} placeholder="Optional note" value={feedbackNote} />
+                <Button disabled={action.mutation.isPending} type="submit">Record feedback</Button>
               </div>
-              <p className="text-xs text-slate-500">O feedback é append-only e nunca modifica automaticamente a base, os prompts ou o modelo.</p>
+              <p className="text-xs text-slate-500">Feedback is append-only and never changes the knowledge base, prompts, or model automatically.</p>
             </form>
           </div>
         ) : (
-          <p className="text-sm text-slate-500">Esta conversa ainda não possui execução RAG.</p>
+          <p className="text-sm text-slate-500">This conversation has no RAG run yet.</p>
         )}
       </Panel>
     </>

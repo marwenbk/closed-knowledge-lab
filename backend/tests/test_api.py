@@ -142,9 +142,9 @@ def test_readiness_and_status_fail_closed_without_postgresql(client: TestClient)
         {"query": "x" * 1001},
         {"query": 123},
         {"query": "planos", "unexpected": True},
-        {"query": "plano\x00família"},
-        {"query": "plano\nfamília"},
-        {"query": "plano\x7ffamília"},
+        {"query": "plan\x00family"},
+        {"query": "plan\nfamily"},
+        {"query": "plan\x7ffamily"},
     ],
 )
 @pytest.mark.parametrize("path", ["/api/v1/kb/retrieve", "/api/v1/kb/answer"])
@@ -298,20 +298,20 @@ def test_answer_endpoint_returns_only_the_grounded_contract(
 ) -> None:
     result = GroundedAnswer(
         status="ANSWERABLE",
-        answer="O plano Família permite até 3 dependentes.",
+        answer="The Family plan allows up to 3 dependents.",
         citations=(
             Citation(
                 citation_id="c1",
                 chunk_id=UUID(int=1),
                 stable_chunk_key="family-members__limits__001",
                 document_key="family-members",
-                document="Membros da família e dependentes",
-                section="Limites de dependentes",
-                quote="O plano Família permite o cadastro de até 3 dependentes.",
+                document="Family members and dependents",
+                section="Dependent limits",
+                quote="The Family plan allows up to 3 dependents.",
             ),
         ),
         dataset_id="topmed-demo",
-        dataset_version="2.0.0",
+        dataset_version="3.0.0",
         model=ModelIdentity(
             provider="test",
             name="deepseek-v4-flash",
@@ -330,7 +330,7 @@ def test_answer_endpoint_returns_only_the_grounded_contract(
 
     response = client.post(
         "/api/v1/kb/answer",
-        json={"query": "Quantos dependentes o plano Família permite?"},
+        json={"query": "How many dependents does the Family plan allow?"},
     )
 
     assert response.status_code == 200

@@ -39,9 +39,9 @@ export default function KnowledgeDocumentEditorPage() {
       url: `/api/v1/admin/knowledge/versions/${id}/documents/${documentId}`,
       method: "put",
       values: { content_markdown: content },
-      successNotification: { message: "Nova revisão guardada e blocos regenerados.", type: "success" },
+      successNotification: { message: "New revision saved and chunks regenerated.", type: "success" },
       errorNotification: (error) => ({
-        message: "A revisão não foi guardada.",
+        message: "The revision was not saved.",
         description: error?.message,
         type: "error",
       }),
@@ -60,10 +60,10 @@ export default function KnowledgeDocumentEditorPage() {
     <>
       <PageHeading
         title={document.title}
-        description={`${document.document_key} · revisão ${document.revision_number} · versão ${document.dataset_version}`}
+        description={`${document.document_key} · revision ${document.revision_number} · version ${document.dataset_version}`}
         actions={
           <Link className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" href={`/admin/knowledge/${id}`}>
-            <ArrowLeft size={16} /> Voltar à versão
+            <ArrowLeft size={16} /> Back to version
           </Link>
         }
       />
@@ -82,7 +82,7 @@ export default function KnowledgeDocumentEditorPage() {
               <h2 className="font-semibold">Markdown</h2>
               {canEdit ? (
                 <Button disabled={action.mutation.isPending || content === document.content_markdown} size="sm" type="submit">
-                  <Save size={15} /> Guardar revisão
+                  <Save size={15} /> Save revision
                 </Button>
               ) : null}
             </div>
@@ -98,7 +98,7 @@ export default function KnowledgeDocumentEditorPage() {
             />
           </Panel>
           <Panel>
-            <h2 className="mb-3 font-semibold">Pré-visualização segura</h2>
+            <h2 className="mb-3 font-semibold">Safe preview</h2>
             <article className="max-h-[38rem] overflow-auto text-sm leading-7 text-slate-700 [&_h1]:mb-4 [&_h1]:text-2xl [&_h1]:font-bold [&_h2]:mb-2 [&_h2]:mt-6 [&_h2]:text-lg [&_h2]:font-semibold [&_li]:ml-5 [&_li]:list-disc [&_p]:my-3 [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:p-2 [&_th]:border [&_th]:p-2">
               <ReactMarkdown>{markdownBody(content)}</ReactMarkdown>
             </article>
@@ -110,7 +110,7 @@ export default function KnowledgeDocumentEditorPage() {
         <Panel>
           <div className="mb-3 flex items-center gap-2">
             <FileSearch className="text-teal-700" size={18} />
-            <h2 className="font-semibold">Impacto das avaliações</h2>
+            <h2 className="font-semibold">Evaluation impact</h2>
           </div>
           <p className="text-xs font-medium text-slate-500">Factos relacionados</p>
           <div className="mt-2 flex flex-wrap gap-1.5">
@@ -127,11 +127,11 @@ export default function KnowledgeDocumentEditorPage() {
               {document.dependencies.evaluation_case_ids.map((caseId) => <li key={caseId}>{caseId}</li>)}
             </ul>
           </details>
-          <p className="mt-5 text-xs font-medium text-slate-500">Histórico imutável</p>
+          <p className="mt-5 text-xs font-medium text-slate-500">Immutable history</p>
           <ul className="mt-2 grid gap-1 text-xs text-slate-600">
             {document.revisions.map((revision) => (
               <li className="flex justify-between gap-2" key={revision.revision_number}>
-                <span>Revisão {revision.revision_number}</span>
+                <span>Revision {revision.revision_number}</span>
                 <span className="font-mono">{revision.content_checksum.slice(0, 10)}…</span>
               </li>
             ))}

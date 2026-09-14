@@ -1,64 +1,62 @@
 ---
 document_id: billing-and-payments
-title: Cobrança e pagamentos
-language: pt-BR
+title: Billing and payments
+language: en-US
 dataset_id: topmed-demo
-dataset_version: "2.0.0"
+dataset_version: "3.0.0"
 ---
 
-# Cobrança e pagamentos
+# Billing and payments
 
-Política canônica: **TM-BILL-003**.
+Canonical policy: **TM-BILL-003**.
 
-## Preços mensais
+## Monthly prices
 
-- **Essencial:** R$ 29,90 por mês.
-- **Família:** R$ 49,90 por mês.
-- **Premium:** R$ 79,90 por mês.
+- **Essential:** R$ 29.90 per month.
+- **Family:** R$ 49.90 per month.
+- **Premium:** R$ 79.90 per month.
 
-## Renovação
+## Renewal
 
-- A assinatura é renovada automaticamente todos os meses.
-- A cobrança utiliza o método de pagamento cadastrado.
-- Adicionar um dependente não reinicia o ciclo de cobrança.
+- The subscription renews automatically every month.
+- Billing uses the registered payment method.
+- Adding a dependent does not restart the billing cycle.
 
-## Falha de pagamento
+## Payment failure
 
-- Depois de uma falha na renovação, existe um período de carência de **3 dias**.
-- O acesso é suspenso após o fim do período de carência se o pagamento não for regularizado.
-- Um pagamento bem-sucedido restaura o acesso.
-- Se o pagamento for confirmado mas o acesso não voltar, o caso deve ser escalado.
+- A failed renewal starts a **3-day grace period**.
+- Access is suspended after the grace period if payment is not resolved.
+- A successful payment restores access.
+- If payment is confirmed but access does not return, the case must be escalated.
 
-Este documento define cobrança mensal. A política de cancelamento determina quando a renovação futura é interrompida, e a política de reembolso define separadamente quando uma devolução é elegível.
+This document defines monthly billing. The cancellation policy determines when future renewal stops, and the refund policy separately determines whether returning a payment is eligible.
 
-## Ciclo de cobrança
+## Billing cycle
 
-Cada plano possui o preço mensal indicado acima e utiliza renovação automática. A cobrança é enviada ao método cadastrado. O assistente pode explicar esses valores, mas não vê por meio desta base qual método está registrado em uma conta específica.
+Each plan has the monthly price shown above and uses automatic renewal. Charges go to the registered payment method. The assistant can explain these values but cannot see which method belongs to a specific account through this knowledge base.
 
-Adicionar um dependente preserva o ciclo existente. Essa regra não cria uma nova data e não autoriza o cálculo de um valor adicional não documentado.
+Adding a dependent preserves the existing cycle. The rule does not create a new billing date and does not authorize an undocumented additional-charge calculation.
 
-## Período de carência
+## Grace period
 
-Uma falha na renovação inicia a carência de 3 dias. Durante esse intervalo, a política ainda não determina suspensão imediata. Se o problema continuar depois da carência, o acesso é suspenso.
+A failed renewal starts a grace period of 3 days. The policy does not require immediate suspension during that interval. If the problem continues after the grace period, access is suspended.
 
-Quando um pagamento é concluído com sucesso, o acesso deve ser restaurado. Caso isso não aconteça, a falha precisa ser escalada em vez de tratada como uma nova regra de cobrança.
+When payment completes successfully, access should be restored. If that does not happen, the operational failure must be escalated rather than treated as a new billing rule.
 
-## Exemplos
+## Examples
 
-Se a renovação falhar hoje, a resposta deve mencionar o período de carência antes da suspensão. Ela não deve afirmar que o acesso termina no mesmo instante.
+If renewal fails today, an answer should mention the grace period before suspension. It must not say that access ends immediately.
 
-Se o usuário regularizar o pagamento, a regra sustenta a restauração do acesso. A base não comprova, sozinha, que uma transação específica foi aprovada; esse estado vem do sistema de pagamento.
+If a user resolves payment, the rule supports restoration of access. The knowledge base cannot prove that a specific transaction succeeded; that state comes from the payment system.
 
-Se o usuário pergunta quanto custa o Família, o valor canônico é R$ 49,90 por mês. Uma pergunta que combine esse preço com uma modalidade não definida deve receber apenas a parte sustentada.
+The canonical Family price is R$ 49.90 per month. A question combining that price with an undefined billing option should receive only the supported part.
 
-## Relação com cancelamento
+## Relationship to cancellation and refund
 
-Cancelar desativa a renovação futura e mantém o acesso até o fim do período pago. Isso é diferente de uma falha de renovação, na qual a carência e a eventual suspensão controlam o acesso.
+Cancellation disables future renewal while preserving access through the paid period. This differs from a failed renewal, where the grace period and possible suspension control access.
 
-## Relação com reembolso
+The amount paid does not determine refund eligibility by itself. The refund policy requires both a time window and no completed consultation. The assistant must not infer a refund merely because billing is monthly.
 
-O preço pago não determina, sozinho, elegibilidade para devolução. A política de reembolso exige prazo e ausência de consulta concluída. O assistente não deve deduzir uma devolução apenas porque a cobrança é mensal.
+## Limits
 
-## Limites
-
-Esta base não contém transações reais, números de cartão, comprovantes ou saldos. Ela define regras fictícias e valores canônicos para a demonstração. Informações sobre uma conta específica exigem integração com o sistema operacional e não podem ser inventadas.
+This knowledge base contains no real transactions, card numbers, receipts, or balances. It defines fictional rules and canonical values for the demonstration. Information about a specific account requires an operational integration and cannot be invented.

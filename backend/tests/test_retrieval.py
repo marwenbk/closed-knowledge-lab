@@ -60,10 +60,10 @@ def _mapping_match(content: str) -> RetrievalMatch:
         chunk_id=candidate.chunk_id,
         stable_chunk_key=candidate.stable_chunk_key,
         document_key="employer-plans",
-        document_title="Planos patrocinados por empresas",
+        document_title="Employer-sponsored plans",
         source_path="knowledge_base/06-employer-plans.md",
-        section="Correspondência dos níveis",
-        section_path=("Planos patrocinados por empresas", "Correspondência dos níveis"),
+        section="Tier mapping",
+        section_path=("Employer-sponsored plans", "Tier mapping"),
         ordinal=1,
         content=content,
         rrf_score=1.0,
@@ -72,9 +72,9 @@ def _mapping_match(content: str) -> RetrievalMatch:
 
 
 def test_broad_websearch_terms_are_deduplicated_and_quoted() -> None:
-    query = 'Gold GOLD " OR família TM-REF-014'
+    query = 'Gold GOLD " OR family TM-REF-014'
 
-    assert _broad_websearch_query(query) == ('"gold" OR "or" OR "família" OR "tm-ref-014"')
+    assert _broad_websearch_query(query) == ('"gold" OR "or" OR "family" OR "tm-ref-014"')
 
 
 def test_lexical_backfill_only_uses_remaining_slots_and_excludes_strict_matches(
@@ -185,37 +185,41 @@ def test_platinum_psychology_mapping_produces_one_plan_focused_second_hop() -> N
     evidence = [_mapping_match("- **Platinum** → **Premium**")]
 
     query = _second_hop_query(
-        "Tenho Platinum. Quantas consultas de psicologia tenho e qual o horário?",
+        "I have Platinum. How many psychology consultations are included, and what are the hours?",
         evidence,
     )
 
     assert query == (
-        "limite mensal de consultas e especialidades incluídas e horários do plano Premium"
+        "monthly consultation allowance and included specialties and hours for the Premium plan"
     )
-    assert _second_hop_query("Tenho Platinum, mas qual é o meu benefício?", evidence) is None
+    assert _second_hop_query("I have Platinum, but what is my benefit?", evidence) is None
 
 
 def test_employer_tier_detection_requires_a_complete_word() -> None:
-    assert _mentioned_employer_tier("Tenho Gold pela empresa") == "gold"
-    assert _mentioned_employer_tier("O produto Golden serve?") is None
+    assert _mentioned_employer_tier("I have Gold through my employer") == "gold"
+    assert _mentioned_employer_tier("Does the Golden product work?") is None
 
 
 @pytest.mark.parametrize(
     ("query", "expected"),
     [
         (
-            "Dermatologia do plano Família funciona sábado à noite?",
+            "Does Family-plan dermatology operate on Saturday night?",
             {"consultation-hours", "specialties"},
         ),
         (
-            "Se eu cancelar hoje, recebo automaticamente o que paguei?",
+            "Does the Platinum tier cover psychology, and during which hours?",
+            {"consultation-hours", "specialties"},
+        ),
+        (
+            "If I cancel today, do I automatically receive what I paid?",
             {"cancellation", "refund-policy"},
         ),
         (
-            "O benefício empresarial Gold dá direito a quantos dependentes?",
+            "How many dependents does the employer Gold benefit allow?",
             {"employer-plans", "family-members"},
         ),
-        ("Quanto custa o plano Essencial?", set()),
+        ("How much does the Essential plan cost?", set()),
     ],
 )
 def test_topic_companions_are_bounded_to_explicit_cross_document_intents(

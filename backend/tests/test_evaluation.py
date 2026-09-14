@@ -71,7 +71,7 @@ def _retrieval(data: EvaluationData, case_id: str) -> RetrievalResult:
         embedding_version="a" * 40,
         matches=matches,
         trigram_fallback_used=case.category == "typo_paraphrase",
-        second_hop_query="plano mapped" if len(matches) > 1 else None,
+        second_hop_query="mapped plan" if len(matches) > 1 else None,
         duration_ms=1.0,
     )
 
@@ -83,10 +83,10 @@ def _answer(
 ) -> GroundedAnswer:
     return GroundedAnswer(
         status=status,
-        answer="Resposta de avaliação.",
+        answer="Evaluation response.",
         citations=(citation,) if citation else (),
         dataset_id="topmed-demo",
-        dataset_version="2.0.0",
+        dataset_version="3.0.0",
         model=ModelIdentity(
             provider="test",
             name="test/model",

@@ -32,7 +32,7 @@ export default async function WidgetPage({
         process.env.NEXT_PUBLIC_WIDGET_ASSISTANT_KEY ??
         "topmed-local-demo"
       }
-      locale={first(parameters.locale) ?? "pt-BR"}
+      locale={first(parameters.locale) ?? "en-US"}
       mode="widget"
       parentOrigin={parentOrigin}
     />

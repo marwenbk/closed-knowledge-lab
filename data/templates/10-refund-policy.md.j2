@@ -1,56 +1,54 @@
 ---
 document_id: refund-policy
-title: Política de reembolso
+title: Refund policy
 language: {{ seed.dataset.language }}
 dataset_id: {{ seed.dataset.id }}
 dataset_version: "{{ seed.dataset.version }}"
 ---
 
-# Política de reembolso
+# Refund policy
 
-Política canônica: **{{ seed.policies.refund.id }}**.
+Canonical policy: **{{ seed.policies.refund.id }}**.
 
-## Condições de elegibilidade
+## Eligibility conditions
 
-Um pedido de reembolso é elegível somente quando as duas condições abaixo são atendidas:
+A refund request is eligible only when both conditions below are met:
 
-1. o pedido é enviado em até **{{ seed.policies.refund.eligibility.maximum_days_after_initial_payment }} dias corridos** após o pagamento inicial da assinatura; e
-2. nenhuma consulta foi concluída na conta.
+1. the request is submitted within **{{ seed.policies.refund.eligibility.maximum_days_after_initial_payment }} calendar days** after the initial subscription payment; and
+2. no consultation has been completed on the account.
 
-As duas condições são cumulativas. Estar dentro do prazo sem cumprir a condição de consultas, ou não ter consultas mas ultrapassar o prazo, não atende à regra documentada.
+The conditions are cumulative. Being inside the time window without meeting the consultation condition, or having no consultation but missing the window, does not satisfy the documented rule.
 
-## Destino e prazo de processamento
+## Destination and processing time
 
-- O valor aprovado retorna ao método de pagamento original.
-- O processamento pode levar até **{{ seed.policies.refund.maximum_processing_business_days_after_approval }} dias úteis** depois da aprovação.
-- Esse prazo máximo não é uma promessa de recebimento no dia seguinte.
+- An approved amount returns to the original payment method.
+- Processing may take up to **{{ seed.policies.refund.maximum_processing_business_days_after_approval }} business days** after approval.
+- This maximum processing time is not a promise of next-day receipt.
 
-## Limite da informação disponível
+## Available-information limit
 
-A base define somente a regra padrão acima e não contém exceções adicionais. Cancelamento e reembolso são políticas distintas; o cancelamento não garante devolução automática.
+The knowledge base defines only the standard rule above and contains no additional exceptions. Cancellation and refund are separate policies; cancellation does not guarantee an automatic return.
 
-## Avaliação das duas condições
+## Evaluating both conditions
 
-O prazo é contado a partir do pagamento inicial da assinatura. O pedido precisa chegar até o limite de {{ seed.policies.refund.eligibility.maximum_days_after_initial_payment }} dias corridos. Além disso, a conta não pode possuir consulta concluída.
+The time window starts with the initial subscription payment. The request must arrive within {{ seed.policies.refund.eligibility.maximum_days_after_initial_payment }} calendar days, and the account must have no completed consultation.
 
-Esses critérios devem ser avaliados juntos. Um pedido dentro do prazo com consulta concluída não cumpre a política. Um pedido sem consulta, mas fora do prazo, também não cumpre. O assistente não deve escolher apenas a condição favorável ao usuário.
+The two criteria must be evaluated together. A request inside the window after a completed consultation does not qualify. A request with no consultation but outside the window also does not qualify. The assistant must not select only the condition favorable to the user.
 
-## Depois da aprovação
+## After approval
 
-Quando o pedido é aprovado, o destino é o mesmo método usado no pagamento. O período de até {{ seed.policies.refund.maximum_processing_business_days_after_approval }} dias úteis começa após a aprovação.
+After approval, the amount returns to the payment method used for the original transaction. The period of up to {{ seed.policies.refund.maximum_processing_business_days_after_approval }} business days begins after approval.
 
-Esse período é um limite de processamento, não uma garantia de recebimento imediato. Se a pergunta combinar uma condição sustentada com a exigência de depósito em um momento exato, a resposta deve explicar a condição conhecida e recusar a garantia não documentada.
+This period is a processing limit, not a guarantee of immediate receipt. If a question combines a supported eligibility condition with a demand for payment at an exact time, the answer should explain the known condition and reject the unsupported guarantee.
 
-## Exemplos de aplicação
+## Application examples
 
-Um pedido feito dez dias após o pagamento inicial, sem consulta concluída, satisfaz as duas condições descritas. Ainda assim, a base não permite prometer que o valor chegará no mesmo dia.
+A request made ten days after initial payment with no completed consultation meets both documented conditions. The knowledge base still cannot promise same-day receipt.
 
-Um pedido feito dentro do prazo depois de uma consulta concluída não atende à segunda condição. O fato de a pessoa também cancelar a assinatura não transforma o pedido em elegível.
+A request inside the window after a completed consultation fails the second condition. Canceling the subscription does not make that request eligible.
 
-Uma pergunta sobre hospitalização, viagem ou outra circunstância não modifica automaticamente a regra. A base deve informar o padrão documentado e reconhecer que não possui uma regra especial para a situação apresentada.
+Hospitalization, travel, or another circumstance does not automatically change the rule. The assistant should explain the documented standard and acknowledge that no special exception is available.
 
-## Evidência e estado da conta
+## Evidence and account state
 
-A base explica como decidir, mas não contém o histórico de pagamento ou consulta de uma conta específica. O sistema precisa fornecer esses dados operacionais. O assistente não pode presumir datas, aprovações ou ausência de consultas a partir da declaração do usuário.
-
-Quando os registros do sistema e a evidência de reembolso entrarem em conflito, o procedimento apropriado é o escalonamento para revisão humana.
+The knowledge base explains the decision rule but contains no payment or consultation history for a specific account. An operational system must provide those records. If refund evidence conflicts with system records, the case must be escalated for human review.

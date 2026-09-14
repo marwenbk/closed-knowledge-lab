@@ -29,7 +29,7 @@ The external `topmed-demo-embed-marwen` static site proves that `widget.js` and 
 4. Render generates `WIDGET_TOKEN_SECRET`; the widget integration identifier is public by design.
 5. Wait for the backend startup command to migrate PostgreSQL, create the administrator, import the canonical corpus, generate embeddings, activate the initial KB, verify readiness, and then start FastAPI.
 
-The pre-deploy bootstrap is idempotent. Subsequent deploys preserve governed active KB, prompt, and settings versions.
+The pre-deploy bootstrap is idempotent. It activates the English baseline when migrating from the retired dataset language, then preserves later governed English knowledge, prompt, and settings versions.
 
 ## Runtime configuration
 
@@ -59,7 +59,7 @@ https://topmed-demo-embed-marwen.onrender.com
 
 Required checks:
 
-- database migration reports `0009_audit_feedback`;
+- database migration reports `0010_english_runtime`;
 - `vector` and `pg_trgm` are ready;
 - 15 documents and 30 embedded chunks are active;
 - DeepSeek and the local embedding runtime are ready;
@@ -73,7 +73,7 @@ Required checks:
 
 The 20 August 2026 release candidate passed the complete automated gate with 103 backend tests against PostgreSQL and both pinned embedding runtimes, 17 frontend tests, Ruff, formatting, MyPy, Alembic drift detection, Next.js production build, and both Docker builds. The 63-case retrieval suite passed for the full local ONNX model and the static production runtime with 100% source recall, fact recall, and required second-hop coverage.
 
-Live Render verification confirmed migration `0009_audit_feedback`, both PostgreSQL extensions, 15 active documents, 30 embedded chunks, DeepSeek readiness, the external launcher, reviewed answer delivery with a citation, and the complete customer-requested takeover path through claim and human reply. The idempotent production bootstrap also passed inside a hard 512 MB local container limit before deployment.
+Live Render verification on 20 August 2026 confirmed migration `0009_audit_feedback`, both PostgreSQL extensions, 15 active documents, 30 embedded chunks, DeepSeek readiness, the external launcher, reviewed answer delivery with a citation, and the complete customer-requested takeover path through claim and human reply. The idempotent production bootstrap also passed inside a hard 512 MB local container limit before deployment. The English `3.0.0` deployment must be verified separately after release.
 
 The optional 200-call live prompt comparison was not run because it consumes API credit and this deployment is restricted to free infrastructure. Prompt lifecycle and failure behavior remain covered by deterministic tests; one representative DeepSeek request was used for the live end-to-end smoke test.
 

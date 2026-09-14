@@ -58,20 +58,20 @@ export function StatusBadge({ value }: { value: string | null | undefined }) {
 }
 
 export function LoadingState() {
-  return <p className="py-12 text-center text-sm text-slate-500">A carregar…</p>;
+  return <p className="py-12 text-center text-sm text-slate-500">Loading…</p>;
 }
 
 export function ErrorState({ error }: { error: unknown }) {
   return (
     <p className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-      {error instanceof Error ? error.message : "Não foi possível carregar os dados."}
+      {error instanceof Error ? error.message : "The data could not be loaded."}
     </p>
   );
 }
 
 export function formatDate(value: string | null | undefined): string {
   return value
-    ? new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(
+    ? new Intl.DateTimeFormat("en-US", { dateStyle: "short", timeStyle: "short" }).format(
         new Date(value),
       )
     : "—";

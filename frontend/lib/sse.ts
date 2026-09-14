@@ -76,7 +76,7 @@ export async function subscribeToConversation(
     throw new WidgetApiError(
       response.status,
       "EVENT_STREAM_UNAVAILABLE",
-      "A atualização em tempo real está indisponível.",
+      "Realtime updates are unavailable.",
     );
   }
   for await (const item of parseEventStream(response.body)) {
@@ -85,7 +85,7 @@ export async function subscribeToConversation(
       throw new WidgetApiError(
         503,
         "EVENT_STREAM_UNAVAILABLE",
-        "A atualização em tempo real está indisponível.",
+        "Realtime updates are unavailable.",
       );
     }
     const payload = JSON.parse(item.data) as ConversationEvent;
@@ -93,7 +93,7 @@ export async function subscribeToConversation(
       throw new WidgetApiError(
         502,
         "INVALID_EVENT_STREAM",
-        "A atualização em tempo real retornou um evento inválido.",
+        "Realtime updates returned an invalid event.",
       );
     }
     onEvent(item.event, payload);

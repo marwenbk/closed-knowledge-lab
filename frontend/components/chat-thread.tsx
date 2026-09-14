@@ -28,9 +28,9 @@ import { cn } from "@/lib/utils";
 import { readCitations, useWidgetRuntime } from "@/providers/widget-runtime";
 
 const STARTERS = [
-  "Quanto custa o plano Família por mês?",
-  "Quantos dependentes o plano Família permite?",
-  "Como funciona a política de reembolso?",
+  "How much does the Family plan cost per month?",
+  "How many dependents does the Family plan allow?",
+  "How does the refund policy work?",
 ];
 
 function MessageText() {
@@ -46,7 +46,7 @@ function MessageTime() {
   if (!createdAt) return null;
   return (
     <time className="mt-2 block text-[0.7rem] text-slate-400" dateTime={createdAt.toISOString()}>
-      {new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit" }).format(
+      {new Intl.DateTimeFormat("en-US", { hour: "2-digit", minute: "2-digit" }).format(
         createdAt,
       )}
     </time>
@@ -61,7 +61,7 @@ function CitationList() {
     <details className="mt-3 rounded-xl border border-teal-100 bg-teal-50/70 text-sm">
       <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 font-semibold text-teal-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-teal-600">
         <FileText aria-hidden="true" className="size-4" />
-        {citations.length === 1 ? "1 fonte consultada" : `${citations.length} fontes consultadas`}
+        {citations.length === 1 ? "1 source consulted" : `${citations.length} sources consulted`}
       </summary>
       <div className="space-y-2 border-t border-teal-100 p-3">
         {citations.map((citation) => (
@@ -133,10 +133,10 @@ function Welcome() {
         <Sparkles className="size-5" />
       </div>
       <h2 className="text-balance text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">
-        Como posso ajudar hoje?
+        How can I help today?
       </h2>
       <p className="mt-2 max-w-xl text-sm leading-6 text-slate-500">
-        Pergunte sobre planos, dependentes, consultas, cancelamentos e políticas do serviço fictício.
+        Ask about plans, dependents, consultations, cancellations, and policies for the fictional service.
       </p>
       <div className="mt-7 grid gap-2 sm:grid-cols-3">
         {STARTERS.map((starter) => (
@@ -166,28 +166,28 @@ function Composer() {
         <ComposerPrimitive.Input
           aria-label={
             humanControlled
-              ? "Mensagem para o atendimento humano"
-              : "Mensagem para o Closed-Knowledge Lab"
+              ? "Message human support"
+              : "Message Closed-Knowledge Lab"
           }
           className="max-h-32 min-h-11 flex-1 resize-none bg-transparent px-2 py-2.5 text-[0.95rem] leading-5 text-slate-900 outline-none placeholder:text-slate-400"
           disabled={reviewPending}
           placeholder={
             reviewPending
-              ? "Aguarde a revisão da resposta…"
+              ? "Wait for the answer review…"
               : humanControlled
-                ? "Escreva para o suporte…"
-                : "Escreva sua pergunta…"
+                ? "Write to human support…"
+                : "Write your question…"
           }
           rows={1}
         />
         <ComposerPrimitive.Send asChild>
-          <Button aria-label="Enviar mensagem" className="size-11 rounded-xl p-0" disabled={reviewPending} type="submit">
+          <Button aria-label="Send message" className="size-11 rounded-xl p-0" disabled={reviewPending} type="submit">
             <Send aria-hidden="true" className="size-4" />
           </Button>
         </ComposerPrimitive.Send>
       </ComposerPrimitive.Root>
       <p className="mt-2 px-2 text-center text-[0.68rem] leading-4 text-slate-400">
-        Serviço fictício para demonstração. Não envie dados médicos ou pessoais sensíveis.
+        Fictional demonstration service. Do not submit sensitive medical or personal data.
       </p>
     </div>
   );
@@ -214,14 +214,14 @@ function RuntimeNotice() {
             onClick={() => void retryLastSubmission()}
             type="button"
           >
-            Tentar de novo
+            Try again
           </button>
         ) : !isReady ? (
           <button className="font-bold underline" onClick={dismissError} type="button">
-            Reconectar
+            Reconnect
           </button>
         ) : (
-          <button aria-label="Fechar aviso" onClick={dismissError} type="button">
+          <button aria-label="Close notice" onClick={dismissError} type="button">
             <X className="size-4" />
           </button>
         )}
@@ -231,56 +231,56 @@ function RuntimeNotice() {
   if (conversationState === "CLOSED") {
     return (
       <div className="mx-auto mb-2 flex w-[calc(100%-1.5rem)] max-w-3xl items-center gap-2 rounded-xl bg-slate-100 px-3 py-2 text-sm text-slate-600">
-        <CheckCircle2 className="size-4 text-teal-700" /> Conversa encerrada.
+        <CheckCircle2 className="size-4 text-teal-700" /> Conversation closed.
       </div>
     );
   }
   if (conversationState === "AI_REVIEW_PENDING") {
     return (
       <div className="mx-auto mb-2 w-[calc(100%-1.5rem)] max-w-3xl rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-800">
-        A resposta foi verificada automaticamente e está aguardando revisão humana antes do envio.
+        The answer passed automated verification and is waiting for human review before delivery.
       </div>
     );
   }
   if (conversationState === "HUMAN_REQUESTED") {
     return (
       <div className="mx-auto mb-2 w-[calc(100%-1.5rem)] max-w-3xl rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-        Seu pedido foi enviado. Você pode continuar escrevendo enquanto aguarda uma pessoa.
+        Your request was sent. You can continue writing while you wait for a person.
       </div>
     );
   }
   if (conversationState === "HUMAN_ASSIGNED") {
     return (
       <div className="mx-auto mb-2 w-[calc(100%-1.5rem)] max-w-3xl rounded-xl border border-teal-200 bg-teal-50 px-3 py-2 text-sm text-teal-800">
-        Uma pessoa da equipe assumiu a conversa.
+        A team member has taken over the conversation.
       </div>
     );
   }
   if (conversationState === "HUMAN_ACTIVE") {
     return (
       <div className="mx-auto mb-2 w-[calc(100%-1.5rem)] max-w-3xl rounded-xl border border-teal-200 bg-teal-50 px-3 py-2 text-sm text-teal-800">
-        Você está falando com uma pessoa da equipe.
+        You are speaking with a team member.
       </div>
     );
   }
   if (conversationState === "RETURNED_TO_AI") {
     return (
       <div className="mx-auto mb-2 w-[calc(100%-1.5rem)] max-w-3xl px-3 text-xs text-teal-700">
-        O Closed-Knowledge Lab responderá às próximas mensagens.
+        Closed-Knowledge Lab will answer the next messages.
       </div>
     );
   }
   if (isRunning) {
     return (
       <div className="mx-auto mb-2 flex w-[calc(100%-1.5rem)] max-w-3xl items-center gap-2 px-3 text-xs font-medium text-slate-500">
-        <LoaderCircle className="size-3.5 animate-spin text-teal-700" /> Consultando a base aprovada…
+        <LoaderCircle className="size-3.5 animate-spin text-teal-700" /> Consulting approved evidence…
       </div>
     );
   }
   if (connectionStatus === "polling") {
     return (
       <div className="mx-auto mb-2 w-[calc(100%-1.5rem)] max-w-3xl px-3 text-xs text-amber-700">
-        Atualização em tempo real instável; sincronizando automaticamente.
+        Realtime updates are unstable; synchronizing automatically.
       </div>
     );
   }
@@ -305,7 +305,7 @@ export function ChatThread() {
         <ThreadPrimitive.ViewportFooter className="sticky bottom-0 z-10 bg-gradient-to-t from-slate-50 via-slate-50/95 to-transparent pt-7">
           <ThreadPrimitive.ScrollToBottom asChild>
             <Button
-              aria-label="Ir para a mensagem mais recente"
+              aria-label="Go to the latest message"
               className="mx-auto mb-2 flex rounded-full shadow-sm"
               size="icon"
               variant="outline"
@@ -330,7 +330,7 @@ export function ConversationActions() {
   return (
     <div className="flex items-center gap-1">
       <Button
-        aria-label="Falar com uma pessoa"
+        aria-label="Talk to a person"
         disabled={!conversationState || conversationState === "CLOSED" || handoffRequested}
         onClick={() => void requestHuman()}
         size="sm"
@@ -338,27 +338,27 @@ export function ConversationActions() {
         variant="ghost"
       >
         <UserRound aria-hidden="true" className="size-3.5" />
-        <span className="hidden sm:inline">Falar com uma pessoa</span>
+        <span className="hidden sm:inline">Talk to a person</span>
       </Button>
       <Button
-        aria-label="Nova conversa"
+        aria-label="New conversation"
         onClick={() => void restartConversation()}
         size="sm"
         type="button"
         variant="ghost"
       >
         <RotateCcw aria-hidden="true" className="size-3.5" />
-        <span className="hidden sm:inline">Nova conversa</span>
+        <span className="hidden sm:inline">New conversation</span>
       </Button>
       <Button
-        aria-label="Encerrar conversa"
+        aria-label="Close conversation"
         disabled={!conversationState || conversationState === "CLOSED"}
         onClick={() => void closeCurrentConversation()}
         size="sm"
         type="button"
         variant="danger"
       >
-        Encerrar
+        Close
       </Button>
     </div>
   );

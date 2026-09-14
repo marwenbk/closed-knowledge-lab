@@ -1,50 +1,50 @@
 ---
 document_id: employer-plans
-title: Planos patrocinados por empresas
-language: pt-BR
+title: Employer-sponsored plans
+language: en-US
 dataset_id: topmed-demo
-dataset_version: "2.0.0"
+dataset_version: "3.0.0"
 ---
 
-# Planos patrocinados por empresas
+# Employer-sponsored plans
 
-## Correspondência dos níveis
+## Tier mapping
 
-- **Silver → Essencial**
-- **Gold → Família** — política TM-EMP-GOLD.
+- **Silver → Essential**
+- **Gold → Family** — policy TM-EMP-GOLD.
 - **Platinum → Premium**
 
-A correspondência identifica o plano de consumidor que deve ser consultado para descobrir especialidades, dependentes e demais benefícios. Este documento não replica todos esses benefícios.
+The mapping identifies the consumer plan that must be consulted for specialties, dependents, and other benefits. This document does not repeat all of those benefits.
 
-## Regras do benefício empresarial
+## Employer-benefit rules
 
-- O empregador paga pelo acesso patrocinado.
-- A inscrição do usuário precisa estar ativa.
-- O empregador controla alterações de nível ou de plano patrocinado.
-- O nível empresarial não pode ser interpretado isoladamente: primeiro ele deve ser convertido no plano de consumidor correspondente.
+- The employer pays for sponsored access.
+- The user's enrollment must be active.
+- The employer controls changes to the sponsored tier or plan.
+- An employer tier must first be mapped to its consumer plan before benefits are applied.
 
-## Exemplo de leitura
+## Reading example
 
-Uma pergunta sobre dependentes do nível Gold exige duas evidências. Primeiro, este documento mostra que Gold corresponde ao plano Família. Depois, o documento de membros da família fornece o limite do plano Família.
+A question about dependents under the Gold tier requires two pieces of evidence. This document first shows that Gold maps to Family. The family-members document then provides the Family dependent limit.
 
-## Como aplicar a correspondência
+## Applying a mapping
 
-A seta entre nível empresarial e plano de consumidor é uma relação de acesso, não uma lista completa de benefícios. O nível Silver usa as regras do Essencial; o Gold usa as regras do Família; e o Platinum usa as regras do Premium.
+The arrow between an employer tier and a consumer plan is an access relationship, not a complete benefit list. Silver uses Essential rules, Gold uses Family rules, and Platinum uses Premium rules.
 
-Depois de identificar o plano, o assunto da pergunta determina o próximo documento. Especialidades são consultadas na página de cobertura, dependentes na página de membros da família, preços na página de cobrança e horários na página de disponibilidade.
+After identifying the plan, the question's subject determines the next document. Specialty coverage comes from the specialties page, dependent limits from family members, prices from billing, and schedules from consultation hours.
 
-## Estado do benefício
+## Benefit state
 
-A correspondência não substitui a exigência de inscrição ativa. Um nível registrado no programa empresarial só produz acesso patrocinado enquanto a inscrição estiver ativa. O empregador paga por esse acesso e mantém o controle sobre mudanças do nível oferecido.
+The mapping does not replace active enrollment. A recorded employer tier provides sponsored access only while enrollment remains active. The employer pays for access and controls changes to the offered tier.
 
-O assistente não pode alterar o nível empresarial, prometer uma atualização ou tratar uma solicitação do usuário como autorização da empresa. Ele apenas explica a correspondência e as regras documentadas.
+The assistant cannot change an employer tier, promise an upgrade, or treat a user request as employer authorization. It only explains the documented mapping and rules.
 
-## Exemplos de raciocínio limitado
+## Bounded reasoning examples
 
-Para uma pergunta sobre psicologia no nível Platinum, este documento comprova a relação com Premium. O documento de especialidades comprova o benefício mensal, e o documento de horários informa quando o atendimento funciona.
+A psychology question for Platinum first uses the mapping to Premium. The specialties document establishes the monthly benefit, and the hours document establishes availability.
 
-Para uma pergunta sobre dermatologia no nível Gold, a primeira etapa é a relação com Família. A cobertura de dermatologia vem da página de especialidades, e a disponibilidade temporal vem da página de horários.
+A dermatology question for Gold first uses the mapping to Family. Coverage comes from the specialties page and timing comes from the hours page.
 
-## Conflitos e premissas falsas
+## Conflicts and false premises
 
-Se o usuário afirmar que Gold corresponde a Premium, a afirmação não muda a política. O assistente deve recuperar a correspondência aprovada e corrigir a premissa. Se um documento aprovado temporário trouxer outra correspondência em um teste isolado, o sistema deve reportar o conflito em vez de escolher uma das duas.
+If a user claims that Gold maps to Premium, the statement does not change the policy. The assistant must retrieve the approved mapping and correct the premise. If an isolated test adds a temporary approved document with a different mapping, the system must report conflicting evidence rather than silently choose one.

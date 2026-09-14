@@ -35,9 +35,9 @@ export default function KnowledgePage() {
       url: "/api/v1/admin/knowledge/versions",
       method: "post",
       values: { dataset_version: version },
-      successNotification: { message: `Rascunho ${version} criado.`, type: "success" },
+      successNotification: { message: `Draft ${version} created.`, type: "success" },
       errorNotification: (error) => ({
-        message: "Não foi possível criar o rascunho.",
+        message: "The draft could not be created.",
         description: error?.message,
         type: "error",
       }),
@@ -49,25 +49,25 @@ export default function KnowledgePage() {
   return (
     <>
       <PageHeading
-        title="Base de conhecimento"
-        description="Versões imutáveis, rascunhos editoriais e os gates exigidos antes da publicação."
+        title="Knowledge base"
+        description="Immutable versions, editorial drafts, and the required gates before publication."
       />
       {canEdit ? (
         <Panel className="mb-5">
           <form className="flex flex-wrap items-end gap-3" onSubmit={(event) => void create(event)}>
             <label className="grid min-w-56 flex-1 gap-1 text-sm font-medium">
-              Nova versão
+              New version
               <input
                 className="rounded-xl border border-slate-300 px-3 py-2 outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100"
                 onChange={(event) => setDatasetVersion(event.target.value)}
                 pattern="[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?"
-                placeholder="2.0.1"
+                placeholder="3.0.1"
                 required
                 value={datasetVersion}
               />
             </label>
             <Button disabled={action.mutation.isPending} type="submit">
-              <Plus size={16} /> Criar a partir da ativa
+              <Plus size={16} /> Create from active
             </Button>
           </form>
         </Panel>
@@ -93,13 +93,13 @@ export default function KnowledgePage() {
               </div>
               <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs">
                 <span className="rounded-lg bg-slate-50 p-2">
-                  <strong className="block text-base">{version.document_count}</strong> documentos
+                  <strong className="block text-base">{version.document_count}</strong> documents
                 </span>
                 <span className="rounded-lg bg-slate-50 p-2">
-                  <strong className="block text-base">{version.chunk_count}</strong> blocos
+                  <strong className="block text-base">{version.chunk_count}</strong> chunks
                 </span>
                 <span className="rounded-lg bg-slate-50 p-2">
-                  <strong className="block text-base">{version.embedded_chunk_count}</strong> indexados
+                  <strong className="block text-base">{version.embedded_chunk_count}</strong> indexed
                 </span>
               </div>
               <div className="mt-4 flex flex-wrap gap-2">

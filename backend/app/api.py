@@ -209,6 +209,7 @@ def ready(
         readiness(
             engine,
             expected_dataset_id=settings.expected_dataset_id,
+            expected_dataset_version=settings.expected_dataset_version,
             expected_embedding_model=settings.active_embedding_model_id,
             expected_embedding_version=settings.active_embedding_model_revision,
             expected_embedding_dimensions=settings.embedding_dimensions,
