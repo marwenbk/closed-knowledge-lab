@@ -14,7 +14,7 @@ topmed-demo-web-marwen (Next.js)
 topmed-demo-api-marwen (FastAPI + static embeddings)
         |
         v
-topmed-demo-db-marwen (Render PostgreSQL 17)
+topmed-demo-db-marwen-20260928 (Render PostgreSQL 17)
 ```
 
 The external `topmed-demo-embed-marwen` static site proves that `widget.js` and the iframe work from a separate origin. All resources use free Render instance types. Runtime services and PostgreSQL live in Frankfurt; the static site is global.
@@ -30,6 +30,12 @@ The external `topmed-demo-embed-marwen` static site proves that `widget.js` and 
 5. Wait for the backend startup command to migrate PostgreSQL, create the administrator, import the canonical corpus, generate embeddings, activate the initial KB, verify readiness, and then start FastAPI.
 
 The pre-deploy bootstrap is idempotent. It activates the English baseline when migrating from the retired dataset language, then preserves later governed English knowledge, prompt, and settings versions.
+
+### Replacing an expired free database
+
+The original `topmed-demo-db-marwen` free instance expired in September 2026. The Blueprint now provisions `topmed-demo-db-marwen-20260928` and binds the API's `DATABASE_URL` to it. The API startup runs the idempotent production bootstrap: Alembic migrations, administrator creation, import and embedding of the versioned English corpus, activation, and readiness validation. This reconstructs the fictional baseline; it does not restore historical conversations, review decisions, or audit records from the expired instance.
+
+Free databases expire after 30 days. On the next expiration, change both the database name and `fromDatabase.name` in `render.yaml`, sync the Blueprint, and verify `/ready` and a cited answer before considering the replacement complete. The prior resource can be removed from Render after the new service is verified.
 
 ## Runtime configuration
 
